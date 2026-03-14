@@ -1,153 +1,161 @@
 <!DOCTYPE html>
 <html lang="fr">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cellcosmos</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css" />
-</head>
-<body>
-  <header class="topbar">
-    <div>
-      <p class="eyebrow">multilingual -> wasm</p>
-      <h1>Cellcosmos</h1>
-    </div>
-    <nav class="tab-nav">
-      <button type="button" class="tab active" id="tab-explorer">Explorateur</button>
-      <button type="button" class="tab" id="tab-gallery">Galerie</button>
-      <button type="button" class="tab" id="tab-source">Sources</button>
-    </nav>
-  </header>
 
-  <main>
-    <section class="hero">
-      <p>Cellcosmos est un explorateur d'automates cellulaires elementaires compile en WASM depuis des sources multilingual francaises.</p>
-      <p class="hero-note">Le navigateur essaie d'utiliser `cellcosmos.wasm` pour accelerer le calcul, avec repli automatique sur JavaScript si besoin.</p>
-      <p id="wasm-status" class="hero-note">Verification du moteur WASM...</p>
-    </section>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cellcosmos</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
 
-    <section id="explorer-panel" class="panel-grid">
-      <div class="viewer-shell">
-        <div class="rule-bar">
-          <span class="rule-label">Regle</span>
-          <span id="rule-display" class="rule-number">90</span>
-          <input type="range" id="rule-slider" min="0" max="255" value="90" aria-label="Regle" />
-          <input type="number" id="rule-number" min="0" max="255" value="90" aria-label="Numero de regle" />
-          <button type="button" class="ghost-btn" id="btn-prev">‹</button>
-          <button type="button" class="ghost-btn" id="btn-next">›</button>
-          <button type="button" class="ghost-btn" id="btn-random">Aleatoire</button>
-          <select id="presets" aria-label="Presets">
-            <option value="">Presets...</option>
-          </select>
-          <span id="rule-class" class="rule-class"></span>
-        </div>
-
-        <div id="rule-diagram" class="rule-diagram"></div>
-
-        <div class="canvas-card">
-          <canvas id="main-canvas" width="1200" height="720" aria-label="Automate cellulaire"></canvas>
-        </div>
-
-        <div class="actions">
-          <button type="button" id="btn-download">Telecharger PNG</button>
-          <button type="button" id="btn-share" class="accent-btn">Copier le lien</button>
-          <button type="button" id="btn-reset">Reinitialiser</button>
-        </div>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">multilingual -> wasm</p>
+        <h1>Cellcosmos</h1>
       </div>
+      <nav class="tab-nav">
+        <button type="button" class="tab active" id="tab-explorer">Explorateur</button>
+        <button type="button" class="tab" id="tab-gallery">Galerie</button>
+        <button type="button" class="tab" id="tab-source">Sources</button>
+      </nav>
+    </header>
 
-      <aside class="sidebar">
-        <div class="ctrl-section">
-          <p class="ctrl-title">Cellules</p>
-          <div class="ctrl-row">
-            <input type="range" id="cell-size" min="1" max="10" value="3" />
-            <span id="cell-size-display" class="value-badge">3</span>
-            <span class="muted">px</span>
+    <main>
+
+      <section id="explorer-panel" class="panel-grid">
+        <div class="viewer-shell">
+          <div class="rule-bar">
+            <span class="rule-label">Regle</span>
+            <span id="rule-display" class="rule-number">90</span>
+            <input type="range" id="rule-slider" min="0" max="255" value="90" aria-label="Regle" />
+            <input type="number" id="rule-number" min="0" max="255" value="90" aria-label="Numero de regle" />
+            <button type="button" class="ghost-btn" id="btn-prev">‹</button>
+            <button type="button" class="ghost-btn" id="btn-next">›</button>
+            <button type="button" class="ghost-btn" id="btn-random">Aleatoire</button>
+            <select id="presets" aria-label="Presets">
+              <option value="">Presets...</option>
+            </select>
+            <span id="rule-class" class="rule-class"></span>
+          </div>
+
+          <div id="rule-diagram" class="rule-diagram"></div>
+
+          <div class="canvas-card">
+            <canvas id="main-canvas" width="1200" height="720" aria-label="Automate cellulaire"></canvas>
+          </div>
+
+          <div class="actions">
+            <button type="button" id="btn-download">Telecharger PNG</button>
+            <button type="button" id="btn-share" class="accent-btn">Copier le lien</button>
+            <button type="button" id="btn-reset">Reinitialiser</button>
           </div>
         </div>
 
-        <div class="ctrl-section">
-          <p class="ctrl-title">Forme</p>
-          <div class="pill-group">
-            <label><input type="radio" name="shape" value="rect" checked /> Rectangle</label>
-            <label><input type="radio" name="shape" value="circle" /> Cercle</label>
-            <label><input type="radio" name="shape" value="ellipse" /> Ellipse</label>
-            <label><input type="radio" name="shape" value="triangle" /> Triangle</label>
+        <aside class="sidebar">
+          <div class="ctrl-section">
+            <p class="ctrl-title">Cellules</p>
+            <div class="ctrl-row">
+              <input aria-label="range" id="cell-size" min="1" max="10" value="3" />
+              <span id="cell-size-display" class="value-badge">3</span>
+              <span class="muted">px</span>
+            </div>
           </div>
+
+          <div class="ctrl-section">
+            <p class="ctrl-title">Forme</p>
+            <div class="pill-group">
+              <label><input type="radio" name="shape" value="rect" checked /> Rectangle</label>
+              <label><input type="radio" name="shape" value="circle" /> Cercle</label>
+              <label><input type="radio" name="shape" value="ellipse" /> Ellipse</label>
+              <label><input type="radio" name="shape" value="triangle" /> Triangle</label>
+            </div>
+          </div>
+
+          <div class="ctrl-section">
+            <p class="ctrl-title">Etat initial</p>
+            <div class="pill-group">
+              <label><input type="radio" name="init-mode" value="center" checked /> Centre</label>
+              <label><input type="radio" name="init-mode" value="random" /> Aleatoire</label>
+            </div>
+            <div id="random-opts" class="stack" hidden>
+              <label>Nombre <input type="number" id="init-count" min="1" max="500" value="5" /></label>
+              <label>Graine <input type="number" id="init-seed" value="42" /></label>
+            </div>
+          </div>
+
+          <div class="ctrl-section">
+            <p class="ctrl-title">Couleurs</p>
+            <div class="ctrl-row">
+              <label for="bg-color" class="muted">Fond</label>
+              <input type="color" id="bg-color" value="#08111f" />
+            </div>
+            <div class="stack">
+              <span class="muted">Etapes du degrade</span>
+              <div id="gradient-colors" class="stack compact"></div>
+              <button type="button" id="btn-add-color" class="ghost-btn">+ Ajouter</button>
+            </div>
+          </div>
+
+          <div class="ctrl-section">
+            <p class="ctrl-title">Avance</p>
+            <label class="checkbox-row"><input type="checkbox" id="circular" /> Frontiere circulaire</label>
+            <div class="ctrl-row">
+              <label for="probability" class="muted">Probabilite</label>
+              <input type="range" id="probability" min="0" max="1" step="0.01" value="1" />
+              <span id="prob-display" class="value-badge">1.00</span>
+            </div>
+            <div class="pill-group">
+              <label><input type="radio" name="direction" value="ltr" checked /> LTR</label>
+              <label><input type="radio" name="direction" value="rtl" /> RTL</label>
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <section id="gallery-panel" class="gallery-panel" hidden>
+        <div class="gallery-header">
+          <p>Les 256 regles sont rendues cote navigateur avec acceleration WASM quand elle est valide, sinon via le
+            moteur JavaScript integre.</p>
         </div>
+        <div id="gallery-grid" class="gallery-grid"></div>
+      </section>
 
-        <div class="ctrl-section">
-          <p class="ctrl-title">Etat initial</p>
-          <div class="pill-group">
-            <label><input type="radio" name="init-mode" value="center" checked /> Centre</label>
-            <label><input type="radio" name="init-mode" value="random" /> Aleatoire</label>
-          </div>
-          <div id="random-opts" class="stack" hidden>
-            <label>Nombre <input type="number" id="init-count" min="1" max="500" value="5" /></label>
-            <label>Graine <input type="number" id="init-seed" value="42" /></label>
-          </div>
+      <section id="source-panel" class="source-panel" hidden>
+        <div class="source-header">
+          <h2>Sources canoniques</h2>
+          <p>Ces fichiers sont copies dans `public/` lors de la compilation WASM.</p>
         </div>
-
-        <div class="ctrl-section">
-          <p class="ctrl-title">Couleurs</p>
-          <div class="ctrl-row">
-            <label for="bg-color" class="muted">Fond</label>
-            <input type="color" id="bg-color" value="#08111f" />
-          </div>
-          <div class="stack">
-            <span class="muted">Etapes du degrade</span>
-            <div id="gradient-colors" class="stack compact"></div>
-            <button type="button" id="btn-add-color" class="ghost-btn">+ Ajouter</button>
-          </div>
+        <div class="source-grid">
+          <article class="source-card">
+            <h3><a href="main.ml">main.ml</a></h3>
+            <p>Point d'entree bundle.</p>
+          </article>
+          <article class="source-card">
+            <h3><a href="automate_elementaire_canonique.ml">automate_elementaire_canonique.ml</a></h3>
+            <p>Source canonique complete: config, couches, semis, probabilite et evolution.</p>
+          </article>
+          <article class="source-card">
+            <h3><a href="automate_elementaire_wasm.ml">automate_elementaire_wasm.ml</a></h3>
+            <p>Module WASM-compatible minimal utilise par l'interface statique.</p>
+          </article>
         </div>
+      </section>
+      <section class="hero">
+        <p>Cellcosmos est un explorateur d'automates cellulaires elementaires compile en WASM depuis des sources
+          multilingual francaises.</p>
+        <p class="hero-note">Le navigateur essaie d'utiliser `cellcosmos.wasm` pour accelerer le calcul, avec repli
+          automatique sur JavaScript si besoin.</p>
+        <p id="wasm-status" class="hero-note">Verification du moteur WASM...</p>
+      </section>
+    </main>
 
-        <div class="ctrl-section">
-          <p class="ctrl-title">Avance</p>
-          <label class="checkbox-row"><input type="checkbox" id="circular" /> Frontiere circulaire</label>
-          <div class="ctrl-row">
-            <label for="probability" class="muted">Probabilite</label>
-            <input type="range" id="probability" min="0" max="1" step="0.01" value="1" />
-            <span id="prob-display" class="value-badge">1.00</span>
-          </div>
-          <div class="pill-group">
-            <label><input type="radio" name="direction" value="ltr" checked /> LTR</label>
-            <label><input type="radio" name="direction" value="rtl" /> RTL</label>
-          </div>
-        </div>
-      </aside>
-    </section>
+    <script type="module" src="ui.js"></script>
+  </body>
 
-    <section id="gallery-panel" class="gallery-panel" hidden>
-      <div class="gallery-header">
-        <p>Les 256 regles sont rendues cote navigateur avec acceleration WASM quand elle est valide, sinon via le moteur JavaScript integre.</p>
-      </div>
-      <div id="gallery-grid" class="gallery-grid"></div>
-    </section>
-
-    <section id="source-panel" class="source-panel" hidden>
-      <div class="source-header">
-        <h2>Sources canoniques</h2>
-        <p>Ces fichiers sont copies dans `public/` lors de la compilation WASM.</p>
-      </div>
-      <div class="source-grid">
-        <article class="source-card">
-          <h3><a href="main.ml">main.ml</a></h3>
-          <p>Point d'entree bundle.</p>
-        </article>
-        <article class="source-card">
-          <h3><a href="automate_elementaire_canonique.ml">automate_elementaire_canonique.ml</a></h3>
-          <p>Source canonique complete: config, couches, semis, probabilite et evolution.</p>
-        </article>
-        <article class="source-card">
-          <h3><a href="automate_elementaire_wasm.ml">automate_elementaire_wasm.ml</a></h3>
-          <p>Module WASM-compatible minimal utilise par l'interface statique.</p>
-        </article>
-      </div>
-    </section>
-  </main>
-
-  <script type="module" src="ui.js"></script>
-</body>
 </html>
