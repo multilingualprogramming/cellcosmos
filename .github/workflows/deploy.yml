@@ -107,6 +107,32 @@ jobs:
               console.error('Exports manquants:', missing.join(', '));
               process.exit(1);
             }
+            const transitionChecks = [
+              [90, 1, 0, 1, 0],
+              [90, 1, 0, 0, 1],
+              [30, 1, 1, 1, 0],
+              [30, 0, 1, 0, 1],
+            ];
+            for (const [rule, left, center, right, expected] of transitionChecks) {
+              const actual = Number(exports.cellule_suivante(rule, left, center, right));
+              if (actual !== expected) {
+                console.error('Transition WASM invalide:', { rule, left, center, right, expected, actual });
+                process.exit(1);
+              }
+            }
+            const classChecks = [
+              [30, 3],
+              [110, 4],
+              [255, 1],
+              [73, 2],
+            ];
+            for (const [rule, expected] of classChecks) {
+              const actual = Number(exports.classe_wolfram(rule));
+              if (actual !== expected) {
+                console.error('Classification WASM invalide:', { rule, expected, actual });
+                process.exit(1);
+              }
+            }
             console.log('WASM smoke test OK');
           }).catch((err) => {
             console.error(err);

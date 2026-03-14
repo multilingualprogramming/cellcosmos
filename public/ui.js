@@ -98,13 +98,16 @@ async function loadWasm() {
     const module = await WebAssembly.compile(bytes);
     const importObject = buildWasmImportObject(module);
     const instance = await WebAssembly.instantiate(module, importObject);
+    if (!validateWasmExports(instance.exports)) {
+      throw new Error("Exports WASM incompatibles avec l'interface Cellcosmos.");
+    }
     wasm = instance.exports;
     wasmAvailable = true;
     status.textContent = "Moteur WASM charge depuis les sources multilingual.";
   } catch (error) {
     wasm = null;
     wasmAvailable = false;
-    status.textContent = "Chargement WASM impossible dans cet environnement.";
+    status.textContent = "WASM incompatible ici, repli sur le moteur JavaScript.";
     console.error(error);
   }
 }
@@ -133,6 +136,43 @@ function buildWasmImportObject(module) {
   }
 
   return importObject;
+}
+
+function validateWasmExports(exports) {
+  if (!exports || typeof exports.cellule_suivante !== "function" || typeof exports.classe_wolfram !== "function") {
+    return false;
+  }
+
+  try {
+    const transitionChecks = [
+      [90, 1, 0, 1, 0],
+      [90, 1, 0, 0, 1],
+      [30, 1, 1, 1, 0],
+      [30, 0, 1, 0, 1],
+    ];
+    for (const [rule, left, center, right, expected] of transitionChecks) {
+      if (Number(exports.cellule_suivante(rule, left, center, right)) !== expected) {
+        return false;
+      }
+    }
+
+    const classChecks = [
+      [30, 3],
+      [110, 4],
+      [255, 1],
+      [73, 2],
+    ];
+    for (const [rule, expected] of classChecks) {
+      if (Number(exports.classe_wolfram(rule)) !== expected) {
+        return false;
+      }
+    }
+  } catch (error) {
+    console.error(error);
+    return false;
+  }
+
+  return true;
 }
 
 function transition(ruleNumber, left, center, right) {
