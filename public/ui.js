@@ -94,7 +94,13 @@ async function loadWasm() {
   const status = document.getElementById("wasm-status");
   try {
     const response = await fetch("cellcosmos.wasm");
+    if (!response.ok) {
+      throw new Error(`Fichier WASM indisponible (${response.status}).`);
+    }
     const bytes = await response.arrayBuffer();
+    if (bytes.byteLength < 8) {
+      throw new Error("Fichier WASM vide ou incomplet.");
+    }
     const module = await WebAssembly.compile(bytes);
     const importObject = buildWasmImportObject(module);
     const instance = await WebAssembly.instantiate(module, importObject);
