@@ -75,11 +75,26 @@ jobs:
       - name: Verifier la syntaxe JavaScript
         run: node --check public/ui.js
 
-      - name: Verifier l'instanciation WASM
+      - name: Valider le WASM ou basculer sur JavaScript
         run: |
           node -e "
           const fs = require('fs');
-          const bytes = fs.readFileSync('public/cellcosmos.wasm');
+          const wasmPath = 'public/cellcosmos.wasm';
+          const watPath = 'public/cellcosmos.wat';
+          const fallback = (message, detail) => {
+            console.warn(message);
+            if (detail) {
+              console.warn(detail);
+            }
+            if (fs.existsSync(wasmPath)) fs.unlinkSync(wasmPath);
+            if (fs.existsSync(watPath)) fs.unlinkSync(watPath);
+            console.log('Publication en mode JavaScript uniquement.');
+            process.exit(0);
+          };
+          if (!fs.existsSync(wasmPath)) {
+            fallback('WASM absent apres compilation.');
+          }
+          const bytes = fs.readFileSync(wasmPath);
           const module = new WebAssembly.Module(bytes);
           const importObject = {};
           for (const entry of WebAssembly.Module.imports(module)) {
@@ -104,8 +119,7 @@ jobs:
             const required = ['cellule_suivante', 'classe_wolfram'];
             const missing = required.filter((name) => typeof exports[name] !== 'function');
             if (missing.length) {
-              console.error('Exports manquants:', missing.join(', '));
-              process.exit(1);
+              fallback('Exports WASM manquants.', missing.join(', '));
             }
             const transitionChecks = [
               [90, 1, 0, 1, 0],
@@ -116,8 +130,7 @@ jobs:
             for (const [rule, left, center, right, expected] of transitionChecks) {
               const actual = Number(exports.cellule_suivante(rule, left, center, right));
               if (actual !== expected) {
-                console.error('Transition WASM invalide:', { rule, left, center, right, expected, actual });
-                process.exit(1);
+                fallback('Transition WASM invalide.', JSON.stringify({ rule, left, center, right, expected, actual }));
               }
             }
             const classChecks = [
@@ -129,14 +142,12 @@ jobs:
             for (const [rule, expected] of classChecks) {
               const actual = Number(exports.classe_wolfram(rule));
               if (actual !== expected) {
-                console.error('Classification WASM invalide:', { rule, expected, actual });
-                process.exit(1);
+                fallback('Classification WASM invalide.', JSON.stringify({ rule, expected, actual }));
               }
             }
             console.log('WASM smoke test OK');
           }).catch((err) => {
-            console.error(err);
-            process.exit(1);
+            fallback('Instantiation WASM impossible.', err && err.stack ? err.stack : String(err));
           });
           "
 

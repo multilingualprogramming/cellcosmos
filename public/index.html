@@ -25,8 +25,8 @@
   <main>
     <section class="hero">
       <p>Cellcosmos est un explorateur d'automates cellulaires elementaires compile en WASM depuis des sources multilingual francaises.</p>
-      <p class="hero-note">Le navigateur charge `cellcosmos.wasm`, puis utilise l'export `cellule_suivante` pour calculer les 256 regles elementaires.</p>
-      <p id="wasm-status" class="hero-note">Chargement du moteur WASM...</p>
+      <p class="hero-note">Le navigateur essaie d'utiliser `cellcosmos.wasm` pour accelerer le calcul, avec repli automatique sur JavaScript si besoin.</p>
+      <p id="wasm-status" class="hero-note">Verification du moteur WASM...</p>
     </section>
 
     <section id="explorer-panel" class="panel-grid">
@@ -121,7 +121,7 @@
 
     <section id="gallery-panel" class="gallery-panel" hidden>
       <div class="gallery-header">
-        <p>Les 256 regles sont rendues cote navigateur a partir du moteur WASM compile depuis les sources `.ml`.</p>
+        <p>Les 256 regles sont rendues cote navigateur avec acceleration WASM quand elle est valide, sinon via le moteur JavaScript integre.</p>
       </div>
       <div id="gallery-grid" class="gallery-grid"></div>
     </section>
