@@ -1,2 +1,1 @@
-importer automate_elementaire
-
+importer automate_elementaire_wasm

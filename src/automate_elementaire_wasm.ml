@@ -1,15 +1,15 @@
 importer math
 
 
-# Export WASM principal : calcule l'etat suivant d'une cellule
-# a partir du triplet voisinage et du numero de regle [0, 255].
+# Module WASM-compatible minimal, utilise par le site statique.
+# Il expose uniquement des primitives numeriques simples que le
+# frontend combine ensuite pour rendre les automates.
+
 déf cellule_suivante(numero_regle, gauche, centre, droite):
     soit indice = gauche * 4 + centre * 2 + droite
     retour (numero_regle // (2 ** indice)) % 2
 
 
-# Helper numerique expose au runtime web pour conserver
-# une petite partie de la logique canonique cote source multilingual.
 déf classe_wolfram(numero_regle):
     si numero_regle dans [0, 8, 32, 40, 64, 72, 96, 104, 128, 136, 160, 168, 192, 200, 224, 232, 248, 255]:
         retour 1
@@ -20,12 +20,17 @@ déf classe_wolfram(numero_regle):
     retour 2
 
 
-déf nom_forme(code_forme):
-    si code_forme == 0:
-        retour 0
-    si code_forme == 1:
-        retour 1
-    si code_forme == 2:
-        retour 2
-    retour 3
+déf forme_code_rect():
+    retour 0
 
+
+déf forme_code_circle():
+    retour 1
+
+
+déf forme_code_ellipse():
+    retour 2
+
+
+déf forme_code_triangle():
+    retour 3

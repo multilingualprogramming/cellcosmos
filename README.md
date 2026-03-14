@@ -14,7 +14,9 @@ L'application permet d'explorer les 256 regles elementaires, de modifier leur re
 
 ### Structure
 
-- `src/`: sources canoniques en francais
+- `src/automate_elementaire_canonique.ml`: source canonique complete de l'automate
+- `src/automate_elementaire_wasm.ml`: sous-ensemble WASM-compatible pour le site
+- `src/main.ml`: point d'entree du bundle WASM
 - `scripts/compile_wasm.ml`: pipeline de build en source multilingual
 - `public/`: site statique deploye sur GitHub Pages
 
@@ -30,11 +32,19 @@ Le build genere :
 - `public/cellcosmos.wasm`
 - `public/cellcosmos.wat`
 - `public/main.ml`
-- `public/automate_elementaire.ml`
+- `public/automate_elementaire_canonique.ml`
+- `public/automate_elementaire_wasm.ml`
 
 ### Deployment
 
 Le workflow [deploy.yml](/c:/Users/john.samuel/Documents/Research/Workspace/cellcosmos/.github/workflows/deploy.yml) compile le source francais vers WASM, verifie les exports attendus, puis deploye `public/` sur GitHub Pages.
+
+### Architecture
+
+Le projet distingue maintenant deux niveaux :
+
+- la source canonique, qui capture l'objectif complet du projet original : lecture de configuration, generation par lots, semis multicouches, couleurs, formes et evolution probabiliste
+- le module WASM-compatible, plus compact, utilise par l'interface statique pour calculer rapidement les transitions dans le navigateur
 
 ### Note sur les fichiers Python
 

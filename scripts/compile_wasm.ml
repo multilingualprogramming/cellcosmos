@@ -6,7 +6,8 @@ depuis pathlib importer Path
 
 soit RACINE = Path(__file__).parent.parent
 soit SOURCE_ML = RACINE / "src" / "main.ml"
-soit MODULE_ML = RACINE / "src" / "automate_elementaire.ml"
+soit MODULE_WASM_ML = RACINE / "src" / "automate_elementaire_wasm.ml"
+soit MODULE_CANONIQUE_ML = RACINE / "src" / "automate_elementaire_canonique.ml"
 soit DOSSIER_PUBLIC = RACINE / "public"
 soit SORTIE_WAT = DOSSIER_PUBLIC / "cellcosmos.wat"
 soit SORTIE_WASM = DOSSIER_PUBLIC / "cellcosmos.wasm"
@@ -41,15 +42,15 @@ déf generer_wat_et_wasm(source):
     soit programme = charger_programme(source)
     soit texte_wat = WATCodeGenerator().generate(programme)
     soit octets_wasm = wasmtime.wat2wasm(texte_wat)
-    retour texte_wat, octets_wasm
+    retour [texte_wat, octets_wasm]
 
 
 déf construire_bundle():
     soit source_main = SOURCE_ML.read_text(encoding="utf-8")
-    soit source_module = MODULE_ML.read_text(encoding="utf-8")
+    soit source_module = MODULE_WASM_ML.read_text(encoding="utf-8")
     soit lignes = []
     pour ligne dans source_main.splitlines():
-        si ligne.strip().startswith("importer automate_elementaire"):
+        si ligne.strip().startswith("importer automate_elementaire_wasm"):
             continuer
         lignes.append(ligne)
     soit bundle = ["# Bundle WASM genere automatiquement", source_module.strip(), "", "\n".join(lignes).strip(), ""]
@@ -62,11 +63,14 @@ déf main():
 
     DOSSIER_PUBLIC.mkdir(parents=Vrai, exist_ok=Vrai)
     soit source = construire_bundle()
-    soit texte_wat, octets_wasm = generer_wat_et_wasm(source)
+    soit artefacts = generer_wat_et_wasm(source)
+    soit texte_wat = artefacts[0]
+    soit octets_wasm = artefacts[1]
     SORTIE_WAT.write_text(texte_wat, encoding="utf-8")
     SORTIE_WASM.write_bytes(octets_wasm)
 
     shutil.copy(SOURCE_ML, DOSSIER_PUBLIC / "main.ml")
-    shutil.copy(MODULE_ML, DOSSIER_PUBLIC / "automate_elementaire.ml")
+    shutil.copy(MODULE_WASM_ML, DOSSIER_PUBLIC / "automate_elementaire_wasm.ml")
+    shutil.copy(MODULE_CANONIQUE_ML, DOSSIER_PUBLIC / "automate_elementaire_canonique.ml")
     afficher(f"WAT ecrit: {SORTIE_WAT.relative_to(RACINE)}")
     afficher(f"WASM ecrit: {SORTIE_WASM.relative_to(RACINE)}")
