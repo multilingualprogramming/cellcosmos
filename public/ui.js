@@ -34,6 +34,7 @@ const RULE_NOTES = {
 
 let state = structuredClone(DEFAULTS);
 let wasm = null;
+let wasmAvailable = false;
 let galleryKey = "";
 
 function clamp(value, min, max) {
@@ -98,8 +99,11 @@ async function loadWasm() {
     const importObject = buildWasmImportObject(module);
     const instance = await WebAssembly.instantiate(module, importObject);
     wasm = instance.exports;
+    wasmAvailable = true;
     status.textContent = "Moteur WASM charge depuis les sources multilingual.";
   } catch (error) {
+    wasm = null;
+    wasmAvailable = false;
     status.textContent = "Chargement WASM impossible dans cet environnement.";
     console.error(error);
   }
@@ -132,21 +136,39 @@ function buildWasmImportObject(module) {
 }
 
 function transition(ruleNumber, left, center, right) {
-  if (wasm && typeof wasm.cellule_suivante === "function") {
-    return Number(wasm.cellule_suivante(ruleNumber, left, center, right));
+  if (wasmAvailable && wasm && typeof wasm.cellule_suivante === "function") {
+    try {
+      return Number(wasm.cellule_suivante(ruleNumber, left, center, right));
+    } catch (error) {
+      disableWasmRuntime(error);
+    }
   }
   const index = left * 4 + center * 2 + right;
   return Math.floor(ruleNumber / (2 ** index)) % 2;
 }
 
 function wolframClass(ruleNumber) {
-  if (wasm && typeof wasm.classe_wolfram === "function") {
-    return Number(wasm.classe_wolfram(ruleNumber));
+  if (wasmAvailable && wasm && typeof wasm.classe_wolfram === "function") {
+    try {
+      return Number(wasm.classe_wolfram(ruleNumber));
+    } catch (error) {
+      disableWasmRuntime(error);
+    }
   }
   if ([0, 8, 32, 40, 64, 72, 96, 104, 128, 136, 160, 168, 192, 200, 224, 232, 248, 255].includes(ruleNumber)) return 1;
   if ([18, 22, 30, 45, 60, 90, 105, 122, 126, 150].includes(ruleNumber)) return 3;
   if ([54, 106, 110, 137, 193].includes(ruleNumber)) return 4;
   return 2;
+}
+
+function disableWasmRuntime(error) {
+  wasm = null;
+  wasmAvailable = false;
+  const status = document.getElementById("wasm-status");
+  if (status) {
+    status.textContent = "Runtime WASM indisponible, repli sur le moteur JavaScript.";
+  }
+  console.error(error);
 }
 
 function applyInitialState(grid, cols, rows) {
