@@ -99,7 +99,7 @@ jobs:
           if (!importObject.env) {
             importObject.env = {};
           }
-          WebAssembly.instantiate(module, importObject).then(({ instance }) => {
+          WebAssembly.instantiate(module, importObject).then((instance) => {
             const exports = instance.exports;
             const required = ['cellule_suivante', 'classe_wolfram'];
             const missing = required.filter((name) => typeof exports[name] !== 'function');

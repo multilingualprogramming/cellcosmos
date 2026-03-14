@@ -96,7 +96,7 @@ async function loadWasm() {
     const bytes = await response.arrayBuffer();
     const module = await WebAssembly.compile(bytes);
     const importObject = buildWasmImportObject(module);
-    const { instance } = await WebAssembly.instantiate(module, importObject);
+    const instance = await WebAssembly.instantiate(module, importObject);
     wasm = instance.exports;
     status.textContent = "Moteur WASM charge depuis les sources multilingual.";
   } catch (error) {
