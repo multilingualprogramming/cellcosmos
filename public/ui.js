@@ -94,13 +94,41 @@ async function loadWasm() {
   try {
     const response = await fetch("cellcosmos.wasm");
     const bytes = await response.arrayBuffer();
-    const { instance } = await WebAssembly.instantiate(bytes, {});
+    const module = await WebAssembly.compile(bytes);
+    const importObject = buildWasmImportObject(module);
+    const { instance } = await WebAssembly.instantiate(module, importObject);
     wasm = instance.exports;
     status.textContent = "Moteur WASM charge depuis les sources multilingual.";
   } catch (error) {
     status.textContent = "Chargement WASM impossible dans cet environnement.";
     console.error(error);
   }
+}
+
+function buildWasmImportObject(module) {
+  const importObject = {};
+
+  for (const entry of WebAssembly.Module.imports(module)) {
+    if (!importObject[entry.module]) {
+      importObject[entry.module] = {};
+    }
+
+    if (entry.kind === "function") {
+      importObject[entry.module][entry.name] = () => 0;
+    } else if (entry.kind === "memory") {
+      importObject[entry.module][entry.name] = new WebAssembly.Memory({ initial: 16 });
+    } else if (entry.kind === "table") {
+      importObject[entry.module][entry.name] = new WebAssembly.Table({ initial: 0, element: "anyfunc" });
+    } else if (entry.kind === "global") {
+      importObject[entry.module][entry.name] = new WebAssembly.Global({ value: "i32", mutable: true }, 0);
+    }
+  }
+
+  if (!importObject.env) {
+    importObject.env = {};
+  }
+
+  return importObject;
 }
 
 function transition(ruleNumber, left, center, right) {

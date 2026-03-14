@@ -80,7 +80,26 @@ jobs:
           node -e "
           const fs = require('fs');
           const bytes = fs.readFileSync('public/cellcosmos.wasm');
-          WebAssembly.instantiate(bytes, {}).then(({ instance }) => {
+          const module = new WebAssembly.Module(bytes);
+          const importObject = {};
+          for (const entry of WebAssembly.Module.imports(module)) {
+            if (!importObject[entry.module]) {
+              importObject[entry.module] = {};
+            }
+            if (entry.kind === 'function') {
+              importObject[entry.module][entry.name] = () => 0;
+            } else if (entry.kind === 'memory') {
+              importObject[entry.module][entry.name] = new WebAssembly.Memory({ initial: 16 });
+            } else if (entry.kind === 'table') {
+              importObject[entry.module][entry.name] = new WebAssembly.Table({ initial: 0, element: 'anyfunc' });
+            } else if (entry.kind === 'global') {
+              importObject[entry.module][entry.name] = new WebAssembly.Global({ value: 'i32', mutable: true }, 0);
+            }
+          }
+          if (!importObject.env) {
+            importObject.env = {};
+          }
+          WebAssembly.instantiate(module, importObject).then(({ instance }) => {
             const exports = instance.exports;
             const required = ['cellule_suivante', 'classe_wolfram'];
             const missing = required.filter((name) => typeof exports[name] !== 'function');
