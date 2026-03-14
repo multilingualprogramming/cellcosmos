@@ -48,13 +48,14 @@ déf generer_wat_et_wasm(source):
 déf construire_bundle():
     soit source_main = SOURCE_ML.read_text(encoding="utf-8")
     soit source_module = MODULE_WASM_ML.read_text(encoding="utf-8")
+    soit saut_ligne = chr(10)
     soit lignes = []
     pour ligne dans source_main.splitlines():
         si ligne.strip().startswith("importer automate_elementaire_wasm"):
             continuer
         lignes.append(ligne)
-    soit bundle = ["# Bundle WASM genere automatiquement", source_module.strip(), "", "\n".join(lignes).strip(), ""]
-    retour "\n".join(bundle).strip() + "\n"
+    soit bundle = ["# Bundle WASM genere automatiquement", source_module.strip(), "", saut_ligne.join(lignes).strip(), ""]
+    retour saut_ligne.join(bundle).strip() + saut_ligne
 
 
 déf main():
