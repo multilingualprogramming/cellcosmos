@@ -23,8 +23,15 @@ L'application permet d'explorer les 256 regles elementaires, de modifier leur re
 ### Build local
 
 ```bash
-python -m pip install "multilingualprogramming[wasm]"
-python -c "from multilingualprogramming import ProgramExecutor; from multilingualprogramming.codegen.runtime_builtins import RuntimeBuiltins; from pathlib import Path; script=Path('scripts/compile_wasm.ml'); code=ProgramExecutor(language='fr').transpile(script.read_text(encoding='utf-8')); ns=RuntimeBuiltins('fr').namespace(); ns.update({'__name__':'__compile_wasm_ml__','__file__':str(script)}); exec(code, ns); ns['main']()"
+python -m pip install -r requirements-build.txt
+python scripts/compile_wasm.py
+```
+
+Pour tester explicitement une copie locale du depot `multilingual` au lieu de la version epinglee :
+
+```powershell
+$env:MULTILINGUAL_DEV_PATH="..\multilingual"
+python scripts/compile_wasm.py
 ```
 
 Le build genere :
@@ -37,7 +44,9 @@ Le build genere :
 
 ### Deployment
 
-Le workflow [deploy.yml](/c:/Users/john.samuel/Documents/Research/Workspace/cellcosmos/.github/workflows/deploy.yml) compile le source francais vers WASM, verifie les exports attendus, puis deploye `public/` sur GitHub Pages.
+Le workflow [deploy.yml](/c:/Users/john.samuel/Documents/Research/Workspace/cellcosmos/.github/workflows/deploy.yml) compile le source francais vers WASM avec la version epinglee dans `requirements-build.txt`, verifie les exports attendus, puis deploye `public/` sur GitHub Pages.
+
+Un workflow planifie surveille aussi la compatibilite avec la version epinglee, la derniere version publiee et la branche `main` du depot amont `johnsamuelwrites/multilingual`.
 
 ### Architecture
 

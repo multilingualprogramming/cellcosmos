@@ -1,0 +1,165 @@
+name: Surveiller la compatibilite multilingual
+
+on:
+  schedule:
+    - cron: "35 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  compat:
+    name: Compatibilite multilingual (${{ matrix.channel.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        channel:
+          - name: pinned
+            install_command: python -m pip install -r requirements-build.txt
+          - name: latest
+            install_command: python -m pip install "multilingualprogramming[wasm]"
+          - name: upstream-main
+            install_command: python -m pip install "multilingualprogramming[wasm] @ git+https://github.com/johnsamuelwrites/multilingual.git@main"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurer Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Configurer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Installer les dependances de build
+        run: |
+          python -m pip install --upgrade pip
+          ${{ matrix.channel.install_command }}
+
+      - name: Capturer la version multilingual
+        env:
+          CHANNEL_NAME: ${{ matrix.channel.name }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import pathlib
+          import subprocess
+
+          data = {
+              "channel": os.environ["CHANNEL_NAME"],
+              "pip_freeze": subprocess.check_output(["python", "-m", "pip", "freeze"], text=True).splitlines(),
+          }
+          try:
+              from multilingualprogramming.version import __version__
+              data["multilingual_version"] = __version__
+          except Exception as exc:
+              data["multilingual_version_error"] = str(exc)
+
+          out = pathlib.Path("build")
+          out.mkdir(exist_ok=True)
+          path = out / f"multilingual-metadata-{os.environ['CHANNEL_NAME']}.json"
+          path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+          print(path.read_text(encoding="utf-8"))
+          PY
+
+      - name: Compiler le source francais vers WebAssembly
+        run: python scripts/compile_wasm.py
+
+      - name: Verifier la syntaxe JavaScript
+        run: node --check public/ui.js
+
+      - name: Valider le WASM
+        run: |
+          node -e "
+          const fs = require('fs');
+          const wasmPath = 'public/cellcosmos.wasm';
+          if (!fs.existsSync(wasmPath)) {
+            console.error('WASM absent apres compilation.');
+            process.exit(1);
+          }
+          const bytes = fs.readFileSync(wasmPath);
+          const module = new WebAssembly.Module(bytes);
+          const importObject = {};
+          for (const entry of WebAssembly.Module.imports(module)) {
+            if (!importObject[entry.module]) importObject[entry.module] = {};
+            if (entry.kind === 'function') importObject[entry.module][entry.name] = () => 0;
+            else if (entry.kind === 'memory') importObject[entry.module][entry.name] = new WebAssembly.Memory({ initial: 16 });
+            else if (entry.kind === 'table') importObject[entry.module][entry.name] = new WebAssembly.Table({ initial: 0, element: 'anyfunc' });
+            else if (entry.kind === 'global') importObject[entry.module][entry.name] = new WebAssembly.Global({ value: 'i32', mutable: true }, 0);
+          }
+          if (!importObject.env) importObject.env = {};
+          WebAssembly.instantiate(module, importObject).then((instance) => {
+            const exports = instance.exports;
+            const required = ['cellule_suivante', 'classe_wolfram'];
+            const missing = required.filter((name) => typeof exports[name] !== 'function');
+            if (missing.length) {
+              console.error('Exports WASM manquants:', missing.join(', '));
+              process.exit(1);
+            }
+            const transitionChecks = [[90, 1, 0, 1, 0], [90, 1, 0, 0, 1], [30, 1, 1, 1, 0], [30, 0, 1, 0, 1]];
+            for (const [rule, left, center, right, expected] of transitionChecks) {
+              const actual = Number(exports.cellule_suivante(rule, left, center, right));
+              if (actual !== expected) {
+                console.error('Transition WASM invalide:', JSON.stringify({ rule, left, center, right, expected, actual }));
+                process.exit(1);
+              }
+            }
+            const classChecks = [[30, 3], [110, 4], [255, 1], [73, 2]];
+            for (const [rule, expected] of classChecks) {
+              const actual = Number(exports.classe_wolfram(rule));
+              if (actual !== expected) {
+                console.error('Classification WASM invalide:', JSON.stringify({ rule, expected, actual }));
+                process.exit(1);
+              }
+            }
+            console.log('WASM smoke test OK');
+          }).catch((err) => {
+            console.error(err && err.stack ? err.stack : String(err));
+            process.exit(1);
+          });
+          "
+
+      - name: Upload metadata artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cellcosmos-multilingual-${{ matrix.channel.name }}
+          path: build/multilingual-metadata-${{ matrix.channel.name }}.json
+
+  notifier:
+    name: Ouvrir une alerte si la surveillance echoue
+    if: failure() && github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    needs: compat
+
+    steps:
+      - name: Creer ou reutiliser une issue de compatibilite
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = 'Alerte compatibilite: multilingual a casse Cellcosmos';
+            const { owner, repo } = context.repo;
+            const existing = await github.rest.issues.listForRepo({ owner, repo, state: 'open', per_page: 100 });
+            const match = existing.data.find((issue) => issue.title === title);
+            const body = [
+              'La surveillance planifiee de compatibilite avec `multilingual` a echoue.',
+              '',
+              `Workflow: ${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`,
+              `Date: ${new Date().toISOString()}`,
+              '',
+              'Verifier en priorite les jobs `latest` et `upstream-main`.',
+            ].join('\n');
+
+            if (match) {
+              await github.rest.issues.createComment({ owner, repo, issue_number: match.number, body });
+              return;
+            }
+
+            await github.rest.issues.create({ owner, repo, title, body, labels: ['bug'] });

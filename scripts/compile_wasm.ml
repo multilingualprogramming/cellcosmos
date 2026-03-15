@@ -1,5 +1,6 @@
 importer io
 importer importlib
+importer os
 importer shutil
 importer sys
 depuis pathlib importer Path
@@ -14,12 +15,17 @@ soit SORTIE_WASM = DOSSIER_PUBLIC / "cellcosmos.wasm"
 
 
 déf ajouter_depot_multilingual_au_chemin():
-    soit candidats = [RACINE.parent / "multilingual", Path.home() / "Documents" / "Research" / "Workspace" / "multilingual"]
-    pour candidat dans candidats:
-        si (candidat / "multilingualprogramming" / "__init__.py").exists():
-            si non (str(candidat) dans sys.path):
-                sys.path.insert(0, str(candidat))
-            retour
+    soit chemin_dev = os.environ.get("MULTILINGUAL_DEV_PATH", "").strip()
+    si non chemin_dev:
+        retour
+
+    soit candidat = Path(chemin_dev).expanduser()
+    si non candidat.is_absolute():
+        candidat = (RACINE / candidat).resolve()
+    si non (candidat / "multilingualprogramming" / "__init__.py").exists():
+        lever RuntimeError(f"MULTILINGUAL_DEV_PATH ne pointe pas vers un depot multilingual valide: {candidat}")
+    si non (str(candidat) dans sys.path):
+        sys.path.insert(0, str(candidat))
 
 
 déf charger_programme(source):
