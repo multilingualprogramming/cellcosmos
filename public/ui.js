@@ -13,23 +13,23 @@ const DEFAULTS = {
 };
 
 const PRESETS = [
-  { label: "Regle 30 - Chaos", rule: 30 },
-  { label: "Regle 57 - Asymetrie", rule: 57 },
-  { label: "Regle 90 - Sierpinski", rule: 90 },
-  { label: "Regle 110 - Universalite", rule: 110 },
-  { label: "Regle 150 - XOR", rule: 150 },
-  { label: "Regle 184 - Trafic", rule: 184 },
-  { label: "Regle 225 - Bandes", rule: 225 },
-  { label: "Regle 254 - Bordures", rule: 254 },
+  { label: "R\u00e8gle 30 - Chaos", rule: 30 },
+  { label: "R\u00e8gle 57 - Asym\u00e9trie", rule: 57 },
+  { label: "R\u00e8gle 90 - Sierpinski", rule: 90 },
+  { label: "R\u00e8gle 110 - Universalit\u00e9", rule: 110 },
+  { label: "R\u00e8gle 150 - XOR", rule: 150 },
+  { label: "R\u00e8gle 184 - Trafic", rule: 184 },
+  { label: "R\u00e8gle 225 - Bandes", rule: 225 },
+  { label: "R\u00e8gle 254 - Bordures", rule: 254 },
 ];
 
 const RULE_NOTES = {
-  30: "Chaos pseudo aleatoire",
+  30: "Chaos pseudo al\u00e9atoire",
   90: "Triangle de Sierpinski",
   110: "Turing-complete",
-  150: "XOR avec auto-reference",
-  184: "Modele de trafic",
-  254: "Frontieres seulement",
+  150: "XOR avec auto-r\u00e9f\u00e9rence",
+  184: "Mod\u00e8le de trafic",
+  254: "Fronti\u00e8res seulement",
 };
 
 let state = structuredClone(DEFAULTS);
@@ -109,7 +109,7 @@ async function loadWasm() {
     }
     wasm = instance.exports;
     wasmAvailable = true;
-    status.textContent = "Moteur WASM charge depuis les sources multilingual.";
+    status.textContent = "Moteur WASM charg\u00e9 depuis les sources multilingual.";
   } catch (error) {
     wasm = null;
     wasmAvailable = false;
@@ -443,7 +443,7 @@ function buildGallery() {
     renderToCanvas(canvas, rule, 50, 50, 2);
     const label = document.createElement("div");
     label.className = "gallery-label";
-    label.innerHTML = `<strong>Regle ${rule}</strong><span>${RULE_NOTES[rule] ?? `Classe ${wolframClass(rule)}`}</span>`;
+    label.innerHTML = `<strong>R\u00e8gle ${rule}</strong><span>${RULE_NOTES[rule] ?? `Classe ${wolframClass(rule)}`}</span>`;
     item.append(canvas, label);
     item.addEventListener("click", () => {
       state.rule = rule;
@@ -604,14 +604,14 @@ function bindControls() {
   document.getElementById("btn-download").addEventListener("click", () => {
     const link = document.createElement("a");
     link.href = document.getElementById("main-canvas").toDataURL("image/png");
-    link.download = `regle-${state.rule}.png`;
+    link.download = `r\u00e8gle-${state.rule}.png`;
     link.click();
   });
   document.getElementById("btn-share").addEventListener("click", async () => {
     const button = document.getElementById("btn-share");
     const original = button.textContent;
     await navigator.clipboard.writeText(buildShareURL());
-    button.textContent = "Lien copie";
+    button.textContent = "Lien copi\u00e9";
     setTimeout(() => {
       button.textContent = original;
     }, 1200);

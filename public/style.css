@@ -430,6 +430,28 @@ input[type="color"] {
   margin-top: 0;
 }
 
+.filename-pill {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.92rem;
+  color: var(--accent-2);
+  background: rgba(140, 71, 22, 0.28);
+  border: 1px solid rgba(255, 209, 102, 0.34);
+}
+
+.source-card-link h3 a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.source-card-link h3 a:hover,
+.source-card-link h3 a:focus-visible {
+  color: var(--accent-2);
+  text-decoration: underline;
+}
+
 [hidden] {
   display: none !important;
 }

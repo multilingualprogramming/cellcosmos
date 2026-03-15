@@ -31,13 +31,13 @@
       <section id="explorer-panel" class="panel-grid">
         <div class="viewer-shell">
           <div class="rule-bar">
-            <span class="rule-label">Regle</span>
+            <span class="rule-label">R&egrave;gle</span>
             <span id="rule-display" class="rule-number">90</span>
-            <input type="range" id="rule-slider" min="0" max="255" value="90" aria-label="Regle" />
-            <input type="number" id="rule-number" min="0" max="255" value="90" aria-label="Numero de regle" />
-            <button type="button" class="ghost-btn" id="btn-prev">‹</button>
-            <button type="button" class="ghost-btn" id="btn-next">›</button>
-            <button type="button" class="ghost-btn" id="btn-random">Aleatoire</button>
+            <input type="range" id="rule-slider" min="0" max="255" value="90" aria-label="R&egrave;gle" />
+            <input type="number" id="rule-number" min="0" max="255" value="90" aria-label="Num&eacute;ro de r&egrave;gle" />
+            <button type="button" class="ghost-btn" id="btn-prev">&lsaquo;</button>
+            <button type="button" class="ghost-btn" id="btn-next">&rsaquo;</button>
+            <button type="button" class="ghost-btn" id="btn-random">Al&eacute;atoire</button>
             <select id="presets" aria-label="Presets">
               <option value="">Presets...</option>
             </select>
@@ -51,9 +51,9 @@
           </div>
 
           <div class="actions">
-            <button type="button" id="btn-download">Telecharger PNG</button>
+            <button type="button" id="btn-download">T&eacute;l&eacute;charger PNG</button>
             <button type="button" id="btn-share" class="accent-btn">Copier le lien</button>
-            <button type="button" id="btn-reset">Reinitialiser</button>
+            <button type="button" id="btn-reset">R&eacute;initialiser</button>
           </div>
         </div>
 
@@ -78,10 +78,10 @@
           </div>
 
           <div class="ctrl-section">
-            <p class="ctrl-title">Etat initial</p>
+            <p class="ctrl-title">&Eacute;tat initial</p>
             <div class="pill-group">
               <label><input type="radio" name="init-mode" value="center" checked /> Centre</label>
-              <label><input type="radio" name="init-mode" value="random" /> Aleatoire</label>
+              <label><input type="radio" name="init-mode" value="random" /> Al&eacute;atoire</label>
             </div>
             <div id="random-opts" class="stack" hidden>
               <label>Nombre <input type="number" id="init-count" min="1" max="500" value="5" /></label>
@@ -96,17 +96,17 @@
               <input type="color" id="bg-color" value="#08111f" />
             </div>
             <div class="stack">
-              <span class="muted">Etapes du degrade</span>
+              <span class="muted">&Eacute;tapes du d&eacute;grad&eacute;</span>
               <div id="gradient-colors" class="stack compact"></div>
               <button type="button" id="btn-add-color" class="ghost-btn">+ Ajouter</button>
             </div>
           </div>
 
           <div class="ctrl-section">
-            <p class="ctrl-title">Avance</p>
-            <label class="checkbox-row"><input type="checkbox" id="circular" /> Frontiere circulaire</label>
+            <p class="ctrl-title">Avanc&eacute;</p>
+            <label class="checkbox-row"><input type="checkbox" id="circular" /> Fronti&egrave;re circulaire</label>
             <div class="ctrl-row">
-              <label for="probability" class="muted">Probabilite</label>
+              <label for="probability" class="muted">Probabilit&eacute;</label>
               <input type="range" id="probability" min="0" max="1" step="0.01" value="1" />
               <span id="prob-display" class="value-badge">1.00</span>
             </div>
@@ -120,8 +120,8 @@
 
       <section id="gallery-panel" class="gallery-panel" hidden>
         <div class="gallery-header">
-          <p>Les 256 regles sont rendues cote navigateur avec acceleration WASM quand elle est valide, sinon via le
-            moteur JavaScript integre.</p>
+          <p>Les 256 r&egrave;gles sont rendues c&ocirc;t&eacute; navigateur avec acc&eacute;l&eacute;ration WASM quand elle est valide, sinon via le
+            moteur JavaScript int&eacute;gr&eacute;.</p>
         </div>
         <div id="gallery-grid" class="gallery-grid"></div>
       </section>
@@ -129,29 +129,45 @@
       <section id="source-panel" class="source-panel" hidden>
         <div class="source-header">
           <h2>Sources canoniques</h2>
-          <p>Ces fichiers sont copies dans `public/` lors de la compilation WASM.</p>
+          <p>Ces fichiers sont copi&eacute;s dans `public/` lors de la compilation WASM. Le d&eacute;p&ocirc;t GitHub contient le code source complet.</p>
         </div>
         <div class="source-grid">
           <article class="source-card">
-            <h3><a href="main.ml">main.ml</a></h3>
-            <p>Point d'entree bundle.</p>
+            <h3><span class="filename-pill">main.ml</span></h3>
+            <p>Point d'entr&eacute;e bundle.</p>
           </article>
           <article class="source-card">
-            <h3><a href="automate_elementaire_canonique.ml">automate_elementaire_canonique.ml</a></h3>
-            <p>Source canonique complete: config, couches, semis, probabilite et evolution.</p>
+            <h3><span class="filename-pill">automate_elementaire_canonique.ml</span></h3>
+            <p>Source canonique compl&egrave;te : config, couches, semis, probabilit&eacute; et &eacute;volution.</p>
           </article>
           <article class="source-card">
-            <h3><a href="automate_elementaire_wasm.ml">automate_elementaire_wasm.ml</a></h3>
-            <p>Module WASM-compatible minimal utilise par l'interface statique.</p>
+            <h3><span class="filename-pill">automate_elementaire_wasm.ml</span></h3>
+            <p>Module WASM-compatible minimal utilis&eacute; par l'interface statique.</p>
+          </article>
+          <article class="source-card source-card-link">
+            <h3><a href="https://github.com/multilingualprogramming/cellcosmos" target="_blank" rel="noreferrer">Source code</a></h3>
+            <p>D&eacute;p&ocirc;t GitHub principal du projet Cellcosmos.</p>
+          </article>
+          <article class="source-card source-card-link">
+            <h3><a href="https://multilingualprogramming.github.io/cellcosmos/" target="_blank" rel="noreferrer">Demo</a></h3>
+            <p>Version publi&eacute;e de l'explorateur Cellcosmos.</p>
+          </article>
+          <article class="source-card source-card-link">
+            <h3><a href="https://multilingualprogramming.github.io/docs" target="_blank" rel="noreferrer">Multilingual programming language</a></h3>
+            <p>Pr&eacute;sentation du langage Multilingual Programming.</p>
+          </article>
+          <article class="source-card source-card-link">
+            <h3><a href="https://multilingualprogramming.github.io/" target="_blank" rel="noreferrer">Multilingual docs</a></h3>
+            <p>Portail principal et documentation g&eacute;n&eacute;rale.</p>
           </article>
         </div>
       </section>
       <section class="hero">
-        <p>Cellcosmos est un explorateur d'automates cellulaires elementaires compile en WASM depuis des sources
-          multilingual francaises.</p>
-        <p class="hero-note">Le navigateur essaie d'utiliser `cellcosmos.wasm` pour accelerer le calcul, avec repli
+        <p>Cellcosmos est un explorateur d'automates cellulaires &eacute;l&eacute;mentaires compil&eacute; en WASM depuis des sources
+          multilingual fran&ccedil;aises.</p>
+        <p class="hero-note">Le navigateur essaie d'utiliser `cellcosmos.wasm` pour acc&eacute;l&eacute;rer le calcul, avec repli
           automatique sur JavaScript si besoin.</p>
-        <p id="wasm-status" class="hero-note">Verification du moteur WASM...</p>
+        <p id="wasm-status" class="hero-note">V&eacute;rification du moteur WASM...</p>
       </section>
     </main>
 
