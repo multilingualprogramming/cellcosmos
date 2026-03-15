@@ -27,6 +27,8 @@ python -m pip install -r requirements-build.txt
 python -m multilingualprogramming scripts/compile_wasm.ml
 ```
 
+Depuis la racine du depot.
+
 Pour tester explicitement une copie locale du depot `multilingual` au lieu de la version epinglee :
 
 ```powershell

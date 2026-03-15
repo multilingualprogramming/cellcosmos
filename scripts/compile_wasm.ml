@@ -5,7 +5,15 @@ importer shutil
 importer sys
 depuis pathlib importer Path
 
-soit RACINE = Path(__file__).parent.parent
+déf trouver_racine():
+    soit candidats = [Path.cwd().resolve(), Path.cwd().resolve().parent]
+    pour candidat dans candidats:
+        si (candidat / "src" / "main.ml").exists() et (candidat / "scripts" / "compile_wasm.ml").exists():
+            retour candidat
+    lever RuntimeError("Impossible de trouver la racine du depot. Executez cette commande depuis la racine du projet.")
+
+
+soit RACINE = trouver_racine()
 soit SOURCE_ML = RACINE / "src" / "main.ml"
 soit MODULE_WASM_ML = RACINE / "src" / "automate_elementaire_wasm.ml"
 soit MODULE_CANONIQUE_ML = RACINE / "src" / "automate_elementaire_canonique.ml"
