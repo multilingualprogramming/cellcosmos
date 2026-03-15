@@ -40,7 +40,7 @@ jobs:
           python -m pip install -r requirements-build.txt
 
       - name: Compiler le source francais vers WebAssembly
-        run: python scripts/compile_wasm.py
+        run: python -m multilingualprogramming scripts/compile_wasm.ml
 
       - name: Verifier la syntaxe JavaScript
         run: node --check public/ui.js

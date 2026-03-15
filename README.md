@@ -24,14 +24,14 @@ L'application permet d'explorer les 256 regles elementaires, de modifier leur re
 
 ```bash
 python -m pip install -r requirements-build.txt
-python scripts/compile_wasm.py
+python -m multilingualprogramming scripts/compile_wasm.ml
 ```
 
 Pour tester explicitement une copie locale du depot `multilingual` au lieu de la version epinglee :
 
 ```powershell
 $env:MULTILINGUAL_DEV_PATH="..\multilingual"
-python scripts/compile_wasm.py
+python -m multilingualprogramming scripts/compile_wasm.ml
 ```
 
 Le build genere :
@@ -54,7 +54,3 @@ Le projet distingue maintenant deux niveaux :
 
 - la source canonique, qui capture l'objectif complet du projet original : lecture de configuration, generation par lots, semis multicouches, couleurs, formes et evolution probabiliste
 - le module WASM-compatible, plus compact, utilise par l'interface statique pour calculer rapidement les transitions dans le navigateur
-
-### Note sur les fichiers Python
-
-Les anciens fichiers Python applicatifs ont ete supprimes. Il ne reste plus de fichier `.py` versionne dans le depot.
