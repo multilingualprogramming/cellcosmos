@@ -375,7 +375,7 @@ input[type="color"] {
 }
 
 .gallery-grid,
-.source-grid {
+.source-list {
   display: grid;
   gap: 12px;
   padding: 18px;
@@ -418,38 +418,103 @@ input[type="color"] {
   font-size: 0.86rem;
 }
 
-.source-grid {
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-}
-
-.source-card {
+.source-stack {
+  display: grid;
+  gap: 18px;
   padding: 18px;
 }
 
-.source-card h3 {
-  margin-top: 0;
+.source-group {
+  display: grid;
+  gap: 12px;
+}
+
+.source-group-title {
+  margin: 0;
+  padding: 0 2px;
+  color: var(--accent-2);
+  font-size: 0.92rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.source-list {
+  padding: 0;
+}
+
+.source-card {
+  padding: 16px 18px;
+  min-width: 0;
+}
+
+.source-card h4 {
+  margin: 0 0 8px;
+  min-width: 0;
+}
+
+.source-card p {
+  margin: 0;
+  color: var(--muted);
 }
 
 .filename-pill {
-  display: inline-block;
+  display: inline-flex;
+  max-width: 100%;
   padding: 6px 10px;
-  border-radius: 999px;
+  border-radius: 14px;
   font-family: "IBM Plex Mono", monospace;
   font-size: 0.92rem;
+  line-height: 1.45;
   color: var(--accent-2);
   background: rgba(140, 71, 22, 0.28);
   border: 1px solid rgba(255, 209, 102, 0.34);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
-.source-card-link h3 a {
+.source-card-link {
+  padding: 0;
+}
+
+.source-card-link h4 {
+  margin: 0;
+}
+
+.source-card-link a {
+  display: block;
+  padding: 16px 18px;
   color: var(--text);
-  text-decoration: none;
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 209, 102, 0.7);
+  text-underline-offset: 3px;
+  transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
 }
 
-.source-card-link h3 a:hover,
-.source-card-link h3 a:focus-visible {
+.source-card-link a::after {
+  content: " ->";
   color: var(--accent-2);
-  text-decoration: underline;
+}
+
+.source-card-link p {
+  padding: 0 18px 16px;
+}
+
+.source-card-link:hover,
+.source-card-link:focus-within {
+  border-color: rgba(255, 209, 102, 0.42);
+  background: rgba(20, 42, 62, 0.95);
+}
+
+.source-card-link a:hover,
+.source-card-link a:focus-visible {
+  color: var(--accent-2);
+}
+
+@media (min-width: 900px) {
+  .source-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 [hidden] {

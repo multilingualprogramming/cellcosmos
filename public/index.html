@@ -129,37 +129,47 @@
       <section id="source-panel" class="source-panel" hidden>
         <div class="source-header">
           <h2>Sources canoniques</h2>
-          <p>Ces fichiers sont copi&eacute;s dans `public/` lors de la compilation WASM. Le d&eacute;p&ocirc;t GitHub contient le code source complet.</p>
+          <p>Ces fichiers sont copi&eacute;s dans `public/` lors de la compilation WASM. Le d&eacute;p&ocirc;t GitHub contient l'ensemble du code source.</p>
         </div>
-        <div class="source-grid">
-          <article class="source-card">
-            <h3><span class="filename-pill">main.ml</span></h3>
-            <p>Point d'entr&eacute;e bundle.</p>
-          </article>
-          <article class="source-card">
-            <h3><span class="filename-pill">automate_elementaire_canonique.ml</span></h3>
-            <p>Source canonique compl&egrave;te : config, couches, semis, probabilit&eacute; et &eacute;volution.</p>
-          </article>
-          <article class="source-card">
-            <h3><span class="filename-pill">automate_elementaire_wasm.ml</span></h3>
-            <p>Module WASM-compatible minimal utilis&eacute; par l'interface statique.</p>
-          </article>
-          <article class="source-card source-card-link">
-            <h3><a href="https://github.com/multilingualprogramming/cellcosmos" target="_blank" rel="noreferrer">Source code</a></h3>
-            <p>D&eacute;p&ocirc;t GitHub principal du projet Cellcosmos.</p>
-          </article>
-          <article class="source-card source-card-link">
-            <h3><a href="https://multilingualprogramming.github.io/cellcosmos/" target="_blank" rel="noreferrer">Demo</a></h3>
-            <p>Version publi&eacute;e de l'explorateur Cellcosmos.</p>
-          </article>
-          <article class="source-card source-card-link">
-            <h3><a href="https://multilingualprogramming.github.io/docs" target="_blank" rel="noreferrer">Multilingual programming language</a></h3>
-            <p>Pr&eacute;sentation du langage Multilingual Programming.</p>
-          </article>
-          <article class="source-card source-card-link">
-            <h3><a href="https://multilingualprogramming.github.io/" target="_blank" rel="noreferrer">Multilingual docs</a></h3>
-            <p>Portail principal et documentation g&eacute;n&eacute;rale.</p>
-          </article>
+        <div class="source-stack">
+          <section class="source-group" aria-labelledby="source-files-title">
+            <h3 id="source-files-title" class="source-group-title">Fichiers principaux</h3>
+            <div class="source-list">
+              <article class="source-card source-card-file">
+                <h4><span class="filename-pill">main.ml</span></h4>
+                <p>Point d'entr&eacute;e du bundle.</p>
+              </article>
+              <article class="source-card source-card-file">
+                <h4><span class="filename-pill">automate_elementaire_canonique.ml</span></h4>
+                <p>Source canonique compl&egrave;te : configuration, couches, semis, probabilit&eacute; et &eacute;volution.</p>
+              </article>
+              <article class="source-card source-card-file">
+                <h4><span class="filename-pill">automate_elementaire_wasm.ml</span></h4>
+                <p>Module WASM minimal utilis&eacute; par l'interface statique.</p>
+              </article>
+            </div>
+          </section>
+          <section class="source-group" aria-labelledby="source-links-title">
+            <h3 id="source-links-title" class="source-group-title">Liens utiles</h3>
+            <div class="source-list">
+              <article class="source-card source-card-link">
+                <h4><a href="https://github.com/multilingualprogramming/cellcosmos" target="_blank" rel="noreferrer">Code source sur GitHub</a></h4>
+                <p>D&eacute;p&ocirc;t principal du projet Cellcosmos.</p>
+              </article>
+              <article class="source-card source-card-link">
+                <h4><a href="https://multilingualprogramming.github.io/cellcosmos/" target="_blank" rel="noreferrer">D&eacute;monstration</a></h4>
+                <p>Version publi&eacute;e de l'explorateur Cellcosmos.</p>
+              </article>
+              <article class="source-card source-card-link">
+                <h4><a href="https://multilingualprogramming.github.io/docs" target="_blank" rel="noreferrer">Langage Multilingual Programming</a></h4>
+                <p>Pr&eacute;sentation du langage et de ses concepts.</p>
+              </article>
+              <article class="source-card source-card-link">
+                <h4><a href="https://multilingualprogramming.github.io/" target="_blank" rel="noreferrer">Documentation Multilingual</a></h4>
+                <p>Portail principal et documentation g&eacute;n&eacute;rale.</p>
+              </article>
+            </div>
+          </section>
         </div>
       </section>
       <section class="hero">

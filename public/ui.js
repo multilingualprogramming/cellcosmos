@@ -26,7 +26,7 @@ const PRESETS = [
 const RULE_NOTES = {
   30: "Chaos pseudo al\u00e9atoire",
   90: "Triangle de Sierpinski",
-  110: "Turing-complete",
+  110: "Calcul universel",
   150: "XOR avec auto-r\u00e9f\u00e9rence",
   184: "Mod\u00e8le de trafic",
   254: "Fronti\u00e8res seulement",
@@ -109,7 +109,7 @@ async function loadWasm() {
     }
     wasm = instance.exports;
     wasmAvailable = true;
-    status.textContent = "Moteur WASM charg\u00e9 depuis les sources multilingual.";
+    status.textContent = "Moteur WASM charg\u00e9 depuis les sources Multilingual.";
   } catch (error) {
     wasm = null;
     wasmAvailable = false;
@@ -212,7 +212,7 @@ function disableWasmRuntime(error) {
   wasmAvailable = false;
   const status = document.getElementById("wasm-status");
   if (status) {
-    status.textContent = "Runtime WASM indisponible, repli sur le moteur JavaScript.";
+    status.textContent = "Moteur WASM indisponible, repli sur le moteur JavaScript.";
   }
   console.error(error);
 }
