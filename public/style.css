@@ -43,6 +43,7 @@ a {
 .gallery-header,
 .source-header,
 .source-card {
+  -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
 }
 

@@ -34,7 +34,8 @@
             <span class="rule-label">R&egrave;gle</span>
             <span id="rule-display" class="rule-number">90</span>
             <input type="range" id="rule-slider" min="0" max="255" value="90" aria-label="R&egrave;gle" />
-            <input type="number" id="rule-number" min="0" max="255" value="90" aria-label="Num&eacute;ro de r&egrave;gle" />
+            <input type="number" id="rule-number" min="0" max="255" value="90"
+              aria-label="Num&eacute;ro de r&egrave;gle" />
             <button type="button" class="ghost-btn" id="btn-prev">&lsaquo;</button>
             <button type="button" class="ghost-btn" id="btn-next">&rsaquo;</button>
             <button type="button" class="ghost-btn" id="btn-random">Al&eacute;atoire</button>
@@ -120,7 +121,8 @@
 
       <section id="gallery-panel" class="gallery-panel" hidden>
         <div class="gallery-header">
-          <p>Les 256 r&egrave;gles sont rendues c&ocirc;t&eacute; navigateur avec acc&eacute;l&eacute;ration WASM quand elle est valide, sinon via le
+          <p>Les 256 r&egrave;gles sont rendues c&ocirc;t&eacute; navigateur avec acc&eacute;l&eacute;ration WASM quand
+            elle est valide, sinon via le
             moteur JavaScript int&eacute;gr&eacute;.</p>
         </div>
         <div id="gallery-grid" class="gallery-grid"></div>
@@ -129,7 +131,8 @@
       <section id="source-panel" class="source-panel" hidden>
         <div class="source-header">
           <h2>Sources canoniques</h2>
-          <p>Ces fichiers sont copi&eacute;s dans `public/` lors de la compilation WASM. Le d&eacute;p&ocirc;t GitHub contient l'ensemble du code source.</p>
+          <p>Ces fichiers sont copi&eacute;s dans `public/` lors de la compilation WASM. Le d&eacute;p&ocirc;t GitHub
+            contient l'ensemble du code source.</p>
         </div>
         <div class="source-stack">
           <section class="source-group" aria-labelledby="source-files-title">
@@ -141,7 +144,8 @@
               </article>
               <article class="source-card source-card-file">
                 <h4><span class="filename-pill">automate_elementaire_canonique.ml</span></h4>
-                <p>Source canonique compl&egrave;te : configuration, couches, semis, probabilit&eacute; et &eacute;volution.</p>
+                <p>Source canonique compl&egrave;te : configuration, couches, semis, probabilit&eacute; et
+                  &eacute;volution.</p>
               </article>
               <article class="source-card source-card-file">
                 <h4><span class="filename-pill">automate_elementaire_wasm.ml</span></h4>
@@ -153,19 +157,25 @@
             <h3 id="source-links-title" class="source-group-title">Liens utiles</h3>
             <div class="source-list">
               <article class="source-card source-card-link">
-                <h4><a href="https://github.com/multilingualprogramming/cellcosmos" target="_blank" rel="noreferrer">Code source sur GitHub</a></h4>
+                <h4><a href="https://github.com/multilingualprogramming/cellcosmos" target="_blank"
+                    rel="noopener noreferrer">Code source sur GitHub</a></h4>
                 <p>D&eacute;p&ocirc;t principal du projet Cellcosmos.</p>
               </article>
               <article class="source-card source-card-link">
-                <h4><a href="https://multilingualprogramming.github.io/cellcosmos/" target="_blank" rel="noreferrer">D&eacute;monstration</a></h4>
+                <h4><a href="https://multilingualprogramming.github.io/cellcosmos/" target="_blank"
+                    rel="noopener noreferrer">D&eacute;monstration</a></h4>
                 <p>Version publi&eacute;e de l'explorateur Cellcosmos.</p>
               </article>
               <article class="source-card source-card-link">
-                <h4><a href="https://multilingualprogramming.github.io/docs" target="_blank" rel="noreferrer">Langage Multilingual Programming</a></h4>
+                <h4><a href="https://multilingualprogramming.github.io/docs" target="_blank"
+                    rel="noopener noreferrer">Langage
+                    Multilingual Programming</a></h4>
                 <p>Pr&eacute;sentation du langage et de ses concepts.</p>
               </article>
               <article class="source-card source-card-link">
-                <h4><a href="https://multilingualprogramming.github.io/" target="_blank" rel="noreferrer">Documentation Multilingual</a></h4>
+                <h4><a href="https://multilingualprogramming.github.io/" target="_blank"
+                    rel="noopener noreferrer">Documentation
+                    Multilingual</a></h4>
                 <p>Portail principal et documentation g&eacute;n&eacute;rale.</p>
               </article>
             </div>
@@ -173,9 +183,11 @@
         </div>
       </section>
       <section class="hero">
-        <p>Cellcosmos est un explorateur d'automates cellulaires &eacute;l&eacute;mentaires compil&eacute; en WASM depuis des sources
+        <p>Cellcosmos est un explorateur d'automates cellulaires &eacute;l&eacute;mentaires compil&eacute; en WASM
+          depuis des sources
           multilingual fran&ccedil;aises.</p>
-        <p class="hero-note">Le navigateur essaie d'utiliser `cellcosmos.wasm` pour acc&eacute;l&eacute;rer le calcul, avec repli
+        <p class="hero-note">Le navigateur essaie d'utiliser `cellcosmos.wasm` pour acc&eacute;l&eacute;rer le calcul,
+          avec repli
           automatique sur JavaScript si besoin.</p>
         <p id="wasm-status" class="hero-note">V&eacute;rification du moteur WASM...</p>
       </section>
