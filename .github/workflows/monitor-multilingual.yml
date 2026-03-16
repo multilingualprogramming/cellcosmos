@@ -72,6 +72,11 @@ jobs:
       - name: Compiler le source francais vers WebAssembly
         run: python -m multilingualprogramming scripts/compile_wasm.ml
 
+      - name: Verifier les artefacts de compilation
+        run: |
+          ls -la public
+          test -f public/cellcosmos.wasm
+
       - name: Verifier la syntaxe JavaScript
         run: node --check public/ui.js
 
