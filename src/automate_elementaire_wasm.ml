@@ -7,7 +7,21 @@ importer math
 
 déf cellule_suivante(numero_regle, gauche, centre, droite):
     soit indice = gauche * 4 + centre * 2 + droite
-    retour (numero_regle >> indice) & 1
+    si indice == 0:
+        retour numero_regle % 2
+    si indice == 1:
+        retour (numero_regle // 2) % 2
+    si indice == 2:
+        retour (numero_regle // 4) % 2
+    si indice == 3:
+        retour (numero_regle // 8) % 2
+    si indice == 4:
+        retour (numero_regle // 16) % 2
+    si indice == 5:
+        retour (numero_regle // 32) % 2
+    si indice == 6:
+        retour (numero_regle // 64) % 2
+    retour (numero_regle // 128) % 2
 
 
 déf classe_wolfram(numero_regle):
