@@ -15,6 +15,8 @@ def _load_namespace():
         .replace("retour", "return")
         .replace("soit ", "")
         .replace("si ", "if ")
+        .replace(" ou ", " or ")
+        .replace(" et ", " and ")
         .replace(" dans ", " in ")
         .replace("importer", "import")
     )
