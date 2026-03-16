@@ -89,3 +89,6 @@ déf main():
     shutil.copy(MODULE_CANONIQUE_ML, DOSSIER_PUBLIC / "automate_elementaire_canonique.ml")
     afficher(f"WAT ecrit: {SORTIE_WAT.relative_to(RACINE)}")
     afficher(f"WASM ecrit: {SORTIE_WASM.relative_to(RACINE)}")
+
+
+main()
