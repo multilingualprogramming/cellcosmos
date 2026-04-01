@@ -220,11 +220,6 @@ function validateWasmExports(exports) {
         return false;
       }
     }
-    if (typeof exports.composante_interpolee === "function") {
-      if (Number(exports.composante_interpolee(0, 255, 500)) !== 128) {
-        return false;
-      }
-    }
   } catch (error) {
     console.error(error);
     return false;
@@ -292,13 +287,6 @@ function ruleNoteLabel(ruleNumber) {
 }
 
 function interpolateComponent(start, end, progressScaled) {
-  if (wasmAvailable && wasm && typeof wasm.composante_interpolee === "function") {
-    try {
-      return Number(wasm.composante_interpolee(start, end, progressScaled));
-    } catch (error) {
-      disableWasmRuntime(error);
-    }
-  }
   return fallbackDomain.interpolateComponent(start, end, progressScaled);
 }
 
