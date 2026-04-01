@@ -398,11 +398,17 @@ input[type="color"] {
   cursor: pointer;
 }
 
+.gallery-item:focus-visible {
+  outline: 2px solid rgba(255, 209, 102, 0.9);
+  outline-offset: 2px;
+}
+
 .gallery-thumb {
   display: block;
   width: 100%;
   aspect-ratio: 1;
   background: #061018;
+  object-fit: cover;
 }
 
 .gallery-label {

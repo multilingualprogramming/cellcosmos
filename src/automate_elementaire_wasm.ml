@@ -68,6 +68,23 @@ déf note_regle(numero_regle):
     retour 0
 
 
+déf etiquette_note_regle(numero_regle):
+    soit identifiant = note_regle(numero_regle)
+    si identifiant == 1:
+        retour "Chaos pseudo aleatoire"
+    si identifiant == 2:
+        retour "Triangle de Sierpinski"
+    si identifiant == 3:
+        retour "Calcul universel"
+    si identifiant == 4:
+        retour "XOR avec auto-reference"
+    si identifiant == 5:
+        retour "Modele de trafic"
+    si identifiant == 6:
+        retour "Frontieres seulement"
+    retour ""
+
+
 déf composante_interpolee(debut, fin, progression_sur_1000):
     soit progression = progression_sur_1000 / 1000
     retour math.floor(debut + (fin - debut) * progression + 0.5)

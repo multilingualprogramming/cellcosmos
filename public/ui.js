@@ -12,16 +12,6 @@ const DEFAULTS = {
   direction: "ltr",
 };
 
-const RULE_NOTE_LABELS = {
-  0: "",
-  1: "Chaos pseudo al\u00e9atoire",
-  2: "Triangle de Sierpinski",
-  3: "Calcul universel",
-  4: "XOR avec auto-r\u00e9f\u00e9rence",
-  5: "Mod\u00e8le de trafic",
-  6: "Fronti\u00e8res seulement",
-};
-
 const fallbackDomain = {
   transition(ruleNumber, left, center, right) {
     const index = left * 4 + center * 2 + right;
@@ -36,14 +26,14 @@ const fallbackDomain = {
     if ([54, 106, 110, 137, 193].includes(ruleNumber)) return 4;
     return 2;
   },
-  noteId(ruleNumber) {
-    if (ruleNumber === 30) return 1;
-    if (ruleNumber === 90) return 2;
-    if (ruleNumber === 110) return 3;
-    if (ruleNumber === 150) return 4;
-    if (ruleNumber === 184) return 5;
-    if (ruleNumber === 254) return 6;
-    return 0;
+  noteLabel(ruleNumber) {
+    if (ruleNumber === 30) return "Chaos pseudo al\u00e9atoire";
+    if (ruleNumber === 90) return "Triangle de Sierpinski";
+    if (ruleNumber === 110) return "Calcul universel";
+    if (ruleNumber === 150) return "XOR avec auto-r\u00e9f\u00e9rence";
+    if (ruleNumber === 184) return "Mod\u00e8le de trafic";
+    if (ruleNumber === 254) return "Fronti\u00e8res seulement";
+    return "";
   },
   interpolateComponent(start, end, progressScaled) {
     return Math.round(start + (end - start) * (progressScaled / 1000));
@@ -53,7 +43,9 @@ const fallbackDomain = {
 let state = structuredClone(DEFAULTS);
 let wasm = null;
 let wasmAvailable = false;
-let galleryKey = "";
+const textDecoder = new TextDecoder();
+let galleryLoaded = false;
+let galleryLoading = null;
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -170,6 +162,7 @@ function validateWasmExports(exports) {
     || typeof exports.sortie_motif !== "function"
     || typeof exports.classe_wolfram !== "function"
     || typeof exports.note_regle !== "function"
+    || typeof exports.etiquette_note_regle !== "function"
     || typeof exports.composante_interpolee !== "function"
   ) {
     return false;
@@ -209,6 +202,15 @@ function validateWasmExports(exports) {
       if (Number(exports.note_regle(rule)) !== expected) {
         return false;
       }
+    }
+
+    const labelPtr = Number(exports.etiquette_note_regle(90));
+    const labelLength = Number(exports.__ml_str_len());
+    const labelBytes = new Uint8Array(exports.memory.buffer, labelPtr, labelLength);
+    const label = textDecoder.decode(labelBytes.slice());
+    exports.__ml_reset();
+    if (label !== "Triangle de Sierpinski") {
+      return false;
     }
 
     if (Number(exports.sortie_motif(90, 4)) !== 1) {
@@ -258,19 +260,22 @@ function wolframClass(ruleNumber) {
   return fallbackDomain.wolframClass(ruleNumber);
 }
 
-function ruleNoteId(ruleNumber) {
-  if (wasmAvailable && wasm && typeof wasm.note_regle === "function") {
+function ruleNoteLabel(ruleNumber) {
+  if (
+    wasmAvailable
+    && wasm
+    && typeof wasm.etiquette_note_regle === "function"
+    && typeof wasm.__ml_str_len === "function"
+    && typeof wasm.__ml_reset === "function"
+    && wasm.memory instanceof WebAssembly.Memory
+  ) {
     try {
-      return Number(wasm.note_regle(ruleNumber));
+      return callWasmString(wasm.etiquette_note_regle, ruleNumber);
     } catch (error) {
       disableWasmRuntime(error);
     }
   }
-  return fallbackDomain.noteId(ruleNumber);
-}
-
-function ruleNoteLabel(ruleNumber) {
-  return RULE_NOTE_LABELS[ruleNoteId(ruleNumber)] ?? "";
+  return fallbackDomain.noteLabel(ruleNumber);
 }
 
 function interpolateComponent(start, end, progressScaled) {
@@ -282,6 +287,15 @@ function interpolateComponent(start, end, progressScaled) {
     }
   }
   return fallbackDomain.interpolateComponent(start, end, progressScaled);
+}
+
+function callWasmString(fn, ...args) {
+  const ptr = Number(fn(...args));
+  const length = Number(wasm.__ml_str_len());
+  const bytes = new Uint8Array(wasm.memory.buffer, ptr, length);
+  const value = textDecoder.decode(bytes.slice());
+  wasm.__ml_reset();
+  return value;
 }
 
 function disableWasmRuntime(error) {
@@ -503,37 +517,6 @@ function renderGradientPickers() {
   });
 }
 
-function galleryStateKey() {
-  return JSON.stringify(state);
-}
-
-function buildGallery() {
-  const key = galleryStateKey();
-  if (key === galleryKey) return;
-  galleryKey = key;
-  const grid = document.getElementById("gallery-grid");
-  grid.innerHTML = "";
-  for (let rule = 0; rule < 256; rule += 1) {
-    const item = document.createElement("article");
-    item.className = "gallery-item";
-    const canvas = document.createElement("canvas");
-    canvas.className = "gallery-thumb";
-    renderToCanvas(canvas, rule, 50, 50, 2);
-    const label = document.createElement("div");
-    label.className = "gallery-label";
-    label.innerHTML = `<strong>R\u00e8gle ${rule}</strong><span>${ruleNoteLabel(rule) || `Classe ${wolframClass(rule)}`}</span>`;
-    item.append(canvas, label);
-    item.addEventListener("click", () => {
-      state.rule = rule;
-      syncRuleControls();
-      renderRuleDiagram();
-      switchTab("explorer");
-      scheduleRender();
-    });
-    grid.appendChild(item);
-  }
-}
-
 function switchTab(tab) {
   const explorer = tab === "explorer";
   const gallery = tab === "gallery";
@@ -544,13 +527,62 @@ function switchTab(tab) {
   document.getElementById("tab-explorer").classList.toggle("active", explorer);
   document.getElementById("tab-gallery").classList.toggle("active", gallery);
   document.getElementById("tab-source").classList.toggle("active", source);
-  if (gallery) buildGallery();
+  if (gallery) loadGalleryFragment();
 }
 
 const scheduleRender = debounce(() => {
   renderMainView();
-  if (!document.getElementById("gallery-panel").hidden) buildGallery();
 }, 100);
+
+function selectGalleryRule(rule) {
+  state.rule = clamp(rule, 0, 255);
+  syncRuleControls();
+  renderRuleDiagram();
+  switchTab("explorer");
+  scheduleRender();
+}
+
+function bindGallery() {
+  const grid = document.getElementById("gallery-grid");
+  grid.addEventListener("click", (event) => {
+    const item = event.target.closest(".gallery-item");
+    if (!item) return;
+    selectGalleryRule(Number.parseInt(item.dataset.rule, 10) || 0);
+  });
+  grid.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const item = event.target.closest(".gallery-item");
+    if (!item) return;
+    event.preventDefault();
+    selectGalleryRule(Number.parseInt(item.dataset.rule, 10) || 0);
+  });
+}
+
+async function loadGalleryFragment() {
+  if (galleryLoaded) return;
+  if (galleryLoading) return galleryLoading;
+  const grid = document.getElementById("gallery-grid");
+  grid.innerHTML = '<p class="muted">Chargement de la galerie...</p>';
+  galleryLoading = fetch("gallery-fragment.html")
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`Fragment galerie indisponible (${response.status}).`);
+      }
+      return response.text();
+    })
+    .then((markup) => {
+      grid.innerHTML = markup;
+      galleryLoaded = true;
+    })
+    .catch((error) => {
+      grid.innerHTML = '<p class="muted">Impossible de charger la galerie statique.</p>';
+      console.error(error);
+    })
+    .finally(() => {
+      galleryLoading = null;
+    });
+  return galleryLoading;
+}
 
 function bindControls() {
   const presets = document.getElementById("presets");
@@ -715,6 +747,7 @@ function bindControls() {
 async function init() {
   loadFromURL();
   bindControls();
+  bindGallery();
   renderGradientPickers();
   syncRuleControls();
   renderRuleDiagram();

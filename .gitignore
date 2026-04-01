@@ -20,4 +20,5 @@ public/*.wasm
 public/*.wat
 public/main.ml
 public/automate_elementaire.ml
-
+public/gallery-fragment.html
+public/gallery/

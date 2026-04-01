@@ -87,6 +87,15 @@ def test_note_regle_returns_stable_note_ids():
     assert note_regle(73) == 0
 
 
+def test_etiquette_note_regle_returns_multilingual_labels():
+    ns = _load_namespace()
+    etiquette_note_regle = ns["etiquette_note_regle"]
+
+    assert etiquette_note_regle(30) == "Chaos pseudo aleatoire"
+    assert etiquette_note_regle(90) == "Triangle de Sierpinski"
+    assert etiquette_note_regle(73) == ""
+
+
 def test_composante_interpolee_rounds_like_ui_gradient():
     ns = _load_namespace()
     composante_interpolee = ns["composante_interpolee"]
