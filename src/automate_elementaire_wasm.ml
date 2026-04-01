@@ -24,6 +24,24 @@ déf cellule_suivante(numero_regle, gauche, centre, droite):
     retour (numero_regle // 128) % 2
 
 
+déf sortie_motif(numero_regle, motif):
+    si motif <= 0:
+        retour numero_regle % 2
+    si motif == 1:
+        retour (numero_regle // 2) % 2
+    si motif == 2:
+        retour (numero_regle // 4) % 2
+    si motif == 3:
+        retour (numero_regle // 8) % 2
+    si motif == 4:
+        retour (numero_regle // 16) % 2
+    si motif == 5:
+        retour (numero_regle // 32) % 2
+    si motif == 6:
+        retour (numero_regle // 64) % 2
+    retour (numero_regle // 128) % 2
+
+
 déf classe_wolfram(numero_regle):
     si numero_regle == 0 ou numero_regle == 8 ou numero_regle == 32 ou numero_regle == 40 ou numero_regle == 64 ou numero_regle == 72 ou numero_regle == 96 ou numero_regle == 104 ou numero_regle == 128 ou numero_regle == 136 ou numero_regle == 160 ou numero_regle == 168 ou numero_regle == 192 ou numero_regle == 200 ou numero_regle == 224 ou numero_regle == 232 ou numero_regle == 248 ou numero_regle == 255:
         retour 1
@@ -32,6 +50,27 @@ déf classe_wolfram(numero_regle):
     si numero_regle == 54 ou numero_regle == 106 ou numero_regle == 110 ou numero_regle == 137 ou numero_regle == 193:
         retour 4
     retour 2
+
+
+déf note_regle(numero_regle):
+    si numero_regle == 30:
+        retour 1
+    si numero_regle == 90:
+        retour 2
+    si numero_regle == 110:
+        retour 3
+    si numero_regle == 150:
+        retour 4
+    si numero_regle == 184:
+        retour 5
+    si numero_regle == 254:
+        retour 6
+    retour 0
+
+
+déf composante_interpolee(debut, fin, progression_sur_1000):
+    soit progression = progression_sur_1000 / 1000
+    retour math.floor(debut + (fin - debut) * progression + 0.5)
 
 
 déf forme_code_rect():

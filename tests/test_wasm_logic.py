@@ -53,3 +53,44 @@ def test_classe_wolfram_matches_ci_smoke_cases():
 
     for rule, expected in checks:
         assert classe_wolfram(rule) == expected
+
+
+def test_sortie_motif_matches_expected_rule_bits():
+    ns = _load_namespace()
+    sortie_motif = ns["sortie_motif"]
+
+    expected = {
+        0: 0,
+        1: 1,
+        2: 0,
+        3: 1,
+        4: 1,
+        5: 0,
+        6: 1,
+        7: 0,
+    }
+
+    for motif, bit in expected.items():
+        assert sortie_motif(90, motif) == bit
+
+
+def test_note_regle_returns_stable_note_ids():
+    ns = _load_namespace()
+    note_regle = ns["note_regle"]
+
+    assert note_regle(30) == 1
+    assert note_regle(90) == 2
+    assert note_regle(110) == 3
+    assert note_regle(150) == 4
+    assert note_regle(184) == 5
+    assert note_regle(254) == 6
+    assert note_regle(73) == 0
+
+
+def test_composante_interpolee_rounds_like_ui_gradient():
+    ns = _load_namespace()
+    composante_interpolee = ns["composante_interpolee"]
+
+    assert composante_interpolee(0, 255, 0) == 0
+    assert composante_interpolee(0, 255, 500) == 128
+    assert composante_interpolee(0, 255, 1000) == 255

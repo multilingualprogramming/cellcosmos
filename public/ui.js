@@ -12,24 +12,42 @@ const DEFAULTS = {
   direction: "ltr",
 };
 
-const PRESETS = [
-  { label: "R\u00e8gle 30 - Chaos", rule: 30 },
-  { label: "R\u00e8gle 57 - Asym\u00e9trie", rule: 57 },
-  { label: "R\u00e8gle 90 - Sierpinski", rule: 90 },
-  { label: "R\u00e8gle 110 - Universalit\u00e9", rule: 110 },
-  { label: "R\u00e8gle 150 - XOR", rule: 150 },
-  { label: "R\u00e8gle 184 - Trafic", rule: 184 },
-  { label: "R\u00e8gle 225 - Bandes", rule: 225 },
-  { label: "R\u00e8gle 254 - Bordures", rule: 254 },
-];
+const RULE_NOTE_LABELS = {
+  0: "",
+  1: "Chaos pseudo al\u00e9atoire",
+  2: "Triangle de Sierpinski",
+  3: "Calcul universel",
+  4: "XOR avec auto-r\u00e9f\u00e9rence",
+  5: "Mod\u00e8le de trafic",
+  6: "Fronti\u00e8res seulement",
+};
 
-const RULE_NOTES = {
-  30: "Chaos pseudo al\u00e9atoire",
-  90: "Triangle de Sierpinski",
-  110: "Calcul universel",
-  150: "XOR avec auto-r\u00e9f\u00e9rence",
-  184: "Mod\u00e8le de trafic",
-  254: "Fronti\u00e8res seulement",
+const fallbackDomain = {
+  transition(ruleNumber, left, center, right) {
+    const index = left * 4 + center * 2 + right;
+    return Math.floor(ruleNumber / (2 ** index)) % 2;
+  },
+  patternOutput(ruleNumber, patternIndex) {
+    return Math.floor(ruleNumber / (2 ** patternIndex)) % 2;
+  },
+  wolframClass(ruleNumber) {
+    if ([0, 8, 32, 40, 64, 72, 96, 104, 128, 136, 160, 168, 192, 200, 224, 232, 248, 255].includes(ruleNumber)) return 1;
+    if ([18, 22, 30, 45, 60, 90, 105, 122, 126, 150].includes(ruleNumber)) return 3;
+    if ([54, 106, 110, 137, 193].includes(ruleNumber)) return 4;
+    return 2;
+  },
+  noteId(ruleNumber) {
+    if (ruleNumber === 30) return 1;
+    if (ruleNumber === 90) return 2;
+    if (ruleNumber === 110) return 3;
+    if (ruleNumber === 150) return 4;
+    if (ruleNumber === 184) return 5;
+    if (ruleNumber === 254) return 6;
+    return 0;
+  },
+  interpolateComponent(start, end, progressScaled) {
+    return Math.round(start + (end - start) * (progressScaled / 1000));
+  },
 };
 
 let state = structuredClone(DEFAULTS);
@@ -75,7 +93,8 @@ function mulberry32(seed) {
 }
 
 function interpolateColor(a, b, t) {
-  return a.map((value, index) => Math.round(value + (b[index] - value) * t));
+  const progressScaled = Math.round(t * 1000);
+  return a.map((value, index) => interpolateComponent(value, b[index], progressScaled));
 }
 
 function generateGradient(colors, steps) {
@@ -145,7 +164,14 @@ function buildWasmImportObject(module) {
 }
 
 function validateWasmExports(exports) {
-  if (!exports || typeof exports.cellule_suivante !== "function" || typeof exports.classe_wolfram !== "function") {
+  if (
+    !exports
+    || typeof exports.cellule_suivante !== "function"
+    || typeof exports.sortie_motif !== "function"
+    || typeof exports.classe_wolfram !== "function"
+    || typeof exports.note_regle !== "function"
+    || typeof exports.composante_interpolee !== "function"
+  ) {
     return false;
   }
 
@@ -173,6 +199,24 @@ function validateWasmExports(exports) {
         return false;
       }
     }
+
+    const noteChecks = [
+      [30, 1],
+      [90, 2],
+      [73, 0],
+    ];
+    for (const [rule, expected] of noteChecks) {
+      if (Number(exports.note_regle(rule)) !== expected) {
+        return false;
+      }
+    }
+
+    if (Number(exports.sortie_motif(90, 4)) !== 1) {
+      return false;
+    }
+    if (Number(exports.composante_interpolee(0, 255, 500)) !== 128) {
+      return false;
+    }
   } catch (error) {
     console.error(error);
     return false;
@@ -189,8 +233,18 @@ function transition(ruleNumber, left, center, right) {
       disableWasmRuntime(error);
     }
   }
-  const index = left * 4 + center * 2 + right;
-  return Math.floor(ruleNumber / (2 ** index)) % 2;
+  return fallbackDomain.transition(ruleNumber, left, center, right);
+}
+
+function patternOutput(ruleNumber, patternIndex) {
+  if (wasmAvailable && wasm && typeof wasm.sortie_motif === "function") {
+    try {
+      return Number(wasm.sortie_motif(ruleNumber, patternIndex));
+    } catch (error) {
+      disableWasmRuntime(error);
+    }
+  }
+  return fallbackDomain.patternOutput(ruleNumber, patternIndex);
 }
 
 function wolframClass(ruleNumber) {
@@ -201,10 +255,33 @@ function wolframClass(ruleNumber) {
       disableWasmRuntime(error);
     }
   }
-  if ([0, 8, 32, 40, 64, 72, 96, 104, 128, 136, 160, 168, 192, 200, 224, 232, 248, 255].includes(ruleNumber)) return 1;
-  if ([18, 22, 30, 45, 60, 90, 105, 122, 126, 150].includes(ruleNumber)) return 3;
-  if ([54, 106, 110, 137, 193].includes(ruleNumber)) return 4;
-  return 2;
+  return fallbackDomain.wolframClass(ruleNumber);
+}
+
+function ruleNoteId(ruleNumber) {
+  if (wasmAvailable && wasm && typeof wasm.note_regle === "function") {
+    try {
+      return Number(wasm.note_regle(ruleNumber));
+    } catch (error) {
+      disableWasmRuntime(error);
+    }
+  }
+  return fallbackDomain.noteId(ruleNumber);
+}
+
+function ruleNoteLabel(ruleNumber) {
+  return RULE_NOTE_LABELS[ruleNoteId(ruleNumber)] ?? "";
+}
+
+function interpolateComponent(start, end, progressScaled) {
+  if (wasmAvailable && wasm && typeof wasm.composante_interpolee === "function") {
+    try {
+      return Number(wasm.composante_interpolee(start, end, progressScaled));
+    } catch (error) {
+      disableWasmRuntime(error);
+    }
+  }
+  return fallbackDomain.interpolateComponent(start, end, progressScaled);
 }
 
 function disableWasmRuntime(error) {
@@ -319,7 +396,8 @@ function renderToCanvas(canvas, ruleNumber, rows, cols, cellSize) {
 
 function updateRuleInfo() {
   const cls = wolframClass(state.rule);
-  const note = RULE_NOTES[state.rule] ? ` - ${RULE_NOTES[state.rule]}` : "";
+  const noteLabel = ruleNoteLabel(state.rule);
+  const note = noteLabel ? ` - ${noteLabel}` : "";
   document.getElementById("rule-class").textContent = `Classe ${cls}${note}`;
 }
 
@@ -335,7 +413,7 @@ function renderRuleDiagram() {
   container.innerHTML = "";
   for (let i = 7; i >= 0; i -= 1) {
     const pattern = `${(i >> 2) & 1}${(i >> 1) & 1}${i & 1}`;
-    const output = transition(state.rule, Number(pattern[0]), Number(pattern[1]), Number(pattern[2]));
+    const output = patternOutput(state.rule, i);
     const block = document.createElement("div");
     block.className = "pattern-block";
     block.innerHTML = `<div class="pattern-label">${pattern}</div><div class="neighborhood"></div><div class="diagram-cell output-cell ${output === 1 ? "alive" : "dead"}"></div>`;
@@ -443,7 +521,7 @@ function buildGallery() {
     renderToCanvas(canvas, rule, 50, 50, 2);
     const label = document.createElement("div");
     label.className = "gallery-label";
-    label.innerHTML = `<strong>R\u00e8gle ${rule}</strong><span>${RULE_NOTES[rule] ?? `Classe ${wolframClass(rule)}`}</span>`;
+    label.innerHTML = `<strong>R\u00e8gle ${rule}</strong><span>${ruleNoteLabel(rule) || `Classe ${wolframClass(rule)}`}</span>`;
     item.append(canvas, label);
     item.addEventListener("click", () => {
       state.rule = rule;
@@ -476,12 +554,6 @@ const scheduleRender = debounce(() => {
 
 function bindControls() {
   const presets = document.getElementById("presets");
-  PRESETS.forEach((preset) => {
-    const option = document.createElement("option");
-    option.value = String(preset.rule);
-    option.textContent = preset.label;
-    presets.appendChild(option);
-  });
 
   document.getElementById("rule-slider").addEventListener("input", (event) => {
     state.rule = Number.parseInt(event.target.value, 10);
