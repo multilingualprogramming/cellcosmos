@@ -161,8 +161,6 @@ function validateWasmExports(exports) {
     || typeof exports.cellule_suivante !== "function"
     || typeof exports.sortie_motif !== "function"
     || typeof exports.classe_wolfram !== "function"
-    || typeof exports.note_regle !== "function"
-    || typeof exports.etiquette_note_regle !== "function"
     || typeof exports.composante_interpolee !== "function"
   ) {
     return false;
@@ -193,24 +191,28 @@ function validateWasmExports(exports) {
       }
     }
 
-    const noteChecks = [
-      [30, 1],
-      [90, 2],
-      [73, 0],
-    ];
-    for (const [rule, expected] of noteChecks) {
-      if (Number(exports.note_regle(rule)) !== expected) {
-        return false;
+    if (typeof exports.note_regle === "function") {
+      const noteChecks = [
+        [30, 1],
+        [90, 2],
+        [73, 0],
+      ];
+      for (const [rule, expected] of noteChecks) {
+        if (Number(exports.note_regle(rule)) !== expected) {
+          return false;
+        }
       }
     }
 
-    const labelPtr = Number(exports.etiquette_note_regle(90));
-    const labelLength = Number(exports.__ml_str_len());
-    const labelBytes = new Uint8Array(exports.memory.buffer, labelPtr, labelLength);
-    const label = textDecoder.decode(labelBytes.slice());
-    exports.__ml_reset();
-    if (label !== "Triangle de Sierpinski") {
-      return false;
+    if (hasWasmStringSupport(exports) && typeof exports.etiquette_note_regle === "function") {
+      const labelPtr = Number(exports.etiquette_note_regle(90));
+      const labelLength = Number(exports.__ml_str_len());
+      const labelBytes = new Uint8Array(exports.memory.buffer, labelPtr, labelLength);
+      const label = textDecoder.decode(labelBytes.slice());
+      exports.__ml_reset();
+      if (label !== "Triangle de Sierpinski") {
+        return false;
+      }
     }
 
     if (Number(exports.sortie_motif(90, 4)) !== 1) {
@@ -225,6 +227,15 @@ function validateWasmExports(exports) {
   }
 
   return true;
+}
+
+function hasWasmStringSupport(exports) {
+  return (
+    exports
+    && typeof exports.__ml_str_len === "function"
+    && typeof exports.__ml_reset === "function"
+    && exports.memory instanceof WebAssembly.Memory
+  );
 }
 
 function transition(ruleNumber, left, center, right) {
@@ -265,9 +276,7 @@ function ruleNoteLabel(ruleNumber) {
     wasmAvailable
     && wasm
     && typeof wasm.etiquette_note_regle === "function"
-    && typeof wasm.__ml_str_len === "function"
-    && typeof wasm.__ml_reset === "function"
-    && wasm.memory instanceof WebAssembly.Memory
+    && hasWasmStringSupport(wasm)
   ) {
     try {
       return callWasmString(wasm.etiquette_note_regle, ruleNumber);
