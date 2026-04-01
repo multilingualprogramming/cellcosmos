@@ -66,12 +66,12 @@ déf generer_wat_et_wasm(source):
 déf construire_bundle():
     soit source_main = SOURCE_ML.read_text(encoding="utf-8")
     soit source_module = MODULE_WASM_ML.read_text(encoding="utf-8")
-    soit saut_ligne = chr(10)
     soit lignes = []
     pour ligne dans source_main.splitlines():
         si ligne.strip().startswith("importer automate_elementaire_wasm"):
             continuer
         lignes.append(ligne)
+    soit saut_ligne = chr(10)
     soit bundle = ["# Bundle WASM genere automatiquement", source_module.strip(), "", saut_ligne.join(lignes).strip(), ""]
     retour saut_ligne.join(bundle).strip() + saut_ligne
 
@@ -226,7 +226,7 @@ déf ecrire_vignettes_galerie():
     DOSSIER_VIGNETTES.mkdir(parents=Vrai, exist_ok=Vrai)
     pour numero_regle dans range(256):
         soit chemin = DOSSIER_VIGNETTES / nom_vignette(numero_regle)
-        soit contenu = generer_vignette_svg(numero_regle) + "\n"
+        soit contenu = generer_vignette_svg(numero_regle)
         chemin.write_text(contenu, encoding="utf-8")
 
 
@@ -244,12 +244,12 @@ déf generer_galerie_html():
     soit cartes = []
     pour numero_regle dans range(256):
         cartes.append(generer_carte_galerie(numero_regle))
-    retour "\n".join(cartes)
+    retour "".join(cartes)
 
 
 déf ecrire_fragment_galerie():
     soit galerie = generer_galerie_html()
-    SORTIE_GALERIE.write_text(galerie + "\n", encoding="utf-8")
+    SORTIE_GALERIE.write_text(galerie, encoding="utf-8")
 
 
 déf main():
