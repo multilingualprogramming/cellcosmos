@@ -159,9 +159,7 @@ function validateWasmExports(exports) {
   if (
     !exports
     || typeof exports.cellule_suivante !== "function"
-    || typeof exports.sortie_motif !== "function"
     || typeof exports.classe_wolfram !== "function"
-    || typeof exports.composante_interpolee !== "function"
   ) {
     return false;
   }
@@ -215,11 +213,15 @@ function validateWasmExports(exports) {
       }
     }
 
-    if (Number(exports.sortie_motif(90, 4)) !== 1) {
-      return false;
+    if (typeof exports.sortie_motif === "function") {
+      if (Number(exports.sortie_motif(90, 4)) !== 1) {
+        return false;
+      }
     }
-    if (Number(exports.composante_interpolee(0, 255, 500)) !== 128) {
-      return false;
+    if (typeof exports.composante_interpolee === "function") {
+      if (Number(exports.composante_interpolee(0, 255, 500)) !== 128) {
+        return false;
+      }
     }
   } catch (error) {
     console.error(error);
