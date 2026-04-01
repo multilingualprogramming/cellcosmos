@@ -115,12 +115,14 @@ async function loadWasm() {
     const module = await WebAssembly.compile(bytes);
     const importObject = buildWasmImportObject(module);
     const instance = await WebAssembly.instantiate(module, importObject);
-    if (!validateWasmExports(instance.exports)) {
-      throw new Error("Exports WASM incompatibles avec l'interface Cellcosmos.");
-    }
     wasm = instance.exports;
     wasmAvailable = true;
-    status.textContent = "Moteur WASM charg\u00e9 depuis les sources Multilingual.";
+    if (validateWasmExports(instance.exports)) {
+      status.textContent = "Moteur WASM charg\u00e9 depuis les sources Multilingual.";
+    } else {
+      status.textContent = "Moteur WASM charge partiellement, avec repli JavaScript selon les fonctions disponibles.";
+      console.warn("Exports WASM partiellement compatibles avec l'interface Cellcosmos.");
+    }
   } catch (error) {
     wasm = null;
     wasmAvailable = false;
