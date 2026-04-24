@@ -346,3 +346,102 @@ déf valider_config_esthetique(config):
         retour {"valide": Faux, "erreur": "Opacite doit etre entre 0 et 1"}
 
     retour {"valide": Vrai}
+
+
+# Analyse musicale des motifs de l'automate
+
+déf calculer_vitesse_evolution(grille, lignes, colonnes):
+    si lignes <= 1:
+        retour 0.0
+    soit transitions = 0
+    pour row dans range(1, lignes):
+        pour col dans range(colonnes):
+            si grille[row][col] != grille[row - 1][col]:
+                transitions = transitions + 1
+    retour transitions / ((lignes - 1) * colonnes)
+
+
+déf calculer_symetrie_horizontale(grille, lignes, colonnes):
+    si colonnes <= 1:
+        retour 1.0
+    soit concordances = 0
+    soit total = 0
+    pour row dans range(lignes):
+        pour col dans range(colonnes // 2):
+            si grille[row][col] == grille[row][colonnes - 1 - col]:
+                concordances = concordances + 1
+            total = total + 1
+    si total == 0:
+        retour 1.0
+    retour concordances / total
+
+
+déf calculer_centre_gravite(grille, lignes, colonnes):
+    soit somme_ponderee = 0
+    soit total_vivantes = 0
+    pour row dans range(lignes):
+        pour col dans range(colonnes):
+            si grille[row][col] == 1:
+                somme_ponderee = somme_ponderee + col
+                total_vivantes = total_vivantes + 1
+    si total_vivantes == 0:
+        retour colonnes / 2
+    retour somme_ponderee / total_vivantes
+
+
+déf calculer_longueur_course_max(grille, lignes, colonnes):
+    soit max_course = 0
+    pour row dans range(lignes):
+        soit course = 0
+        pour col dans range(colonnes):
+            si grille[row][col] == 1:
+                course = course + 1
+                si course > max_course:
+                    max_course = course
+            sinon:
+                course = 0
+    retour max_course
+
+
+déf analyser_motif_musical(grille, lignes, colonnes):
+    soit vitesse = calculer_vitesse_evolution(grille, lignes, colonnes)
+    soit symetrie = calculer_symetrie_horizontale(grille, lignes, colonnes)
+    soit centre = calculer_centre_gravite(grille, lignes, colonnes)
+    soit course_max = calculer_longueur_course_max(grille, lignes, colonnes)
+    soit densite = calculer_densite_totale(grille, lignes, colonnes)
+    retour {
+        "vitesse_evolution": vitesse,
+        "symetrie": symetrie,
+        "centre_gravite": centre,
+        "longueur_course_max": course_max,
+        "densite": densite,
+    }
+
+
+déf calculer_densite_totale(grille, lignes, colonnes):
+    si lignes * colonnes == 0:
+        retour 0.0
+    soit vivantes = 0
+    pour row dans range(lignes):
+        pour col dans range(colonnes):
+            vivantes = vivantes + grille[row][col]
+    retour vivantes / (lignes * colonnes)
+
+
+déf sequence_notes_depuis_grille(grille, lignes, colonnes, gamme):
+    soit row_origine = lignes // 2
+    soit notes = []
+    pour col dans range(colonnes):
+        si grille[row_origine][col] == 1:
+            soit degre = (col * len(gamme)) // colonnes
+            notes.append(gamme[degre % len(gamme)])
+    retour notes
+
+
+déf descriptions_gammes():
+    retour {
+        "pentatonique": "Cinq notes, harmonieuse et reposante",
+        "diatonique": "Gamme majeure classique, melodieuse",
+        "chromatique": "Douze demi-tons, richesse maximale",
+        "ton_entier": "Six notes equidistantes, ambiance suspendue",
+    }

@@ -197,3 +197,53 @@ déf frequence_cutoff_filtre_sonore(densite, base_frequence):
 déf temps_delai_reverb(numero_regle):
     soit modulo = numero_regle % 16
     retour 0.1 + modulo / 160
+
+
+# Musique generative depuis les motifs : mappings derives des statistiques de la grille
+
+déf tempo_depuis_vitesse(vitesse_sur_1000):
+    retour 60 + (vitesse_sur_1000 * 120) // 1000
+
+
+déf gamme_depuis_classe(classe_wolfram):
+    si classe_wolfram == 1:
+        retour 0
+    si classe_wolfram == 3:
+        retour 2
+    si classe_wolfram == 4:
+        retour 3
+    retour 1
+
+
+déf reverb_depuis_symetrie(symetrie_sur_1000):
+    retour symetrie_sur_1000
+
+
+déf pan_depuis_centre(centre_sur_1000):
+    retour centre_sur_1000 - 500
+
+
+déf octave_depuis_course(longueur_course, max_colonnes):
+    si max_colonnes <= 0:
+        retour 4
+    soit rapport = longueur_course * 100 // max_colonnes
+    si rapport > 60:
+        retour 5
+    si rapport > 30:
+        retour 4
+    retour 3
+
+
+déf note_depuis_colonne(colonne, largeur, longueur_gamme):
+    si largeur <= 0 ou longueur_gamme <= 0:
+        retour 0
+    soit degre = (colonne * longueur_gamme) // largeur
+    retour degre % longueur_gamme
+
+
+déf duree_note_depuis_densite(densite_sur_1000):
+    si densite_sur_1000 > 700:
+        retour 80
+    si densite_sur_1000 > 400:
+        retour 150
+    retour 250

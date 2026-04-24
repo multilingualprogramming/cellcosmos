@@ -599,3 +599,11 @@ input[type="color"] {
     padding: 14px;
   }
 }
+
+.seq-status {
+  padding: 10px 18px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.82rem;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+}

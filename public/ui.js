@@ -63,6 +63,7 @@ const textDecoder = new TextDecoder();
 let galleryLoaded = false;
 let galleryLoading = null;
 const patternCache = new Map();
+let dernieresCouches = null;
 
 function createDotsPattern(size, color, ctx) {
   const canvas = new OffscreenCanvas(size, size);
@@ -331,6 +332,27 @@ function validateWasmExports(exports) {
 
     if (typeof exports.texture_code_solide === "function" && typeof exports.texture_code_bruit === "function") {
       if (Number(exports.texture_code_solide()) !== 0 || Number(exports.texture_code_bruit()) !== 4) {
+        return false;
+      }
+    }
+
+    if (typeof exports.tempo_depuis_vitesse === "function") {
+      const tempo = Number(exports.tempo_depuis_vitesse(500));
+      if (tempo < 60 || tempo > 180) {
+        return false;
+      }
+    }
+
+    if (typeof exports.gamme_depuis_classe === "function") {
+      const gamme = Number(exports.gamme_depuis_classe(2));
+      if (gamme < 0 || gamme > 3) {
+        return false;
+      }
+    }
+
+    if (typeof exports.octave_depuis_course === "function") {
+      const octave = Number(exports.octave_depuis_course(10, 100));
+      if (octave < 3 || octave > 5) {
         return false;
       }
     }
@@ -617,6 +639,7 @@ function renderToCanvas(canvas, ruleNumber, rows, cols, cellSize) {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const couches = construireCouchesAutomate(ruleNumber, rows, cols);
+  dernieresCouches = couches;
   const canvasWidth = cols * cellSize;
   const canvasHeight = rows * cellSize;
 
@@ -754,6 +777,10 @@ function renderMainView() {
     const density = totalCells > 0 ? liveCells / totalCells : 0;
     const cls = wolframClass(state.rule);
     audioEngine.update(state.rule, cls, density);
+  }
+
+  if (sequenceur.active && dernieresCouches) {
+    sequenceur.refresh(dernieresCouches, state.rule);
   }
 }
 
@@ -933,6 +960,98 @@ function applyTheme(theme) {
   }
 }
 
+function analyserMotifMusical(couches) {
+  const grille = couches.flatMap(c => c.automate);
+  const lignes = grille.length;
+  const colonnes = lignes > 0 ? grille[0].length : 0;
+  if (lignes === 0 || colonnes === 0) return null;
+
+  let transitions = 0;
+  for (let r = 1; r < lignes; r++)
+    for (let c = 0; c < colonnes; c++)
+      if (grille[r][c] !== grille[r - 1][c]) transitions++;
+  const vitesse = (lignes > 1) ? transitions / ((lignes - 1) * colonnes) : 0;
+
+  let concordances = 0, totalSym = 0;
+  for (let r = 0; r < lignes; r++)
+    for (let c = 0; c < Math.floor(colonnes / 2); c++) {
+      if (grille[r][c] === grille[r][colonnes - 1 - c]) concordances++;
+      totalSym++;
+    }
+  const symetrie = totalSym > 0 ? concordances / totalSym : 1;
+
+  let sommePonderee = 0, totalVivantes = 0;
+  for (let r = 0; r < lignes; r++)
+    for (let c = 0; c < colonnes; c++)
+      if (grille[r][c] === 1) { sommePonderee += c; totalVivantes++; }
+  const centreX = totalVivantes > 0 ? sommePonderee / totalVivantes / colonnes : 0.5;
+
+  let courseMax = 0;
+  for (let r = 0; r < lignes; r++) {
+    let course = 0;
+    for (let c = 0; c < colonnes; c++) {
+      if (grille[r][c] === 1) { course++; if (course > courseMax) courseMax = course; }
+      else course = 0;
+    }
+  }
+
+  const densite = totalVivantes / (lignes * colonnes);
+
+  return { vitesse, symetrie, centreX, courseMax, colonnes, densite };
+}
+
+function paramsMusicauxDepuisMotif(stats, ruleNumber) {
+  const vitesse1000 = Math.round(stats.vitesse * 1000);
+  const symetrie1000 = Math.round(stats.symetrie * 1000);
+  const centre1000 = Math.round(stats.centreX * 1000);
+  const densite1000 = Math.round(stats.densite * 1000);
+  const cls = wasmAvailable && wasm && wasm.classe_wolfram
+    ? wasm.classe_wolfram(ruleNumber)
+    : fallbackDomain.wolframClass(ruleNumber);
+
+  const bpm = wasmAvailable && wasm && wasm.tempo_depuis_vitesse
+    ? wasm.tempo_depuis_vitesse(vitesse1000)
+    : 60 + Math.floor(vitesse1000 * 120 / 1000);
+
+  const gammeCode = wasmAvailable && wasm && wasm.gamme_depuis_classe
+    ? wasm.gamme_depuis_classe(cls)
+    : [0, 1, 2, 3][cls - 1] ?? 1;
+
+  const reverbAmount = wasmAvailable && wasm && wasm.reverb_depuis_symetrie
+    ? wasm.reverb_depuis_symetrie(symetrie1000) / 1000
+    : stats.symetrie;
+
+  const panRaw = wasmAvailable && wasm && wasm.pan_depuis_centre
+    ? wasm.pan_depuis_centre(centre1000)
+    : (centre1000 - 500);
+  const pan = panRaw / 500;
+
+  const octave = wasmAvailable && wasm && wasm.octave_depuis_course
+    ? wasm.octave_depuis_course(stats.courseMax, stats.colonnes)
+    : (stats.courseMax / stats.colonnes > 0.6 ? 5 : stats.courseMax / stats.colonnes > 0.3 ? 4 : 3);
+
+  const dureeNote = wasmAvailable && wasm && wasm.duree_note_depuis_densite
+    ? wasm.duree_note_depuis_densite(densite1000)
+    : (stats.densite > 0.7 ? 80 : stats.densite > 0.4 ? 150 : 250);
+
+  return { bpm, gammeCode, reverbAmount, pan, octave, dureeNote };
+}
+
+const GAMMES = {
+  0: [0, 2, 4, 7, 9],
+  1: [0, 2, 4, 5, 7, 9, 11],
+  2: [0,1,2,3,4,5,6,7,8,9,10,11],
+  3: [0, 2, 4, 6, 8, 10],
+};
+
+const GAMME_NOMS = ["Pentatonique", "Diatonique", "Chromatique", "Ton entier"];
+
+const BASE_MIDI = 60;
+
+function midiToHz(midi) {
+  return 440 * Math.pow(2, (midi - 69) / 12);
+}
+
 const audioEngine = {
   ctx: null,
   osc: null,
@@ -1049,6 +1168,110 @@ const audioEngine = {
       const cutoff = 200 + density * 3000;
       this.filter.frequency.setTargetAtTime(cutoff, this.ctx.currentTime, 0.1);
     }
+  },
+};
+
+const sequenceur = {
+  ctx: null,
+  master: null,
+  timer: null,
+  active: false,
+  rowIndex: 0,
+  params: null,
+  grille: null,
+
+  init() {
+    if (this.ctx) return;
+    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    this.master = this.ctx.createGain();
+    this.master.gain.value = 0.25;
+    this.master.connect(this.ctx.destination);
+  },
+
+  jouerNote(freq, dureeMs, pan) {
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const env = this.ctx.createGain();
+    const panner = this.ctx.createStereoPanner();
+    osc.type = "sine";
+    osc.frequency.value = freq;
+    env.gain.setValueAtTime(0.3, t);
+    env.gain.exponentialRampToValueAtTime(0.001, t + dureeMs / 1000);
+    panner.pan.value = Math.max(-1, Math.min(1, pan));
+    osc.connect(env);
+    env.connect(panner);
+    panner.connect(this.master);
+    osc.start(t);
+    osc.stop(t + dureeMs / 1000 + 0.05);
+  },
+
+  jouerRang(row, params) {
+    if (!row || !params) return;
+    const gamme = GAMMES[params.gammeCode] || GAMMES[1];
+    const cols = row.length;
+    const noteBase = (params.octave - 4) * 12 + BASE_MIDI;
+
+    row.forEach((cell, col) => {
+      if (cell !== 1) return;
+      const degre = wasmAvailable && wasm && wasm.note_depuis_colonne
+        ? wasm.note_depuis_colonne(col, cols, gamme.length)
+        : Math.floor(col * gamme.length / cols) % gamme.length;
+      const semitones = gamme[degre];
+      const freq = midiToHz(noteBase + semitones);
+      this.jouerNote(freq, params.dureeNote, params.pan);
+    });
+  },
+
+  tick() {
+    if (!this.active || !this.grille || !this.params) return;
+    const lignes = this.grille.length;
+    if (lignes === 0) return;
+    this.rowIndex = this.rowIndex % lignes;
+    this.jouerRang(this.grille[this.rowIndex], this.params);
+    const seqRow = document.getElementById("seq-row");
+    if (seqRow) seqRow.textContent = this.rowIndex + 1;
+    this.rowIndex++;
+  },
+
+  start(couches, ruleNumber) {
+    this.init();
+    if (this.ctx.state === "suspended") this.ctx.resume();
+    const stats = analyserMotifMusical(couches);
+    if (!stats) return;
+    this.params = paramsMusicauxDepuisMotif(stats, ruleNumber);
+    this.grille = couches.flatMap(c => c.automate);
+    this.rowIndex = 0;
+    this.active = true;
+    this.updateStatusUI();
+    const intervalMs = Math.round(60000 / this.params.bpm);
+    this.timer = setInterval(() => this.tick(), intervalMs);
+  },
+
+  stop() {
+    this.active = false;
+    if (this.timer) { clearInterval(this.timer); this.timer = null; }
+    if (this.ctx) this.ctx.suspend();
+  },
+
+  refresh(couches, ruleNumber) {
+    if (!this.active) return;
+    const stats = analyserMotifMusical(couches);
+    if (!stats) return;
+    this.params = paramsMusicauxDepuisMotif(stats, ruleNumber);
+    this.grille = couches.flatMap(c => c.automate);
+    const intervalMs = Math.round(60000 / this.params.bpm);
+    if (this.timer) clearInterval(this.timer);
+    this.timer = setInterval(() => this.tick(), intervalMs);
+    this.updateStatusUI();
+  },
+
+  updateStatusUI() {
+    const status = document.getElementById("seq-status");
+    const tempoEl = document.getElementById("seq-tempo");
+    const gammeEl = document.getElementById("seq-gamme");
+    if (status) status.hidden = false;
+    if (tempoEl && this.params) tempoEl.textContent = this.params.bpm;
+    if (gammeEl && this.params) gammeEl.textContent = GAMME_NOMS[this.params.gammeCode] ?? "—";
   },
 };
 
@@ -1247,6 +1470,22 @@ function bindControls() {
       btn.textContent = "⏹ Son";
     }
   });
+
+  const btnSeq = document.getElementById("btn-sequencer");
+  if (btnSeq) {
+    btnSeq.addEventListener("click", () => {
+      if (sequenceur.active) {
+        sequenceur.stop();
+        btnSeq.textContent = "▶ Séquenceur";
+        const status = document.getElementById("seq-status");
+        if (status) status.hidden = true;
+      } else {
+        const couches = dernieresCouches || construireCouchesAutomate(state.rule, ...obtenirDimensionsRendu());
+        sequenceur.start(couches, state.rule);
+        btnSeq.textContent = "⏹ Séquenceur";
+      }
+    });
+  }
 
   document.getElementById("btn-reset").addEventListener("click", () => {
     state = structuredClone(DEFAULTS);
