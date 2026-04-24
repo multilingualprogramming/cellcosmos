@@ -364,6 +364,26 @@ input[type="color"] {
   gap: 8px;
 }
 
+.point-gradient-card {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: rgba(13, 30, 45, 0.72);
+}
+
+.point-gradient-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.point-gradient-title {
+  font-weight: 600;
+  color: var(--accent-2);
+}
+
 .gallery-panel,
 .source-panel {
   overflow: hidden;

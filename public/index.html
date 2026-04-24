@@ -100,6 +100,10 @@
                 <textarea id="init-points" rows="4" placeholder="150:0, 140:20, 160:20"></textarea>
               </label>
               <p class="muted">Plusieurs points s&eacute;par&eacute;s par des virgules, espaces ou retours &agrave; la ligne.</p>
+              <div id="point-gradients" class="stack compact" hidden>
+                <span class="muted">D&eacute;grad&eacute;s par point</span>
+                <div id="point-gradient-list" class="stack compact"></div>
+              </div>
             </div>
             <div id="random-opts" class="stack" hidden>
               <label>Nombre <input type="number" id="init-count" min="1" max="500" value="5" /></label>
@@ -114,7 +118,7 @@
               <input type="color" id="bg-color" value="#08111f" />
             </div>
             <div class="stack">
-              <span class="muted">&Eacute;tapes du d&eacute;grad&eacute;</span>
+              <span class="muted">D&eacute;grad&eacute; global</span>
               <div id="gradient-colors" class="stack compact"></div>
               <button type="button" id="btn-add-color" class="ghost-btn">+ Ajouter</button>
             </div>

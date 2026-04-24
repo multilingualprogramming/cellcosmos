@@ -3,6 +3,7 @@ const DEFAULTS = {
   cellSize: 3,
   bgColor: [8, 17, 31],
   gradientColors: [[255, 157, 77], [255, 209, 102], [83, 176, 255]],
+  palettesPoints: {},
   shape: "rect",
   initialMode: "top",
   pointsInitiaux: "",
@@ -75,6 +76,10 @@ function rgbToHexColor(rgb) {
   return `#${rgbToHex(rgb)}`;
 }
 
+function clonerCouleurs(colors) {
+  return colors.map((color) => [...color]);
+}
+
 function mulberry32(seed) {
   let t = seed >>> 0;
   return () => {
@@ -100,6 +105,15 @@ function generateGradient(colors, steps) {
     const localT = (index - segment * stepsPerSegment) / stepsPerSegment;
     return interpolateColor(colors[segment], colors[segment + 1], localT);
   });
+}
+
+function obtenirDimensionsRendu() {
+  const canvas = document.getElementById("main-canvas");
+  const width = canvas?.parentElement?.clientWidth || 900;
+  return {
+    rows: Math.max(1, Math.floor((width * 0.6) / state.cellSize)),
+    cols: Math.max(1, Math.floor(width / state.cellSize)),
+  };
 }
 
 async function loadWasm() {
@@ -331,6 +345,15 @@ function analyserPointsInitiaux(raw, cols, rows, yParDefaut) {
     .filter(Boolean);
 }
 
+function obtenirClePoint(point) {
+  return `${point.x}:${point.y}`;
+}
+
+function obtenirPointsActifsPersonnalises() {
+  const { rows, cols } = obtenirDimensionsRendu();
+  return analyserPointsInitiaux(state.pointsInitiaux, cols, rows, obtenirOrigineYParDefaut(rows));
+}
+
 function normaliserPositionsInitiales(cols, rows) {
   const yParDefaut = obtenirOrigineYParDefaut(rows);
   if (state.initialMode === "random") {
@@ -359,18 +382,6 @@ function obtenirGraineLigne(baseSeed, ligneSource, ligneCible) {
   return baseSeed + (ligneSource + 1) * 1009 + (ligneCible + 1) * 9176;
 }
 
-function fusionnerAutomates(automates, rows, cols) {
-  const resultat = Array.from({ length: rows }, () => Array(cols).fill(0));
-  automates.forEach((automate) => {
-    for (let row = 0; row < rows; row += 1) {
-      for (let col = 0; col < cols; col += 1) {
-        if (automate[row][col] === 1) resultat[row][col] = 1;
-      }
-    }
-  });
-  return resultat;
-}
-
 function evoluerDepuisPosition(ruleNumber, rows, cols, position, baseSeed) {
   const grid = Array.from({ length: rows }, () => Array(cols).fill(0));
   const x = clamp(position.x ?? Math.floor(cols / 2), 0, cols - 1);
@@ -394,15 +405,38 @@ function synchroniserInterfaceModeInitial() {
   if (optionsPersonnalisees) optionsPersonnalisees.hidden = state.initialMode !== "custom";
 }
 
-function evolveAutomaton(ruleNumber, rows, cols) {
+function synchroniserPalettesPoints() {
+  const points = obtenirPointsActifsPersonnalises();
+  const palettes = {};
+  points.forEach((point) => {
+    const cle = obtenirClePoint(point);
+    palettes[cle] = state.palettesPoints[cle] ? clonerCouleurs(state.palettesPoints[cle]) : clonerCouleurs(state.gradientColors);
+  });
+  state.palettesPoints = palettes;
+}
+
+function obtenirCouleursPoint(point) {
+  const couleurs = state.palettesPoints[obtenirClePoint(point)];
+  return couleurs && couleurs.length ? couleurs : state.gradientColors;
+}
+
+function construireCouchesAutomate(ruleNumber, rows, cols) {
   const positions = normaliserPositionsInitiales(cols, rows);
   const baseSeed = Number.parseInt(state.seed || 0, 10);
-  const automates = positions.map((position, index) => evoluerDepuisPosition(ruleNumber, rows, cols, position, baseSeed + index));
-  if (automates.length === 0) {
-    return evoluerDepuisPosition(ruleNumber, rows, cols, { x: Math.floor(cols / 2), y: obtenirOrigineYParDefaut(rows) }, baseSeed);
+  if (state.initialMode === "custom") synchroniserPalettesPoints();
+  if (positions.length === 0) {
+    const position = { x: Math.floor(cols / 2), y: obtenirOrigineYParDefaut(rows) };
+    return [{
+      position,
+      automate: evoluerDepuisPosition(ruleNumber, rows, cols, position, baseSeed),
+      couleurs: state.gradientColors,
+    }];
   }
-  if (automates.length === 1) return automates[0];
-  return fusionnerAutomates(automates, rows, cols);
+  return positions.map((position, index) => ({
+    position,
+    automate: evoluerDepuisPosition(ruleNumber, rows, cols, position, baseSeed + index),
+    couleurs: state.initialMode === "custom" ? obtenirCouleursPoint(position) : state.gradientColors,
+  }));
 }
 
 function getNextGeneration(current, ruleNumber, rowSeed) {
@@ -465,13 +499,15 @@ function renderToCanvas(canvas, ruleNumber, rows, cols, cellSize) {
   canvas.height = rows * cellSize;
   ctx.fillStyle = `rgb(${state.bgColor.join(",")})`;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  const automaton = evolveAutomaton(ruleNumber, rows, cols);
-  const gradient = generateGradient(state.gradientColors, rows);
-  automaton.forEach((row, rowIndex) => {
-    const color = `rgb(${gradient[rowIndex].join(",")})`;
-    row.forEach((value, colIndex) => {
-      if (value !== 1) return;
-      drawCell(ctx, colIndex * cellSize, rowIndex * cellSize, cellSize, color);
+  const couches = construireCouchesAutomate(ruleNumber, rows, cols);
+  couches.forEach((couche) => {
+    const gradient = generateGradient(couche.couleurs, rows);
+    couche.automate.forEach((row, rowIndex) => {
+      const color = `rgb(${gradient[rowIndex].join(",")})`;
+      row.forEach((value, colIndex) => {
+        if (value !== 1) return;
+        drawCell(ctx, colIndex * cellSize, rowIndex * cellSize, cellSize, color);
+      });
     });
   });
 }
@@ -524,6 +560,7 @@ function buildShareURL() {
     shape: state.shape,
     init: state.initialMode,
     pts: state.pointsInitiaux,
+    pp: JSON.stringify(state.palettesPoints),
     count: state.initialCount,
     seed: state.seed,
     circ: state.circular ? "1" : "0",
@@ -542,6 +579,14 @@ function loadFromURL() {
   if (params.has("shape")) state.shape = params.get("shape");
   if (params.has("init")) state.initialMode = params.get("init");
   if (params.has("pts")) state.pointsInitiaux = params.get("pts");
+  if (params.has("pp")) {
+    try {
+      state.palettesPoints = JSON.parse(params.get("pp"));
+    } catch (error) {
+      state.palettesPoints = {};
+      console.error(error);
+    }
+  }
   if (params.has("count")) state.initialCount = Number.parseInt(params.get("count"), 10);
   if (params.has("seed")) state.seed = Number.parseInt(params.get("seed"), 10);
   if (params.has("circ")) state.circular = params.get("circ") === "1";
@@ -551,39 +596,88 @@ function loadFromURL() {
 
 function renderMainView() {
   const canvas = document.getElementById("main-canvas");
-  const width = canvas.parentElement.clientWidth;
-  const rows = Math.max(1, Math.floor((width * 0.6) / state.cellSize));
-  const cols = Math.max(1, Math.floor(width / state.cellSize));
+  const { rows, cols } = obtenirDimensionsRendu();
   renderToCanvas(canvas, state.rule, rows, cols, state.cellSize);
 }
 
-function renderGradientPickers() {
-  const container = document.getElementById("gradient-colors");
+function renderColorStops(container, colors, onChange) {
   container.innerHTML = "";
-  state.gradientColors.forEach((color, index) => {
+  colors.forEach((color, index) => {
     const row = document.createElement("div");
     row.className = "color-stop";
     const picker = document.createElement("input");
     picker.type = "color";
     picker.value = rgbToHexColor(color);
     picker.addEventListener("input", () => {
-      state.gradientColors[index] = hexToRgb(picker.value);
-      scheduleRender();
+      onChange(index, hexToRgb(picker.value));
     });
     row.appendChild(picker);
-    if (state.gradientColors.length > 1) {
+    if (colors.length > 1) {
       const remove = document.createElement("button");
       remove.type = "button";
       remove.className = "ghost-btn";
       remove.textContent = "x";
       remove.addEventListener("click", () => {
-        state.gradientColors.splice(index, 1);
-        renderGradientPickers();
-        scheduleRender();
+        onChange(index, null);
       });
       row.appendChild(remove);
     }
     container.appendChild(row);
+  });
+}
+
+function renderGradientPickers() {
+  const container = document.getElementById("gradient-colors");
+  renderColorStops(container, state.gradientColors, (index, color) => {
+    if (color) state.gradientColors[index] = color;
+    else state.gradientColors.splice(index, 1);
+    renderGradientPickers();
+    renderPalettesPoints();
+    scheduleRender();
+  });
+}
+
+function renderPalettesPoints() {
+  const wrapper = document.getElementById("point-gradients");
+  const container = document.getElementById("point-gradient-list");
+  const points = obtenirPointsActifsPersonnalises();
+  synchroniserPalettesPoints();
+  wrapper.hidden = !(state.initialMode === "custom" && points.length > 1);
+  container.innerHTML = "";
+  if (wrapper.hidden) return;
+
+  points.forEach((point) => {
+    const cle = obtenirClePoint(point);
+    const couleurs = state.palettesPoints[cle] || clonerCouleurs(state.gradientColors);
+    const card = document.createElement("div");
+    card.className = "point-gradient-card";
+
+    const head = document.createElement("div");
+    head.className = "point-gradient-head";
+    head.innerHTML = `<span class="point-gradient-title">Point ${cle}</span><span class="muted">${couleurs.length} couleur${couleurs.length > 1 ? "s" : ""}</span>`;
+    card.appendChild(head);
+
+    const colors = document.createElement("div");
+    colors.className = "stack compact";
+    renderColorStops(colors, couleurs, (index, color) => {
+      if (color) state.palettesPoints[cle][index] = color;
+      else state.palettesPoints[cle].splice(index, 1);
+      renderPalettesPoints();
+      scheduleRender();
+    });
+    card.appendChild(colors);
+
+    const addButton = document.createElement("button");
+    addButton.type = "button";
+    addButton.className = "ghost-btn";
+    addButton.textContent = "+ Ajouter";
+    addButton.addEventListener("click", () => {
+      state.palettesPoints[cle].push([255, 255, 255]);
+      renderPalettesPoints();
+      scheduleRender();
+    });
+    card.appendChild(addButton);
+    container.appendChild(card);
   });
 }
 
@@ -602,6 +696,7 @@ function switchTab(tab) {
 
 const scheduleRender = debounce(() => {
   renderMainView();
+  renderPalettesPoints();
 }, 100);
 
 function selectGalleryRule(rule) {
@@ -719,6 +814,7 @@ function bindControls() {
     input.addEventListener("change", () => {
       state.initialMode = input.value;
       synchroniserInterfaceModeInitial();
+      renderPalettesPoints();
       scheduleRender();
     });
   });
@@ -740,6 +836,7 @@ function bindControls() {
       document.querySelector('input[name="init-mode"][value="custom"]').checked = true;
       synchroniserInterfaceModeInitial();
     }
+    renderPalettesPoints();
     scheduleRender();
   });
   initSeed.addEventListener("change", (event) => {
@@ -747,6 +844,7 @@ function bindControls() {
     scheduleRender();
   });
   synchroniserInterfaceModeInitial();
+  renderPalettesPoints();
 
   const bgColor = document.getElementById("bg-color");
   bgColor.value = rgbToHexColor(state.bgColor);
@@ -758,6 +856,7 @@ function bindControls() {
   document.getElementById("btn-add-color").addEventListener("click", () => {
     state.gradientColors.push([255, 255, 255]);
     renderGradientPickers();
+    renderPalettesPoints();
     scheduleRender();
   });
 
@@ -830,6 +929,7 @@ async function init() {
   bindControls();
   bindGallery();
   renderGradientPickers();
+  renderPalettesPoints();
   syncRuleControls();
   renderRuleDiagram();
   renderMainView();
