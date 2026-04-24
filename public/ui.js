@@ -355,25 +355,36 @@ function applyInitialState(grid, cols, rows) {
   return [...lignesOrigine].sort((a, b) => a - b);
 }
 
-function obtenirSegmentsGeneration(lignesOrigine, rows) {
-  return lignesOrigine.map((origine, index) => {
-    const borneBasse = index === 0 ? 0 : Math.floor((lignesOrigine[index - 1] + origine) / 2) + 1;
-    const borneHaute = index === lignesOrigine.length - 1 ? rows - 1 : Math.floor((origine + lignesOrigine[index + 1]) / 2);
-    return { origine, borneBasse, borneHaute };
-  });
-}
-
 function obtenirGraineLigne(baseSeed, ligneSource, ligneCible) {
   return baseSeed + (ligneSource + 1) * 1009 + (ligneCible + 1) * 9176;
 }
 
-function evoluerSegment(grid, ruleNumber, segment, baseSeed) {
-  for (let row = segment.origine + 1; row <= segment.borneHaute; row += 1) {
+function fusionnerAutomates(automates, rows, cols) {
+  const resultat = Array.from({ length: rows }, () => Array(cols).fill(0));
+  automates.forEach((automate) => {
+    for (let row = 0; row < rows; row += 1) {
+      for (let col = 0; col < cols; col += 1) {
+        if (automate[row][col] === 1) resultat[row][col] = 1;
+      }
+    }
+  });
+  return resultat;
+}
+
+function evoluerDepuisPosition(ruleNumber, rows, cols, position, baseSeed) {
+  const grid = Array.from({ length: rows }, () => Array(cols).fill(0));
+  const x = clamp(position.x ?? Math.floor(cols / 2), 0, cols - 1);
+  const origine = clamp(position.y ?? obtenirOrigineYParDefaut(rows), 0, rows - 1);
+  grid[origine][x] = 1;
+
+  for (let row = origine + 1; row < rows; row += 1) {
     grid[row] = getNextGeneration(grid[row - 1], ruleNumber, obtenirGraineLigne(baseSeed, row - 1, row));
   }
-  for (let row = segment.origine - 1; row >= segment.borneBasse; row -= 1) {
+  for (let row = origine - 1; row >= 0; row -= 1) {
     grid[row] = getNextGeneration(grid[row + 1], ruleNumber, obtenirGraineLigne(baseSeed, row + 1, row));
   }
+
+  return grid;
 }
 
 function synchroniserInterfaceModeInitial() {
@@ -384,15 +395,14 @@ function synchroniserInterfaceModeInitial() {
 }
 
 function evolveAutomaton(ruleNumber, rows, cols) {
-  const grid = Array.from({ length: rows }, () => Array(cols).fill(0));
-  const lignesOrigine = applyInitialState(grid, cols, rows);
-  const segments = obtenirSegmentsGeneration(lignesOrigine, rows);
-  const count = clamp(Number.parseInt(state.initialCount || 1, 10), 1, cols);
-  const baseSeed = Number.parseInt(state.seed || 0, 10) + count;
-  segments.forEach((segment) => {
-    evoluerSegment(grid, ruleNumber, segment, baseSeed);
-  });
-  return grid;
+  const positions = normaliserPositionsInitiales(cols, rows);
+  const baseSeed = Number.parseInt(state.seed || 0, 10);
+  const automates = positions.map((position, index) => evoluerDepuisPosition(ruleNumber, rows, cols, position, baseSeed + index));
+  if (automates.length === 0) {
+    return evoluerDepuisPosition(ruleNumber, rows, cols, { x: Math.floor(cols / 2), y: obtenirOrigineYParDefaut(rows) }, baseSeed);
+  }
+  if (automates.length === 1) return automates[0];
+  return fusionnerAutomates(automates, rows, cols);
 }
 
 function getNextGeneration(current, ruleNumber, rowSeed) {

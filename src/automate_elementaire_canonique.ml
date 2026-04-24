@@ -112,28 +112,16 @@ déf apply_initial_state(automaton, cols, rows, initial):
     retour sorted(origin_rows)
 
 
-déf obtenir_segments_generation(origin_rows, rows):
-    soit segments = []
-    soit total = len(origin_rows)
+déf fusionner_automates(automates, rows, cols):
+    soit resultat = construire_grille(rows, cols)
 
-    pour idx dans range(total):
-        soit origin_row = origin_rows[idx]
-        soit lower_bound = 0
-        soit upper_bound = rows - 1
+    pour automaton dans automates:
+        pour row dans range(rows):
+            pour col dans range(cols):
+                si automaton[row][col] == 1:
+                    resultat[row][col] = 1
 
-        si idx > 0:
-            lower_bound = ((origin_rows[idx - 1] + origin_row) // 2) + 1
-
-        si idx < total - 1:
-            upper_bound = (origin_row + origin_rows[idx + 1]) // 2
-
-        segments.append({
-            "origin": origin_row,
-            "lower": lower_bound,
-            "upper": upper_bound,
-        })
-
-    retour segments
+    retour resultat
 
 
 déf get_rule_dict(rule_number):
@@ -187,21 +175,55 @@ déf generate_gradient(colors, steps):
 
 
 déf evoluer_automate(rule_number, rows, cols, initial, circular=Faux, probability=1.0, direction="ltr"):
-    soit automaton = construire_grille(rows, cols)
-    soit origin_rows = apply_initial_state(automaton, cols, rows, initial)
+    soit positions = normaliser_positions_initiales(initial, cols, rows)
+    soit automates = []
+    soit index_position = 0
+    soit seed_base = initial.get("seed", 0)
     soit rule_dict = get_rule_dict(rule_number)
-    soit segments = obtenir_segments_generation(origin_rows, rows)
 
-    pour segment dans segments:
-        soit origin_row = segment["origin"]
+    pour position dans positions:
+        soit automaton = construire_grille(rows, cols)
+        soit x = position.get("x", cols // 2)
+        soit origin_row = position.get("y", obtenir_origine_y_par_defaut(initial.get("mode", "top"), rows))
 
-        pour row dans range(origin_row + 1, segment["upper"] + 1):
+        si non (0 <= x < cols et 0 <= origin_row < rows):
+            continuer
+
+        automaton[origin_row][x] = 1
+
+        soit random_state = random.getstate()
+        random.seed(seed_base + index_position)
+
+        pour row dans range(origin_row + 1, rows):
             automaton[row] = get_next_generation(automaton[row - 1], rule_dict, circular, probability, direction)
 
-        pour row dans range(origin_row - 1, segment["lower"] - 1, -1):
+        pour row dans range(origin_row - 1, -1, -1):
             automaton[row] = get_next_generation(automaton[row + 1], rule_dict, circular, probability, direction)
 
-    retour automaton
+        random.setstate(random_state)
+        automates.append(automaton)
+        index_position = index_position + 1
+
+    si non automates:
+        soit automaton = construire_grille(rows, cols)
+        soit origin_row = obtenir_origine_y_par_defaut(initial.get("mode", "top"), rows)
+        soit random_state = random.getstate()
+        random.seed(seed_base)
+        automaton[origin_row][cols // 2] = 1
+
+        pour row dans range(origin_row + 1, rows):
+            automaton[row] = get_next_generation(automaton[row - 1], rule_dict, circular, probability, direction)
+
+        pour row dans range(origin_row - 1, -1, -1):
+            automaton[row] = get_next_generation(automaton[row + 1], rule_dict, circular, probability, direction)
+
+        random.setstate(random_state)
+        automates.append(automaton)
+
+    si len(automates) == 1:
+        retour automates[0]
+
+    retour fusionner_automates(automates, rows, cols)
 
 
 déf evoluer_mode_couches(rule_number, rows, cols, initial, color_list, circular=Faux, probability=1.0, direction="ltr"):
@@ -213,18 +235,7 @@ déf evoluer_mode_couches(rule_number, rows, cols, initial, color_list, circular
     pour idx dans range(len(couches)):
         soit automaton = construire_grille(rows, cols)
         soit position = couches[idx]
-        soit origin_rows = apply_initial_state(automaton, cols, rows, position)
-        soit rule_dict = get_rule_dict(rule_number)
-        soit segments = obtenir_segments_generation(origin_rows, rows)
-
-        pour segment dans segments:
-            soit origin_row = segment["origin"]
-
-            pour row dans range(origin_row + 1, segment["upper"] + 1):
-                automaton[row] = get_next_generation(automaton[row - 1], rule_dict, circular, probability, direction)
-
-            pour row dans range(origin_row - 1, segment["lower"] - 1, -1):
-                automaton[row] = get_next_generation(automaton[row + 1], rule_dict, circular, probability, direction)
+        automaton = evoluer_automate(rule_number, rows, cols, position, circular, probability, direction)
 
         resultats.append({
             "automaton": automaton,
