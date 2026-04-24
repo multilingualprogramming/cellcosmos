@@ -723,8 +723,13 @@ function bindControls() {
     state.initialCount = Number.parseInt(event.target.value, 10) || 1;
     scheduleRender();
   });
-  initPoints.addEventListener("change", (event) => {
+  initPoints.addEventListener("input", (event) => {
     state.pointsInitiaux = event.target.value;
+    if (state.pointsInitiaux.trim()) {
+      state.initialMode = "custom";
+      document.querySelector('input[name="init-mode"][value="custom"]').checked = true;
+      synchroniserInterfaceModeInitial();
+    }
     scheduleRender();
   });
   initSeed.addEventListener("change", (event) => {
