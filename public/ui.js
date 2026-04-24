@@ -12,6 +12,9 @@ const DEFAULTS = {
   circular: false,
   probability: 1,
   direction: "ltr",
+  blendMode: "source-over",
+  layerOpacity: 1.0,
+  texture: "solid",
 };
 
 const fallbackDomain = {
@@ -40,6 +43,17 @@ const fallbackDomain = {
   interpolateComponent(start, end, progressScaled) {
     return Math.round(start + (end - start) * (progressScaled / 1000));
   },
+  frequenceFondamentale(ruleNumber) {
+    return 110 * Math.pow(2, ruleNumber / 64);
+  },
+  formeOndeSynthese(ruleNumber) {
+    const waveforms = ["sine", "triangle", "sawtooth", "square"];
+    const wolfClass = this.wolframClass(ruleNumber);
+    return waveforms[Math.max(0, Math.min(3, wolfClass - 1))];
+  },
+  desaccordSecondaire(ruleNumber) {
+    return (ruleNumber % 12) * 100;
+  },
 };
 
 let state = structuredClone(DEFAULTS);
@@ -48,6 +62,71 @@ let wasmAvailable = false;
 const textDecoder = new TextDecoder();
 let galleryLoaded = false;
 let galleryLoading = null;
+const patternCache = new Map();
+
+function createDotsPattern(size, color, ctx) {
+  const canvas = new OffscreenCanvas(size, size);
+  const c = canvas.getContext("2d");
+  c.fillStyle = color;
+  c.beginPath();
+  c.arc(size / 2, size / 2, size / 6, 0, Math.PI * 2);
+  c.fill();
+  return ctx.createPattern(canvas, "repeat");
+}
+
+function createCrosshatchPattern(size, color, ctx) {
+  const canvas = new OffscreenCanvas(size, size);
+  const c = canvas.getContext("2d");
+  c.strokeStyle = color;
+  c.lineWidth = Math.max(1, size / 8);
+  c.beginPath();
+  c.moveTo(0, 0);
+  c.lineTo(size, size);
+  c.stroke();
+  c.beginPath();
+  c.moveTo(size, 0);
+  c.lineTo(0, size);
+  c.stroke();
+  return ctx.createPattern(canvas, "repeat");
+}
+
+function createNoisePattern(size, color, ctx) {
+  const canvas = new OffscreenCanvas(size, size);
+  const c = canvas.getContext("2d");
+  const imageData = c.createImageData(size, size);
+  const data = imageData.data;
+  const rng = mulberry32(color.charCodeAt(0) || 42);
+  const matches = color.match(/\d+/g);
+  const [r, g, b] = matches ? matches.map(Number) : [255, 255, 255];
+  for (let i = 0; i < data.length; i += 4) {
+    const noise = rng();
+    data[i] = Math.round(r * (0.5 + noise * 0.5));
+    data[i + 1] = Math.round(g * (0.5 + noise * 0.5));
+    data[i + 2] = Math.round(b * (0.5 + noise * 0.5));
+    data[i + 3] = 255;
+  }
+  c.putImageData(imageData, 0, 0);
+  return ctx.createPattern(canvas, "repeat");
+}
+
+function getTexturePattern(size, color, textureName, ctx) {
+  const cacheKey = `${size}-${color}-${textureName}`;
+  if (patternCache.has(cacheKey)) {
+    return patternCache.get(cacheKey);
+  }
+  let pattern = null;
+  if (textureName === "dots") {
+    pattern = createDotsPattern(size, color, ctx);
+  } else if (textureName === "crosshatch") {
+    pattern = createCrosshatchPattern(size, color, ctx);
+  } else if (textureName === "noise") {
+    pattern = createNoisePattern(size, color, ctx);
+  }
+  if (pattern) {
+    patternCache.set(cacheKey, pattern);
+  }
+  return pattern;
+}
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -232,6 +311,26 @@ function validateWasmExports(exports) {
 
     if (typeof exports.sortie_motif === "function") {
       if (Number(exports.sortie_motif(90, 4)) !== 1) {
+        return false;
+      }
+    }
+
+    if (typeof exports.frequence_fondamentale === "function") {
+      const freq = Number(exports.frequence_fondamentale(90));
+      if (freq < 100 || freq > 2000) {
+        return false;
+      }
+    }
+
+    if (typeof exports.forme_onde_synthese === "function") {
+      const waveform = Number(exports.forme_onde_synthese(30));
+      if (waveform < 1 || waveform > 4) {
+        return false;
+      }
+    }
+
+    if (typeof exports.texture_code_solide === "function" && typeof exports.texture_code_bruit === "function") {
+      if (Number(exports.texture_code_solide()) !== 0 || Number(exports.texture_code_bruit()) !== 4) {
         return false;
       }
     }
@@ -468,7 +567,22 @@ function getNextGeneration(current, ruleNumber, rowSeed) {
 }
 
 function drawCell(ctx, x, y, size, color) {
-  ctx.fillStyle = color;
+  if (state.texture === "gradient") {
+    const grad = ctx.createRadialGradient(x + size / 2, y + size / 2, 0, x + size / 2, y + size / 2, size / 2);
+    grad.addColorStop(0, color);
+    grad.addColorStop(1, color.replace(/\)$/, ", 0)"));
+    ctx.fillStyle = grad;
+  } else if (state.texture === "solid") {
+    ctx.fillStyle = color;
+  } else {
+    const pattern = getTexturePattern(size, color, state.texture, ctx);
+    if (pattern) {
+      ctx.fillStyle = pattern;
+    } else {
+      ctx.fillStyle = color;
+    }
+  }
+
   if (state.shape === "circle") {
     ctx.beginPath();
     ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2);
@@ -497,19 +611,38 @@ function renderToCanvas(canvas, ruleNumber, rows, cols, cellSize) {
   const ctx = canvas.getContext("2d");
   canvas.width = cols * cellSize;
   canvas.height = rows * cellSize;
+
+  // Fill background
   ctx.fillStyle = `rgb(${state.bgColor.join(",")})`;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
+
   const couches = construireCouchesAutomate(ruleNumber, rows, cols);
+  const canvasWidth = cols * cellSize;
+  const canvasHeight = rows * cellSize;
+
   couches.forEach((couche) => {
+    // Create offscreen canvas for this layer
+    const offscreen = new OffscreenCanvas(canvasWidth, canvasHeight);
+    const offscreenCtx = offscreen.getContext("2d");
+
     const gradient = generateGradient(couche.couleurs, rows);
     couche.automate.forEach((row, rowIndex) => {
       const color = `rgb(${gradient[rowIndex].join(",")})`;
       row.forEach((value, colIndex) => {
         if (value !== 1) return;
-        drawCell(ctx, colIndex * cellSize, rowIndex * cellSize, cellSize, color);
+        drawCell(offscreenCtx, colIndex * cellSize, rowIndex * cellSize, cellSize, color);
       });
     });
+
+    // Composite layer onto main canvas with blend mode and opacity
+    ctx.globalCompositeOperation = state.blendMode;
+    ctx.globalAlpha = state.layerOpacity;
+    ctx.drawImage(offscreen, 0, 0);
   });
+
+  // Reset to default state
+  ctx.globalCompositeOperation = "source-over";
+  ctx.globalAlpha = 1.0;
 }
 
 function updateRuleInfo() {
@@ -566,6 +699,9 @@ function buildShareURL() {
     circ: state.circular ? "1" : "0",
     prob: state.probability.toFixed(2),
     dir: state.direction,
+    bm: state.blendMode,
+    lo: state.layerOpacity.toFixed(2),
+    tx: state.texture,
   });
   return `${location.origin}${location.pathname}?${params}`;
 }
@@ -592,12 +728,33 @@ function loadFromURL() {
   if (params.has("circ")) state.circular = params.get("circ") === "1";
   if (params.has("prob")) state.probability = Number.parseFloat(params.get("prob"));
   if (params.has("dir")) state.direction = params.get("dir");
+  if (params.has("bm")) state.blendMode = params.get("bm");
+  if (params.has("lo")) state.layerOpacity = clamp(Number.parseFloat(params.get("lo")), 0, 1);
+  if (params.has("tx")) state.texture = params.get("tx");
 }
 
 function renderMainView() {
   const canvas = document.getElementById("main-canvas");
   const { rows, cols } = obtenirDimensionsRendu();
   renderToCanvas(canvas, state.rule, rows, cols, state.cellSize);
+
+  // Calculate pattern density for audio
+  if (audioEngine.active) {
+    const couches = construireCouchesAutomate(state.rule, rows, cols);
+    let totalCells = 0;
+    let liveCells = 0;
+    couches.forEach((couche) => {
+      couche.automate.forEach((row) => {
+        row.forEach((cell) => {
+          totalCells++;
+          if (cell === 1) liveCells++;
+        });
+      });
+    });
+    const density = totalCells > 0 ? liveCells / totalCells : 0;
+    const cls = wolframClass(state.rule);
+    audioEngine.update(state.rule, cls, density);
+  }
 }
 
 function renderColorStops(container, colors, onChange) {
@@ -749,8 +906,161 @@ async function loadGalleryFragment() {
   return galleryLoading;
 }
 
+function initTheme() {
+  let theme = localStorage.getItem("theme");
+  if (!theme) {
+    theme = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  }
+  applyTheme(theme);
+}
+
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  localStorage.setItem("theme", theme);
+
+  const darkBg = [8, 17, 31];
+  const lightBg = [244, 247, 250];
+  state.bgColor = theme === "light" ? lightBg : darkBg;
+
+  const btn = document.getElementById("btn-theme");
+  if (btn) {
+    btn.textContent = theme === "light" ? "🌙" : "☀";
+  }
+
+  const bgColorInput = document.getElementById("bg-color");
+  if (bgColorInput) {
+    bgColorInput.value = rgbToHexColor(state.bgColor);
+  }
+}
+
+const audioEngine = {
+  ctx: null,
+  osc: null,
+  osc2: null,
+  filter: null,
+  gain: null,
+  master: null,
+  delay: null,
+  feedback: null,
+  active: false,
+
+  init() {
+    if (this.ctx) return;
+    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    this.master = this.ctx.createGain();
+    this.master.gain.value = 0.18;
+    this.master.connect(this.ctx.destination);
+
+    this.gain = this.ctx.createGain();
+    this.gain.gain.value = 1;
+    this.gain.connect(this.master);
+
+    this.filter = this.ctx.createBiquadFilter();
+    this.filter.type = "lowpass";
+    this.filter.frequency.value = 2000;
+    this.filter.Q.value = 2;
+    this.filter.connect(this.gain);
+
+    this.delay = this.ctx.createDelay(1);
+    this.delay.delayTime.value = 0.15;
+    this.delay.connect(this.gain);
+
+    this.feedback = this.ctx.createGain();
+    this.feedback.gain.value = 0.25;
+    this.feedback.connect(this.delay);
+    this.delay.connect(this.feedback);
+
+    this.createOscillators();
+  },
+
+  createOscillators() {
+    if (this.osc) this.osc.stop();
+    if (this.osc2) this.osc2.stop();
+
+    this.osc = this.ctx.createOscillator();
+    this.osc2 = this.ctx.createOscillator();
+
+    this.osc.connect(this.filter);
+    this.osc2.connect(this.filter);
+
+    // Use WASM functions when available, fall back to JS
+    const baseFreq = wasmAvailable && wasm && wasm.frequence_fondamentale
+      ? wasm.frequence_fondamentale(state.rule)
+      : fallbackDomain.frequenceFondamentale(state.rule);
+
+    this.osc.frequency.value = baseFreq;
+    this.osc2.frequency.value = baseFreq * 1.5;
+
+    const waveform = wasmAvailable && wasm && wasm.forme_onde_synthese
+      ? (() => {
+          const codes = ["sine", "triangle", "sawtooth", "square"];
+          const idx = Math.max(0, Math.min(3, Math.floor(wasm.forme_onde_synthese(state.rule)) - 1));
+          return codes[idx] || "sine";
+        })()
+      : fallbackDomain.formeOndeSynthese(state.rule);
+
+    this.osc.type = waveform;
+    this.osc2.type = waveform;
+
+    const detune = wasmAvailable && wasm && wasm.desaccord_oscillateur_secondaire
+      ? wasm.desaccord_oscillateur_secondaire(state.rule)
+      : fallbackDomain.desaccordSecondaire(state.rule);
+
+    this.osc2.detune.value = detune;
+    const gain2 = this.ctx.createGain();
+    gain2.gain.value = 0.3;
+    this.osc2.connect(gain2);
+    gain2.connect(this.filter);
+
+    this.osc.start();
+    this.osc2.start();
+  },
+
+  start() {
+    if (!this.ctx) this.init();
+    if (this.ctx.state === "suspended") {
+      this.ctx.resume();
+    }
+    this.createOscillators();
+    this.active = true;
+  },
+
+  stop() {
+    if (this.osc) this.osc.stop();
+    if (this.osc2) this.osc2.stop();
+    if (this.ctx) this.ctx.suspend();
+    this.active = false;
+  },
+
+  update(ruleNumber, wolframCls, density) {
+    if (!this.active || !this.ctx) return;
+
+    const baseFreq = wasmAvailable && wasm && wasm.frequence_fondamentale
+      ? wasm.frequence_fondamentale(ruleNumber)
+      : fallbackDomain.frequenceFondamentale(ruleNumber);
+
+    if (this.osc) {
+      this.osc.frequency.setTargetAtTime(baseFreq, this.ctx.currentTime, 0.05);
+    }
+    if (this.osc2) {
+      this.osc2.frequency.setTargetAtTime(baseFreq * 1.5, this.ctx.currentTime, 0.05);
+    }
+    if (this.filter) {
+      const cutoff = 200 + density * 3000;
+      this.filter.frequency.setTargetAtTime(cutoff, this.ctx.currentTime, 0.1);
+    }
+  },
+};
+
 function bindControls() {
   const presets = document.getElementById("presets");
+
+  document.getElementById("btn-theme").addEventListener("click", () => {
+    const currentTheme = document.documentElement.dataset.theme || "dark";
+    const newTheme = currentTheme === "light" ? "dark" : "light";
+    applyTheme(newTheme);
+    scheduleRender();
+  });
 
   document.getElementById("rule-slider").addEventListener("input", (event) => {
     state.rule = Number.parseInt(event.target.value, 10);
@@ -809,6 +1119,15 @@ function bindControls() {
     });
   });
 
+  document.querySelectorAll('input[name="texture"]').forEach((input) => {
+    if (input.value === state.texture) input.checked = true;
+    input.addEventListener("change", () => {
+      state.texture = input.value;
+      patternCache.clear();
+      scheduleRender();
+    });
+  });
+
   document.querySelectorAll('input[name="init-mode"]').forEach((input) => {
     if (input.value === state.initialMode) input.checked = true;
     input.addEventListener("change", () => {
@@ -860,6 +1179,23 @@ function bindControls() {
     scheduleRender();
   });
 
+  const blendMode = document.getElementById("blend-mode");
+  blendMode.value = state.blendMode;
+  blendMode.addEventListener("change", (event) => {
+    state.blendMode = event.target.value;
+    scheduleRender();
+  });
+
+  const layerOpacity = document.getElementById("layer-opacity");
+  const opacityDisplay = document.getElementById("opacity-display");
+  layerOpacity.value = String(state.layerOpacity);
+  opacityDisplay.textContent = state.layerOpacity.toFixed(2);
+  layerOpacity.addEventListener("input", (event) => {
+    state.layerOpacity = clamp(Number.parseFloat(event.target.value) || 0, 0, 1);
+    opacityDisplay.textContent = state.layerOpacity.toFixed(2);
+    scheduleRender();
+  });
+
   const circular = document.getElementById("circular");
   circular.checked = state.circular;
   circular.addEventListener("change", () => {
@@ -900,6 +1236,18 @@ function bindControls() {
       button.textContent = original;
     }, 1200);
   });
+
+  document.getElementById("btn-sound").addEventListener("click", () => {
+    const btn = document.getElementById("btn-sound");
+    if (audioEngine.active) {
+      audioEngine.stop();
+      btn.textContent = "▶ Son";
+    } else {
+      audioEngine.start();
+      btn.textContent = "⏹ Son";
+    }
+  });
+
   document.getElementById("btn-reset").addEventListener("click", () => {
     state = structuredClone(DEFAULTS);
     history.replaceState(null, "", location.pathname);
@@ -925,6 +1273,7 @@ function bindControls() {
 }
 
 async function init() {
+  initTheme();
   loadFromURL();
   bindControls();
   bindGallery();

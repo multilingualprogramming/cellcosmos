@@ -259,3 +259,90 @@ déf decrire_generation(config):
     si mode == "center":
         retour "generation standard a partir d'un centre unique"
     retour "generation standard a partir de la bordure superieure"
+
+
+# Esthetique avancee : textures, fusion et synthese sonore
+
+déf modes_texture():
+    retour {
+        "solide": 0,
+        "points": 1,
+        "hachures": 2,
+        "gradient": 3,
+        "bruit": 4,
+    }
+
+
+déf modes_fusion():
+    retour {
+        "normal": 0,
+        "ecran": 1,
+        "multiplier": 2,
+        "superposer": 3,
+        "eclaircir": 4,
+        "assombrir": 5,
+        "difference": 6,
+        "esquiver": 7,
+    }
+
+
+# Synthese sonore : parametres derives de la regle et la densite du motif
+déf synthese_sonore_config(numero_regle, densite_motif):
+    soit classe = classe_wolfram(numero_regle)
+    soit frequence = 110 * pow(2, numero_regle / 64)
+    soit formes = {1: "sine", 2: "triangle", 3: "sawtooth", 4: "square"}
+
+    retour {
+        "frequence_fondamentale": frequence,
+        "forme_onde": formes.get(classe, "sine"),
+        "desaccord_secondaire": (numero_regle % 12) * 100,
+        "gain_oscillateur_2": 0.3,
+        "cutoff_filtre": 200 + densite_motif * 3000,
+        "temps_delai": 0.1 + (numero_regle % 16) / 160,
+        "feedback_delai": 0.25,
+        "gain_maitre": 0.18,
+    }
+
+
+déf descriptions_texture_graphique():
+    retour {
+        "solide": "Remplissage uniforme, rendu classique",
+        "points": "Petit point centre dans chaque cellule",
+        "hachures": "Motif de hachures diagonales entrecroisees",
+        "gradient": "Degrade radial du centre vers les bords",
+        "bruit": "Remplissage avec bruit procedural seche",
+    }
+
+
+déf descriptions_mode_fusion():
+    retour {
+        "normal": "Superposition standard (source-over)",
+        "ecran": "Mode clair, ideal pour les couleurs brillantes",
+        "multiplier": "Assombrit les chevauchements",
+        "superposer": "Contraste eleve",
+        "eclaircir": "Garde les pixels les plus clairs",
+        "assombrir": "Garde les pixels les plus sombres",
+        "difference": "Inversion progressive",
+        "esquiver": "Decoloration des couches foncees",
+    }
+
+
+déf valider_config_esthetique(config):
+    soit texture = config.get("texture", "solide")
+    soit fusion = config.get("fusion", "normal")
+    soit opacite = config.get("opacite", 1.0)
+    soit activer_son = config.get("activer_son", Faux)
+
+    soit modes_tex = modes_texture()
+    soit modes_fus = modes_fusion()
+
+    si texture non dans modes_tex:
+        retour {"valide": Faux, "erreur": f"Texture inconnue: {texture}"}
+
+    si fusion non dans modes_fus:
+        retour {"valide": Faux, "erreur": f"Mode de fusion inconnu: {fusion}"}
+
+    si opacite < 0 ou opacite > 1:
+        retour {"valide": Faux, "erreur": "Opacite doit etre entre 0 et 1"}
+
+    retour {"valide": Vrai}

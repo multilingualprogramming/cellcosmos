@@ -104,3 +104,96 @@ déf forme_code_ellipse():
 
 déf forme_code_triangle():
     retour 3
+
+
+# Codes de texture pour le rendu esthetique avance
+déf texture_code_solide():
+    retour 0
+
+
+déf texture_code_points():
+    retour 1
+
+
+déf texture_code_hachures():
+    retour 2
+
+
+déf texture_code_gradient():
+    retour 3
+
+
+déf texture_code_bruit():
+    retour 4
+
+
+# Codes de mode de fusion (blending)
+déf fusion_code_normal():
+    retour 0
+
+
+déf fusion_code_ecran():
+    retour 1
+
+
+déf fusion_code_multiplier():
+    retour 2
+
+
+déf fusion_code_superposer():
+    retour 3
+
+
+déf fusion_code_eclaircir():
+    retour 4
+
+
+déf fusion_code_assombrir():
+    retour 5
+
+
+déf fusion_code_difference():
+    retour 6
+
+
+déf fusion_code_esquiver():
+    retour 7
+
+
+# Parametres de synthese sonore derives du numero de regle
+déf frequence_fondamentale(numero_regle):
+    soit expose = numero_regle / 64
+    soit facteur_puissance = math.pow(2, expose)
+    retour 110 * facteur_puissance
+
+
+déf forme_onde_synthese(numero_regle):
+    soit categorie = classe_wolfram(numero_regle)
+    si categorie == 1:
+        retour 1
+    si categorie == 2:
+        retour 2
+    si categorie == 3:
+        retour 3
+    retour 4
+
+
+déf desaccord_oscillateur_secondaire(numero_regle):
+    soit modulo = numero_regle % 12
+    retour modulo * 100
+
+
+déf calcul_densite_densites_cellulaires(total_cellules, cellules_vivantes):
+    si total_cellules <= 0:
+        retour 0
+    retour cellules_vivantes / total_cellules
+
+
+déf frequence_cutoff_filtre_sonore(densite, base_frequence):
+    soit modulation = densite * 3000
+    retour 200 + modulation
+
+
+déf temps_delai_reverb(numero_regle):
+    soit modulo = numero_regle % 16
+    retour 0.1 + modulo / 160

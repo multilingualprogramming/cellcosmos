@@ -23,6 +23,7 @@
         <button type="button" class="tab active" id="tab-explorer">Explorateur</button>
         <button type="button" class="tab" id="tab-gallery">Galerie</button>
         <button type="button" class="tab" id="tab-source">Sources</button>
+        <button type="button" id="btn-theme" class="ghost-btn" aria-label="Changer de thème">☀</button>
       </nav>
     </header>
 
@@ -61,6 +62,7 @@
 
           <div class="actions">
             <button type="button" id="btn-download">T&eacute;l&eacute;charger PNG</button>
+            <button type="button" id="btn-sound">▶ Son</button>
             <button type="button" id="btn-share" class="accent-btn">Copier le lien</button>
             <button type="button" id="btn-reset">R&eacute;initialiser</button>
           </div>
@@ -83,6 +85,17 @@
               <label><input type="radio" name="shape" value="circle" /> Cercle</label>
               <label><input type="radio" name="shape" value="ellipse" /> Ellipse</label>
               <label><input type="radio" name="shape" value="triangle" /> Triangle</label>
+            </div>
+          </div>
+
+          <div class="ctrl-section">
+            <p class="ctrl-title">Texture</p>
+            <div class="pill-group">
+              <label><input type="radio" name="texture" value="solid" checked /> Solide</label>
+              <label><input type="radio" name="texture" value="dots" /> Points</label>
+              <label><input type="radio" name="texture" value="crosshatch" /> Hachures</label>
+              <label><input type="radio" name="texture" value="gradient" /> Dégradé</label>
+              <label><input type="radio" name="texture" value="noise" /> Bruit</label>
             </div>
           </div>
 
@@ -121,6 +134,28 @@
               <span class="muted">D&eacute;grad&eacute; global</span>
               <div id="gradient-colors" class="stack compact"></div>
               <button type="button" id="btn-add-color" class="ghost-btn">+ Ajouter</button>
+            </div>
+          </div>
+
+          <div class="ctrl-section">
+            <p class="ctrl-title">Rendu</p>
+            <div class="ctrl-row">
+              <label for="blend-mode" class="muted">Fusion</label>
+              <select id="blend-mode">
+                <option value="source-over">Normal</option>
+                <option value="screen">Écran</option>
+                <option value="multiply">Multiplier</option>
+                <option value="overlay">Superposer</option>
+                <option value="lighten">Éclaircir</option>
+                <option value="darken">Assombrir</option>
+                <option value="difference">Différence</option>
+                <option value="color-dodge">Esquiver</option>
+              </select>
+            </div>
+            <div class="ctrl-row">
+              <label for="layer-opacity" class="muted">Opacité</label>
+              <input type="range" id="layer-opacity" min="0" max="1" step="0.01" value="1" />
+              <span id="opacity-display" class="value-badge">1.00</span>
             </div>
           </div>
 

@@ -11,6 +11,30 @@
   --shadow: 0 20px 60px rgba(0, 0, 0, 0.32);
 }
 
+[data-theme="light"] {
+  --bg: #f4f7fa;
+  --surface: rgba(255, 255, 255, 0.82);
+  --surface-strong: rgba(245, 248, 252, 0.95);
+  --panel: rgba(230, 238, 246, 0.9);
+  --border: rgba(60, 110, 160, 0.18);
+  --text: #0d1f2d;
+  --muted: #4a6a80;
+  --accent: #d45f00;
+  --accent-2: #c08000;
+  --shadow: 0 20px 60px rgba(0, 0, 0, 0.10);
+}
+
+[data-theme="light"] body {
+  background:
+    radial-gradient(circle at top left, rgba(255,157,77,0.10), transparent 24%),
+    radial-gradient(circle at 80% 0%, rgba(83,176,255,0.10), transparent 22%),
+    linear-gradient(180deg, #e8f0f8 0%, #f4f7fa 100%);
+}
+
+[data-theme="light"] .topbar {
+  background: rgba(240,246,252,0.92);
+}
+
 *,
 *::before,
 *::after {
@@ -77,6 +101,13 @@ a {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  align-items: center;
+}
+
+#btn-theme {
+  font-size: 1.2rem;
+  padding: 6px 10px;
+  min-width: auto;
 }
 
 .tab,
