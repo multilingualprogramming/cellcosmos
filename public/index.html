@@ -89,8 +89,17 @@
           <div class="ctrl-section">
             <p class="ctrl-title">&Eacute;tat initial</p>
             <div class="pill-group">
-              <label><input type="radio" name="init-mode" value="center" checked /> Centre</label>
+              <label><input type="radio" name="init-mode" value="top" checked /> Haut</label>
+              <label><input type="radio" name="init-mode" value="center" /> Centre</label>
+              <label><input type="radio" name="init-mode" value="bottom" /> Bas</label>
+              <label><input type="radio" name="init-mode" value="custom" /> Points</label>
               <label><input type="radio" name="init-mode" value="random" /> Al&eacute;atoire</label>
+            </div>
+            <div id="custom-opts" class="stack" hidden>
+              <label>Points x:y
+                <textarea id="init-points" rows="4" placeholder="150:0, 140:20, 160:20"></textarea>
+              </label>
+              <p class="muted">Plusieurs points s&eacute;par&eacute;s par des virgules, espaces ou retours &agrave; la ligne.</p>
             </div>
             <div id="random-opts" class="stack" hidden>
               <label>Nombre <input type="number" id="init-count" min="1" max="500" value="5" /></label>

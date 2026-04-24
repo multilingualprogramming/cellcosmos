@@ -4,7 +4,8 @@ const DEFAULTS = {
   bgColor: [8, 17, 31],
   gradientColors: [[255, 157, 77], [255, 209, 102], [83, 176, 255]],
   shape: "rect",
-  initialMode: "center",
+  initialMode: "top",
+  pointsInitiaux: "",
   initialCount: 5,
   seed: 42,
   circular: false,
@@ -309,20 +310,89 @@ function disableWasmRuntime(error) {
   console.error(error);
 }
 
-function applyInitialState(grid, cols, rows) {
-  let originY = Math.floor(rows / 2);
-  if (state.initialMode === "center") {
-    grid[originY][Math.floor(cols / 2)] = 1;
-    return originY;
+function obtenirOrigineYParDefaut(rows) {
+  if (state.initialMode === "top") return 0;
+  if (state.initialMode === "bottom") return rows - 1;
+  return Math.floor(rows / 2);
+}
+
+function analyserPointsInitiaux(raw, cols, rows, yParDefaut) {
+  return String(raw || "")
+    .split(/[\s,]+/)
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const [rawX, rawY] = entry.split(":");
+      const x = clamp(Number.parseInt(rawX, 10), 0, cols - 1);
+      const y = rawY == null ? yParDefaut : clamp(Number.parseInt(rawY, 10), 0, rows - 1);
+      if (Number.isNaN(x) || Number.isNaN(y)) return null;
+      return { x, y };
+    })
+    .filter(Boolean);
+}
+
+function normaliserPositionsInitiales(cols, rows) {
+  const yParDefaut = obtenirOrigineYParDefaut(rows);
+  if (state.initialMode === "random") {
+    const count = clamp(Number.parseInt(state.initialCount || 1, 10), 1, cols);
+    const random = mulberry32(Number.parseInt(state.seed || 0, 10));
+    const used = new Set();
+    while (used.size < count) used.add(Math.floor(random() * cols));
+    return [...used].map((x) => ({ x, y: yParDefaut }));
   }
-  const count = clamp(Number.parseInt(state.initialCount || 1, 10), 1, cols);
-  const random = mulberry32(Number.parseInt(state.seed || 0, 10));
-  const used = new Set();
-  while (used.size < count) used.add(Math.floor(random() * cols));
-  used.forEach((index) => {
-    grid[originY][index] = 1;
+  const pointsPersonnalises = analyserPointsInitiaux(state.pointsInitiaux, cols, rows, yParDefaut);
+  if (pointsPersonnalises.length) return pointsPersonnalises;
+  return [{ x: Math.floor(cols / 2), y: yParDefaut }];
+}
+
+function applyInitialState(grid, cols, rows) {
+  const positions = normaliserPositionsInitiales(cols, rows);
+  const lignesOrigine = new Set();
+  positions.forEach(({ x, y }) => {
+    grid[y][x] = 1;
+    lignesOrigine.add(y);
   });
-  return originY;
+  return [...lignesOrigine].sort((a, b) => a - b);
+}
+
+function obtenirSegmentsGeneration(lignesOrigine, rows) {
+  return lignesOrigine.map((origine, index) => {
+    const borneBasse = index === 0 ? 0 : Math.floor((lignesOrigine[index - 1] + origine) / 2) + 1;
+    const borneHaute = index === lignesOrigine.length - 1 ? rows - 1 : Math.floor((origine + lignesOrigine[index + 1]) / 2);
+    return { origine, borneBasse, borneHaute };
+  });
+}
+
+function obtenirGraineLigne(baseSeed, ligneSource, ligneCible) {
+  return baseSeed + (ligneSource + 1) * 1009 + (ligneCible + 1) * 9176;
+}
+
+function evoluerSegment(grid, ruleNumber, segment, baseSeed) {
+  for (let row = segment.origine + 1; row <= segment.borneHaute; row += 1) {
+    grid[row] = getNextGeneration(grid[row - 1], ruleNumber, obtenirGraineLigne(baseSeed, row - 1, row));
+  }
+  for (let row = segment.origine - 1; row >= segment.borneBasse; row -= 1) {
+    grid[row] = getNextGeneration(grid[row + 1], ruleNumber, obtenirGraineLigne(baseSeed, row + 1, row));
+  }
+}
+
+function synchroniserInterfaceModeInitial() {
+  const optionsAleatoires = document.getElementById("random-opts");
+  const optionsPersonnalisees = document.getElementById("custom-opts");
+  if (optionsAleatoires) optionsAleatoires.hidden = state.initialMode !== "random";
+  if (optionsPersonnalisees) optionsPersonnalisees.hidden = state.initialMode !== "custom";
+}
+
+function evolveAutomaton(ruleNumber, rows, cols) {
+  const grid = Array.from({ length: rows }, () => Array(cols).fill(0));
+  const lignesOrigine = applyInitialState(grid, cols, rows);
+  const segments = obtenirSegmentsGeneration(lignesOrigine, rows);
+  const count = clamp(Number.parseInt(state.initialCount || 1, 10), 1, cols);
+  const baseSeed = Number.parseInt(state.seed || 0, 10) + count;
+  segments.forEach((segment) => {
+    evoluerSegment(grid, ruleNumber, segment, baseSeed);
+  });
+  return grid;
 }
 
 function getNextGeneration(current, ruleNumber, rowSeed) {
@@ -351,19 +421,6 @@ function getNextGeneration(current, ruleNumber, rowSeed) {
     nextGen.push(transition(ruleNumber, left, center, right));
   }
   return state.direction === "ltr" ? nextGen : nextGen.reverse();
-}
-
-function evolveAutomaton(ruleNumber, rows, cols) {
-  const grid = Array.from({ length: rows }, () => Array(cols).fill(0));
-  const origin = applyInitialState(grid, cols, rows);
-  const baseSeed = Number.parseInt(state.seed || 0, 10);
-  for (let row = origin + 1; row < rows; row += 1) {
-    grid[row] = getNextGeneration(grid[row - 1], ruleNumber, baseSeed + row + 1);
-  }
-  for (let row = origin - 1; row >= 0; row -= 1) {
-    grid[row] = getNextGeneration(grid[row + 1], ruleNumber, baseSeed + rows + row + 1);
-  }
-  return grid;
 }
 
 function drawCell(ctx, x, y, size, color) {
@@ -456,6 +513,7 @@ function buildShareURL() {
     colors: state.gradientColors.map(rgbToHex).join(","),
     shape: state.shape,
     init: state.initialMode,
+    pts: state.pointsInitiaux,
     count: state.initialCount,
     seed: state.seed,
     circ: state.circular ? "1" : "0",
@@ -473,6 +531,7 @@ function loadFromURL() {
   if (params.has("colors")) state.gradientColors = params.get("colors").split(",").map(hexToRgb);
   if (params.has("shape")) state.shape = params.get("shape");
   if (params.has("init")) state.initialMode = params.get("init");
+  if (params.has("pts")) state.pointsInitiaux = params.get("pts");
   if (params.has("count")) state.initialCount = Number.parseInt(params.get("count"), 10);
   if (params.has("seed")) state.seed = Number.parseInt(params.get("seed"), 10);
   if (params.has("circ")) state.circular = params.get("circ") === "1";
@@ -649,24 +708,30 @@ function bindControls() {
     if (input.value === state.initialMode) input.checked = true;
     input.addEventListener("change", () => {
       state.initialMode = input.value;
-      document.getElementById("random-opts").hidden = input.value !== "random";
+      synchroniserInterfaceModeInitial();
       scheduleRender();
     });
   });
 
   const initCount = document.getElementById("init-count");
+  const initPoints = document.getElementById("init-points");
   const initSeed = document.getElementById("init-seed");
   initCount.value = String(state.initialCount);
+  initPoints.value = state.pointsInitiaux;
   initSeed.value = String(state.seed);
   initCount.addEventListener("change", (event) => {
     state.initialCount = Number.parseInt(event.target.value, 10) || 1;
+    scheduleRender();
+  });
+  initPoints.addEventListener("change", (event) => {
+    state.pointsInitiaux = event.target.value;
     scheduleRender();
   });
   initSeed.addEventListener("change", (event) => {
     state.seed = Number.parseInt(event.target.value, 10) || 0;
     scheduleRender();
   });
-  document.getElementById("random-opts").hidden = state.initialMode !== "random";
+  synchroniserInterfaceModeInitial();
 
   const bgColor = document.getElementById("bg-color");
   bgColor.value = rgbToHexColor(state.bgColor);
