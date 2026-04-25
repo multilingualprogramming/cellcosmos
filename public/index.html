@@ -117,9 +117,18 @@
               <label>Points x:y
                 <textarea id="init-points" rows="4" placeholder="150:0, 140:20, 160:20"></textarea>
               </label>
-              <p class="muted">Plusieurs points s&eacute;par&eacute;s par des virgules, espaces ou retours &agrave; la ligne.</p>
+              <p class="muted">Cliquez sur le canevas pour poser une graine, glissez pour la d&eacute;placer, clic droit pour supprimer, Maj+clic pour dupliquer.</p>
+              <div class="stack compact">
+                <span class="muted">Sym&eacute;tries</span>
+                <div class="pill-group">
+                  <button type="button" id="btn-mirror-h" class="ghost-btn">Miroir H</button>
+                  <button type="button" id="btn-mirror-v" class="ghost-btn">Miroir V</button>
+                  <button type="button" id="btn-radial" class="ghost-btn">Radial</button>
+                  <button type="button" id="btn-tile" class="ghost-btn">Tuile 2x2</button>
+                </div>
+              </div>
               <div id="point-gradients" class="stack compact" hidden>
-                <span class="muted">D&eacute;grad&eacute;s par point</span>
+                <span class="muted">Graines, r&egrave;gles et d&eacute;grad&eacute;s</span>
                 <div id="point-gradient-list" class="stack compact"></div>
               </div>
             </div>
@@ -162,6 +171,25 @@
               <input type="range" id="layer-opacity" min="0" max="1" step="0.01" value="1" />
               <span id="opacity-display" class="value-badge">1.00</span>
             </div>
+            <div class="stack compact">
+              <span class="muted">Temps</span>
+              <div class="pill-group">
+                <button type="button" id="btn-play-reverse" class="ghost-btn">&#9664; Lecture</button>
+                <button type="button" id="btn-pause-animation" class="ghost-btn">Pause</button>
+                <button type="button" id="btn-play-forward" class="ghost-btn">Lecture &#9654;</button>
+              </div>
+              <div class="ctrl-row">
+                <label for="timeline" class="muted">Progression</label>
+                <input type="range" id="timeline" min="0" max="1000" value="1000" />
+                <span id="timeline-display" class="value-badge">100%</span>
+              </div>
+              <div class="ctrl-row">
+                <label for="animation-speed" class="muted">Vitesse</label>
+                <input type="range" id="animation-speed" min="0.1" max="6" step="0.1" value="1.2" />
+                <span id="animation-speed-display" class="value-badge">1.2x</span>
+              </div>
+              <label class="checkbox-row"><input type="checkbox" id="pause-collision" /> Pause sur collision</label>
+            </div>
           </div>
 
           <div class="ctrl-section">
@@ -171,6 +199,19 @@
               <label for="probability" class="muted">Probabilit&eacute;</label>
               <input type="range" id="probability" min="0" max="1" step="0.01" value="1" />
               <span id="prob-display" class="value-badge">1.00</span>
+            </div>
+            <label class="checkbox-row"><input type="checkbox" id="probability-field-active" /> Champ stochastique spatial</label>
+            <div id="probability-field-opts" class="stack compact" hidden>
+              <div class="ctrl-row">
+                <label for="probability-top" class="muted">Haut</label>
+                <input type="range" id="probability-top" min="0" max="1" step="0.01" value="1" />
+                <span id="prob-top-display" class="value-badge">1.00</span>
+              </div>
+              <div class="ctrl-row">
+                <label for="probability-bottom" class="muted">Bas</label>
+                <input type="range" id="probability-bottom" min="0" max="1" step="0.01" value="1" />
+                <span id="prob-bottom-display" class="value-badge">1.00</span>
+              </div>
             </div>
             <div class="pill-group">
               <label><input type="radio" name="direction" value="ltr" checked /> LTR</label>

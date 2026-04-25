@@ -4,6 +4,7 @@ const DEFAULTS = {
   bgColor: [8, 17, 31],
   gradientColors: [[255, 157, 77], [255, 209, 102], [83, 176, 255]],
   palettesPoints: {},
+  reglesPoints: {},
   shape: "rect",
   initialMode: "top",
   pointsInitiaux: "",
@@ -11,10 +12,16 @@ const DEFAULTS = {
   seed: 42,
   circular: false,
   probability: 1,
+  champProbabiliteActif: false,
+  probabiliteHaut: 1,
+  probabiliteBas: 1,
   direction: "ltr",
   blendMode: "source-over",
   layerOpacity: 1.0,
   texture: "solid",
+  progressionTemporelle: 1,
+  vitesseAnimation: 1.2,
+  pauseSurCollision: false,
 };
 
 const fallbackDomain = {
@@ -54,6 +61,27 @@ const fallbackDomain = {
   desaccordSecondaire(ruleNumber) {
     return (ruleNumber % 12) * 100;
   },
+  probabiliteLigne(probabiliteBaseSur1000, champActif, probabiliteHautSur1000, probabiliteBasSur1000, ligne, totalLignes) {
+    if (champActif === 0 || totalLignes <= 1) return probabiliteBaseSur1000;
+    const progression = ligne / (totalLignes - 1);
+    const modulation = probabiliteHautSur1000 + ((probabiliteBasSur1000 - probabiliteHautSur1000) * progression);
+    return clamp((probabiliteBaseSur1000 * modulation) / 1000, 0, 1000);
+  },
+  ligneVisible(progressionSur1000, ligneOrigine, ligneCourante, totalLignes) {
+    if (totalLignes <= 1) return 1;
+    const distance = Math.abs(ligneCourante - ligneOrigine);
+    const distanceMax = Math.floor((progressionSur1000 * (totalLignes - 1)) / 1000);
+    return distance <= distanceMax ? 1 : 0;
+  },
+  miroirHorizontalColonne(colonne, largeur) {
+    return (largeur - 1) - colonne;
+  },
+  miroirVerticalLigne(ligne, hauteur) {
+    return (hauteur - 1) - ligne;
+  },
+  coordonneeTuilee(coordonnee, decalage, maximum) {
+    return clamp(coordonnee + decalage, 0, maximum);
+  },
 };
 
 let state = structuredClone(DEFAULTS);
@@ -64,6 +92,9 @@ let galleryLoaded = false;
 let galleryLoading = null;
 const patternCache = new Map();
 let dernieresCouches = null;
+let pointActif = "";
+const animationEtat = { actif: false, sens: 1, dernierTemps: 0 };
+const editeurPoints = { actif: false, cle: "", decalageX: 0, decalageY: 0 };
 
 function createDotsPattern(size, color, ctx) {
   const canvas = new OffscreenCanvas(size, size);
@@ -356,6 +387,25 @@ function validateWasmExports(exports) {
         return false;
       }
     }
+
+    if (typeof exports.probabilite_ligne === "function") {
+      const probabilite = Number(exports.probabilite_ligne(1000, 1, 1000, 500, 10, 100));
+      if (probabilite < 0 || probabilite > 1000) {
+        return false;
+      }
+    }
+
+    if (typeof exports.ligne_visible === "function") {
+      if (Number(exports.ligne_visible(250, 10, 80, 100)) !== 0) {
+        return false;
+      }
+    }
+
+    if (typeof exports.miroir_horizontal_colonne === "function") {
+      if (Number(exports.miroir_horizontal_colonne(3, 10)) !== 6) {
+        return false;
+      }
+    }
   } catch (error) {
     console.error(error);
     return false;
@@ -426,6 +476,61 @@ function interpolateComponent(start, end, progressScaled) {
   return fallbackDomain.interpolateComponent(start, end, progressScaled);
 }
 
+function probabiliteLigne(probabiliteBaseSur1000, champActif, probabiliteHautSur1000, probabiliteBasSur1000, ligne, totalLignes) {
+  if (wasmAvailable && wasm && typeof wasm.probabilite_ligne === "function") {
+    try {
+      return Number(wasm.probabilite_ligne(probabiliteBaseSur1000, champActif, probabiliteHautSur1000, probabiliteBasSur1000, ligne, totalLignes));
+    } catch (error) {
+      disableWasmRuntime(error);
+    }
+  }
+  return fallbackDomain.probabiliteLigne(probabiliteBaseSur1000, champActif, probabiliteHautSur1000, probabiliteBasSur1000, ligne, totalLignes);
+}
+
+function ligneVisible(progressionSur1000, ligneOrigine, ligneCourante, totalLignes) {
+  if (wasmAvailable && wasm && typeof wasm.ligne_visible === "function") {
+    try {
+      return Number(wasm.ligne_visible(progressionSur1000, ligneOrigine, ligneCourante, totalLignes));
+    } catch (error) {
+      disableWasmRuntime(error);
+    }
+  }
+  return fallbackDomain.ligneVisible(progressionSur1000, ligneOrigine, ligneCourante, totalLignes);
+}
+
+function miroirHorizontalColonne(colonne, largeur) {
+  if (wasmAvailable && wasm && typeof wasm.miroir_horizontal_colonne === "function") {
+    try {
+      return Number(wasm.miroir_horizontal_colonne(colonne, largeur));
+    } catch (error) {
+      disableWasmRuntime(error);
+    }
+  }
+  return fallbackDomain.miroirHorizontalColonne(colonne, largeur);
+}
+
+function miroirVerticalLigne(ligne, hauteur) {
+  if (wasmAvailable && wasm && typeof wasm.miroir_vertical_ligne === "function") {
+    try {
+      return Number(wasm.miroir_vertical_ligne(ligne, hauteur));
+    } catch (error) {
+      disableWasmRuntime(error);
+    }
+  }
+  return fallbackDomain.miroirVerticalLigne(ligne, hauteur);
+}
+
+function coordonneeTuilee(coordonnee, decalage, maximum) {
+  if (wasmAvailable && wasm && typeof wasm.coordonnee_tuilee === "function") {
+    try {
+      return Number(wasm.coordonnee_tuilee(coordonnee, decalage, maximum));
+    } catch (error) {
+      disableWasmRuntime(error);
+    }
+  }
+  return fallbackDomain.coordonneeTuilee(coordonnee, decalage, maximum);
+}
+
 function callWasmString(fn, ...args) {
   const ptr = Number(fn(...args));
   const length = Number(wasm.__ml_str_len());
@@ -470,9 +575,26 @@ function obtenirClePoint(point) {
   return `${point.x}:${point.y}`;
 }
 
+function serialiserPoints(points) {
+  return points.map((point) => `${point.x}:${point.y}`).join(", ");
+}
+
+function activerModePoints() {
+  state.initialMode = "custom";
+  const input = document.querySelector('input[name="init-mode"][value="custom"]');
+  if (input) input.checked = true;
+  synchroniserInterfaceModeInitial();
+}
+
 function obtenirPointsActifsPersonnalises() {
   const { rows, cols } = obtenirDimensionsRendu();
   return analyserPointsInitiaux(state.pointsInitiaux, cols, rows, obtenirOrigineYParDefaut(rows));
+}
+
+function synchroniserCanvasEdition() {
+  const canvas = document.getElementById("main-canvas");
+  if (!canvas) return;
+  canvas.classList.toggle("edition-points", state.initialMode === "custom");
 }
 
 function normaliserPositionsInitiales(cols, rows) {
@@ -503,6 +625,18 @@ function obtenirGraineLigne(baseSeed, ligneSource, ligneCible) {
   return baseSeed + (ligneSource + 1) * 1009 + (ligneCible + 1) * 9176;
 }
 
+function obtenirProbabiliteLigne(ligne, totalLignes) {
+  const probabiliteSur1000 = probabiliteLigne(
+    Math.round(state.probability * 1000),
+    state.champProbabiliteActif ? 1 : 0,
+    Math.round(state.probabiliteHaut * 1000),
+    Math.round(state.probabiliteBas * 1000),
+    ligne,
+    totalLignes,
+  );
+  return clamp(probabiliteSur1000 / 1000, 0, 1);
+}
+
 function evoluerDepuisPosition(ruleNumber, rows, cols, position, baseSeed) {
   const grid = Array.from({ length: rows }, () => Array(cols).fill(0));
   const x = clamp(position.x ?? Math.floor(cols / 2), 0, cols - 1);
@@ -510,10 +644,10 @@ function evoluerDepuisPosition(ruleNumber, rows, cols, position, baseSeed) {
   grid[origine][x] = 1;
 
   for (let row = origine + 1; row < rows; row += 1) {
-    grid[row] = getNextGeneration(grid[row - 1], ruleNumber, obtenirGraineLigne(baseSeed, row - 1, row));
+    grid[row] = getNextGeneration(grid[row - 1], ruleNumber, obtenirGraineLigne(baseSeed, row - 1, row), row, rows);
   }
   for (let row = origine - 1; row >= 0; row -= 1) {
-    grid[row] = getNextGeneration(grid[row + 1], ruleNumber, obtenirGraineLigne(baseSeed, row + 1, row));
+    grid[row] = getNextGeneration(grid[row + 1], ruleNumber, obtenirGraineLigne(baseSeed, row + 1, row), row, rows);
   }
 
   return grid;
@@ -529,16 +663,83 @@ function synchroniserInterfaceModeInitial() {
 function synchroniserPalettesPoints() {
   const points = obtenirPointsActifsPersonnalises();
   const palettes = {};
+  const regles = {};
   points.forEach((point) => {
     const cle = obtenirClePoint(point);
     palettes[cle] = state.palettesPoints[cle] ? clonerCouleurs(state.palettesPoints[cle]) : clonerCouleurs(state.gradientColors);
+    regles[cle] = clamp(Number.parseInt(state.reglesPoints[cle] ?? state.rule, 10) || state.rule, 0, 255);
   });
   state.palettesPoints = palettes;
+  state.reglesPoints = regles;
+  if (pointActif && !palettes[pointActif]) pointActif = "";
 }
 
 function obtenirCouleursPoint(point) {
   const couleurs = state.palettesPoints[obtenirClePoint(point)];
   return couleurs && couleurs.length ? couleurs : state.gradientColors;
+}
+
+function obtenirReglePoint(point) {
+  return clamp(Number.parseInt(state.reglesPoints[obtenirClePoint(point)] ?? state.rule, 10) || state.rule, 0, 255);
+}
+
+function appliquerPointsPersonnalises(points, paletteMap = state.palettesPoints, ruleMap = state.reglesPoints, pointSelection = pointActif) {
+  state.pointsInitiaux = serialiserPoints(points);
+  state.palettesPoints = { ...paletteMap };
+  state.reglesPoints = { ...ruleMap };
+  pointActif = pointSelection;
+  synchroniserPalettesPoints();
+  const initPoints = document.getElementById("init-points");
+  if (initPoints) initPoints.value = state.pointsInitiaux;
+}
+
+function transformerPointsPersonnalises(transformer) {
+  const points = obtenirPointsActifsPersonnalises();
+  if (points.length === 0) return;
+  const nouveauPoints = [];
+  const nouvellesPalettes = {};
+  const nouvellesRegles = {};
+  const vus = new Set();
+
+  const ajouterPoint = (ancienPoint, nouveauPoint) => {
+    const cleNouvelle = obtenirClePoint(nouveauPoint);
+    if (vus.has(cleNouvelle)) return;
+    vus.add(cleNouvelle);
+    nouveauPoints.push(nouveauPoint);
+    const ancienneCle = obtenirClePoint(ancienPoint);
+    nouvellesPalettes[cleNouvelle] = clonerCouleurs(state.palettesPoints[ancienneCle] || state.gradientColors);
+    nouvellesRegles[cleNouvelle] = obtenirReglePoint(ancienPoint);
+  };
+
+  points.forEach((point) => {
+    transformer(point).forEach((resultat) => ajouterPoint(point, resultat));
+  });
+
+  appliquerPointsPersonnalises(nouveauPoints, nouvellesPalettes, nouvellesRegles, pointActif);
+}
+
+function appliquerSymetrie(type) {
+  const { cols, rows } = obtenirDimensionsRendu();
+  const maxX = cols - 1;
+  const maxY = rows - 1;
+  if (type === "miroir-h") {
+    transformerPointsPersonnalises((point) => [point, { x: miroirHorizontalColonne(point.x, cols), y: point.y }]);
+  } else if (type === "miroir-v") {
+    transformerPointsPersonnalises((point) => [point, { x: point.x, y: miroirVerticalLigne(point.y, rows) }]);
+  } else if (type === "radial") {
+    transformerPointsPersonnalises((point) => [point, { x: miroirHorizontalColonne(point.x, cols), y: miroirVerticalLigne(point.y, rows) }]);
+  } else if (type === "tuile") {
+    const demiX = Math.max(1, Math.floor(cols / 2));
+    const demiY = Math.max(1, Math.floor(rows / 2));
+    transformerPointsPersonnalises((point) => [
+      point,
+      { x: coordonneeTuilee(point.x, demiX, maxX), y: point.y },
+      { x: point.x, y: coordonneeTuilee(point.y, demiY, maxY) },
+      { x: coordonneeTuilee(point.x, demiX, maxX), y: coordonneeTuilee(point.y, demiY, maxY) },
+    ]);
+  }
+  renderPalettesPoints();
+  scheduleRender();
 }
 
 function construireCouchesAutomate(ruleNumber, rows, cols) {
@@ -549,25 +750,28 @@ function construireCouchesAutomate(ruleNumber, rows, cols) {
     const position = { x: Math.floor(cols / 2), y: obtenirOrigineYParDefaut(rows) };
     return [{
       position,
+      regle: ruleNumber,
       automate: evoluerDepuisPosition(ruleNumber, rows, cols, position, baseSeed),
       couleurs: state.gradientColors,
     }];
   }
   return positions.map((position, index) => ({
     position,
-    automate: evoluerDepuisPosition(ruleNumber, rows, cols, position, baseSeed + index),
+    regle: state.initialMode === "custom" ? obtenirReglePoint(position) : ruleNumber,
+    automate: evoluerDepuisPosition(state.initialMode === "custom" ? obtenirReglePoint(position) : ruleNumber, rows, cols, position, baseSeed + index),
     couleurs: state.initialMode === "custom" ? obtenirCouleursPoint(position) : state.gradientColors,
   }));
 }
 
-function getNextGeneration(current, ruleNumber, rowSeed) {
+function getNextGeneration(current, ruleNumber, rowSeed, rowIndex = 0, totalRows = 1) {
   const nextGen = [];
   const random = mulberry32(rowSeed);
   const size = current.length;
   const indices = state.direction === "ltr" ? [...Array(size).keys()] : [...Array(size).keys()].reverse();
+  const probabiliteCourante = obtenirProbabiliteLigne(rowIndex, totalRows);
 
   for (const i of indices) {
-    if (random() > state.probability) {
+    if (random() > probabiliteCourante) {
       nextGen.push(0);
       continue;
     }
@@ -629,6 +833,10 @@ function drawCell(ctx, x, y, size, color) {
   ctx.fillRect(x, y, size, size);
 }
 
+function estLigneVisiblePourCouche(couche, rowIndex, rows) {
+  return ligneVisible(Math.round(state.progressionTemporelle * 1000), couche.position.y, rowIndex, rows) === 1;
+}
+
 function renderToCanvas(canvas, ruleNumber, rows, cols, cellSize) {
   const ctx = canvas.getContext("2d");
   canvas.width = cols * cellSize;
@@ -642,6 +850,8 @@ function renderToCanvas(canvas, ruleNumber, rows, cols, cellSize) {
   dernieresCouches = couches;
   const canvasWidth = cols * cellSize;
   const canvasHeight = rows * cellSize;
+  const collisions = new Set();
+  const occupation = new Set();
 
   couches.forEach((couche) => {
     // Create offscreen canvas for this layer
@@ -650,9 +860,13 @@ function renderToCanvas(canvas, ruleNumber, rows, cols, cellSize) {
 
     const gradient = generateGradient(couche.couleurs, rows);
     couche.automate.forEach((row, rowIndex) => {
+      if (!estLigneVisiblePourCouche(couche, rowIndex, rows)) return;
       const color = `rgb(${gradient[rowIndex].join(",")})`;
       row.forEach((value, colIndex) => {
         if (value !== 1) return;
+        const cleCellule = `${colIndex}:${rowIndex}`;
+        if (occupation.has(cleCellule)) collisions.add(cleCellule);
+        occupation.add(cleCellule);
         drawCell(offscreenCtx, colIndex * cellSize, rowIndex * cellSize, cellSize, color);
       });
     });
@@ -666,6 +880,10 @@ function renderToCanvas(canvas, ruleNumber, rows, cols, cellSize) {
   // Reset to default state
   ctx.globalCompositeOperation = "source-over";
   ctx.globalAlpha = 1.0;
+
+  if (state.pauseSurCollision && animationEtat.actif && collisions.size > 0) {
+    arreterAnimation();
+  }
 }
 
 function updateRuleInfo() {
@@ -717,14 +935,21 @@ function buildShareURL() {
     init: state.initialMode,
     pts: state.pointsInitiaux,
     pp: JSON.stringify(state.palettesPoints),
+    pr: JSON.stringify(state.reglesPoints),
     count: state.initialCount,
     seed: state.seed,
     circ: state.circular ? "1" : "0",
     prob: state.probability.toFixed(2),
+    pfa: state.champProbabiliteActif ? "1" : "0",
+    pht: state.probabiliteHaut.toFixed(2),
+    pbs: state.probabiliteBas.toFixed(2),
     dir: state.direction,
     bm: state.blendMode,
     lo: state.layerOpacity.toFixed(2),
     tx: state.texture,
+    tl: state.progressionTemporelle.toFixed(3),
+    as: state.vitesseAnimation.toFixed(1),
+    pc: state.pauseSurCollision ? "1" : "0",
   });
   return `${location.origin}${location.pathname}?${params}`;
 }
@@ -746,14 +971,28 @@ function loadFromURL() {
       console.error(error);
     }
   }
+  if (params.has("pr")) {
+    try {
+      state.reglesPoints = JSON.parse(params.get("pr"));
+    } catch (error) {
+      state.reglesPoints = {};
+      console.error(error);
+    }
+  }
   if (params.has("count")) state.initialCount = Number.parseInt(params.get("count"), 10);
   if (params.has("seed")) state.seed = Number.parseInt(params.get("seed"), 10);
   if (params.has("circ")) state.circular = params.get("circ") === "1";
   if (params.has("prob")) state.probability = Number.parseFloat(params.get("prob"));
+  if (params.has("pfa")) state.champProbabiliteActif = params.get("pfa") === "1";
+  if (params.has("pht")) state.probabiliteHaut = clamp(Number.parseFloat(params.get("pht")) || 0, 0, 1);
+  if (params.has("pbs")) state.probabiliteBas = clamp(Number.parseFloat(params.get("pbs")) || 0, 0, 1);
   if (params.has("dir")) state.direction = params.get("dir");
   if (params.has("bm")) state.blendMode = params.get("bm");
   if (params.has("lo")) state.layerOpacity = clamp(Number.parseFloat(params.get("lo")), 0, 1);
   if (params.has("tx")) state.texture = params.get("tx");
+  if (params.has("tl")) state.progressionTemporelle = clamp(Number.parseFloat(params.get("tl")) || 0, 0, 1);
+  if (params.has("as")) state.vitesseAnimation = clamp(Number.parseFloat(params.get("as")) || 1.2, 0.1, 6);
+  if (params.has("pc")) state.pauseSurCollision = params.get("pc") === "1";
 }
 
 function renderMainView() {
@@ -826,7 +1065,7 @@ function renderPalettesPoints() {
   const container = document.getElementById("point-gradient-list");
   const points = obtenirPointsActifsPersonnalises();
   synchroniserPalettesPoints();
-  wrapper.hidden = !(state.initialMode === "custom" && points.length > 1);
+  wrapper.hidden = !(state.initialMode === "custom" && points.length > 0);
   container.innerHTML = "";
   if (wrapper.hidden) return;
 
@@ -835,11 +1074,29 @@ function renderPalettesPoints() {
     const couleurs = state.palettesPoints[cle] || clonerCouleurs(state.gradientColors);
     const card = document.createElement("div");
     card.className = "point-gradient-card";
+    if (cle === pointActif) card.classList.add("active");
 
     const head = document.createElement("div");
     head.className = "point-gradient-head";
     head.innerHTML = `<span class="point-gradient-title">Point ${cle}</span><span class="muted">${couleurs.length} couleur${couleurs.length > 1 ? "s" : ""}</span>`;
     card.appendChild(head);
+
+    const meta = document.createElement("div");
+    meta.className = "point-meta";
+    meta.innerHTML = `<label class="muted" for="rule-point-${cle.replace(":", "-")}">Règle</label>`;
+    const inputRule = document.createElement("input");
+    inputRule.type = "number";
+    inputRule.min = "0";
+    inputRule.max = "255";
+    inputRule.id = `rule-point-${cle.replace(":", "-")}`;
+    inputRule.value = String(obtenirReglePoint(point));
+    inputRule.addEventListener("change", (event) => {
+      state.reglesPoints[cle] = clamp(Number.parseInt(event.target.value, 10) || state.rule, 0, 255);
+      scheduleRender();
+      renderPalettesPoints();
+    });
+    meta.appendChild(inputRule);
+    card.appendChild(meta);
 
     const colors = document.createElement("div");
     colors.className = "stack compact";
@@ -851,6 +1108,29 @@ function renderPalettesPoints() {
     });
     card.appendChild(colors);
 
+    const actions = document.createElement("div");
+    actions.className = "point-card-actions";
+    const selectButton = document.createElement("button");
+    selectButton.type = "button";
+    selectButton.className = "ghost-btn";
+    selectButton.textContent = cle === pointActif ? "Point actif" : "Activer";
+    selectButton.addEventListener("click", () => {
+      pointActif = cle;
+      renderPalettesPoints();
+    });
+    actions.appendChild(selectButton);
+
+    const syncButton = document.createElement("button");
+    syncButton.type = "button";
+    syncButton.className = "ghost-btn";
+    syncButton.textContent = "Règle globale";
+    syncButton.addEventListener("click", () => {
+      state.reglesPoints[cle] = state.rule;
+      renderPalettesPoints();
+      scheduleRender();
+    });
+    actions.appendChild(syncButton);
+
     const addButton = document.createElement("button");
     addButton.type = "button";
     addButton.className = "ghost-btn";
@@ -860,9 +1140,144 @@ function renderPalettesPoints() {
       renderPalettesPoints();
       scheduleRender();
     });
-    card.appendChild(addButton);
+    actions.appendChild(addButton);
+    card.appendChild(actions);
     container.appendChild(card);
   });
+}
+
+function obtenirCoordonneesCelluleDepuisEvenement(event) {
+  const canvas = document.getElementById("main-canvas");
+  const rect = canvas.getBoundingClientRect();
+  const { cols, rows } = obtenirDimensionsRendu();
+  const x = clamp(Math.floor(((event.clientX - rect.left) / rect.width) * cols), 0, cols - 1);
+  const y = clamp(Math.floor(((event.clientY - rect.top) / rect.height) * rows), 0, rows - 1);
+  return { x, y, cols, rows };
+}
+
+function trouverPointLePlusProche(points, cible, rayon = 3) {
+  let meilleur = null;
+  let meilleureDistance = Number.POSITIVE_INFINITY;
+  points.forEach((point, index) => {
+    const distance = Math.abs(point.x - cible.x) + Math.abs(point.y - cible.y);
+    if (distance <= rayon && distance < meilleureDistance) {
+      meilleur = { point, index };
+      meilleureDistance = distance;
+    }
+  });
+  return meilleur;
+}
+
+function dupliquerCouleursPoint(point) {
+  return clonerCouleurs(state.palettesPoints[obtenirClePoint(point)] || state.gradientColors);
+}
+
+function appliquerEditionPoints(points, palettes, regles, selection = pointActif) {
+  activerModePoints();
+  appliquerPointsPersonnalises(points, palettes, regles, selection);
+  renderPalettesPoints();
+  scheduleRender();
+}
+
+function bindCanvasEditor() {
+  const canvas = document.getElementById("main-canvas");
+  if (!canvas) return;
+
+  canvas.addEventListener("contextmenu", (event) => {
+    if (state.initialMode !== "custom") return;
+    event.preventDefault();
+    const cible = obtenirCoordonneesCelluleDepuisEvenement(event);
+    const points = obtenirPointsActifsPersonnalises();
+    let proche = trouverPointLePlusProche(points, cible);
+    if (!proche) return;
+    const palettes = { ...state.palettesPoints };
+    const regles = { ...state.reglesPoints };
+    const cle = obtenirClePoint(proche.point);
+    delete palettes[cle];
+    delete regles[cle];
+    points.splice(proche.index, 1);
+    appliquerEditionPoints(points, palettes, regles, "");
+  });
+
+  canvas.addEventListener("pointerdown", (event) => {
+    const cible = obtenirCoordonneesCelluleDepuisEvenement(event);
+    let points = obtenirPointsActifsPersonnalises();
+    let palettes = { ...state.palettesPoints };
+    let regles = { ...state.reglesPoints };
+    let proche = trouverPointLePlusProche(points, cible);
+    activerModePoints();
+    synchroniserCanvasEdition();
+
+    if (event.shiftKey && proche) {
+      const copie = { x: clamp(proche.point.x + 2, 0, cible.cols - 1), y: clamp(proche.point.y + 2, 0, cible.rows - 1) };
+      const cleSource = obtenirClePoint(proche.point);
+      const cleCopie = obtenirClePoint(copie);
+      points = [...points, copie];
+      palettes[cleCopie] = dupliquerCouleursPoint(proche.point);
+      regles[cleCopie] = state.reglesPoints[cleSource] ?? state.rule;
+      pointActif = cleCopie;
+      appliquerEditionPoints(points, palettes, regles, cleCopie);
+      return;
+    }
+
+    if (!proche) {
+      const nouveauPoint = { x: cible.x, y: cible.y };
+      const cle = obtenirClePoint(nouveauPoint);
+      points = [...points, nouveauPoint];
+      palettes[cle] = clonerCouleurs(state.gradientColors);
+      regles[cle] = state.rule;
+      pointActif = cle;
+      appliquerEditionPoints(points, palettes, regles, cle);
+      proche = { point: nouveauPoint, index: points.length - 1 };
+    } else {
+      pointActif = obtenirClePoint(proche.point);
+      renderPalettesPoints();
+    }
+
+    const pointCourant = proche ? proche.point : { x: cible.x, y: cible.y };
+    editeurPoints.actif = true;
+    editeurPoints.cle = obtenirClePoint(pointCourant);
+    editeurPoints.decalageX = cible.x - pointCourant.x;
+    editeurPoints.decalageY = cible.y - pointCourant.y;
+    canvas.setPointerCapture(event.pointerId);
+  });
+
+  canvas.addEventListener("pointermove", (event) => {
+    if (!editeurPoints.actif) return;
+    const cible = obtenirCoordonneesCelluleDepuisEvenement(event);
+    const points = obtenirPointsActifsPersonnalises();
+    const index = points.findIndex((point) => obtenirClePoint(point) === editeurPoints.cle);
+    if (index < 0) return;
+    const ancienPoint = points[index];
+    const nouveauPoint = {
+      x: clamp(cible.x - editeurPoints.decalageX, 0, cible.cols - 1),
+      y: clamp(cible.y - editeurPoints.decalageY, 0, cible.rows - 1),
+    };
+    const cleAncienne = obtenirClePoint(ancienPoint);
+    const cleNouvelle = obtenirClePoint(nouveauPoint);
+    if (cleAncienne === cleNouvelle) return;
+    const palettes = { ...state.palettesPoints };
+    const regles = { ...state.reglesPoints };
+    palettes[cleNouvelle] = palettes[cleAncienne] ? clonerCouleurs(palettes[cleAncienne]) : clonerCouleurs(state.gradientColors);
+    regles[cleNouvelle] = regles[cleAncienne] ?? state.rule;
+    delete palettes[cleAncienne];
+    delete regles[cleAncienne];
+    points[index] = nouveauPoint;
+    editeurPoints.cle = cleNouvelle;
+    pointActif = cleNouvelle;
+    appliquerEditionPoints(points, palettes, regles, cleNouvelle);
+  });
+
+  const terminerEdition = (event) => {
+    if (!editeurPoints.actif) return;
+    editeurPoints.actif = false;
+    if (event?.pointerId != null && canvas.hasPointerCapture(event.pointerId)) {
+      canvas.releasePointerCapture(event.pointerId);
+    }
+  };
+
+  canvas.addEventListener("pointerup", terminerEdition);
+  canvas.addEventListener("pointerleave", terminerEdition);
 }
 
 function switchTab(tab) {
@@ -878,9 +1293,63 @@ function switchTab(tab) {
   if (gallery) loadGalleryFragment();
 }
 
+function synchroniserInterfaceTemporelle() {
+  const timeline = document.getElementById("timeline");
+  const timelineDisplay = document.getElementById("timeline-display");
+  if (timeline) timeline.value = String(Math.round(state.progressionTemporelle * 1000));
+  if (timelineDisplay) timelineDisplay.textContent = `${Math.round(state.progressionTemporelle * 100)}%`;
+}
+
+function synchroniserChampProbabilite() {
+  const bloc = document.getElementById("probability-field-opts");
+  const topDisplay = document.getElementById("prob-top-display");
+  const bottomDisplay = document.getElementById("prob-bottom-display");
+  if (bloc) bloc.hidden = !state.champProbabiliteActif;
+  if (topDisplay) topDisplay.textContent = state.probabiliteHaut.toFixed(2);
+  if (bottomDisplay) bottomDisplay.textContent = state.probabiliteBas.toFixed(2);
+}
+
+function arreterAnimation() {
+  animationEtat.actif = false;
+  animationEtat.dernierTemps = 0;
+}
+
+function boucleAnimation(timestamp) {
+  if (!animationEtat.actif) return;
+  if (!animationEtat.dernierTemps) animationEtat.dernierTemps = timestamp;
+  const delta = (timestamp - animationEtat.dernierTemps) / 1000;
+  animationEtat.dernierTemps = timestamp;
+  const { rows } = obtenirDimensionsRendu();
+  const amplitude = Math.max(1, rows - 1);
+  state.progressionTemporelle = clamp(
+    state.progressionTemporelle + ((delta * state.vitesseAnimation * animationEtat.sens) / amplitude),
+    0,
+    1,
+  );
+  synchroniserInterfaceTemporelle();
+  renderMainView();
+  renderPalettesPoints();
+  if (state.progressionTemporelle === 0 || state.progressionTemporelle === 1) {
+    arreterAnimation();
+    return;
+  }
+  requestAnimationFrame(boucleAnimation);
+}
+
+function demarrerAnimation(sens) {
+  if (sens > 0 && state.progressionTemporelle >= 1) state.progressionTemporelle = 0;
+  if (sens < 0 && state.progressionTemporelle <= 0) state.progressionTemporelle = 1;
+  animationEtat.sens = sens;
+  animationEtat.actif = true;
+  animationEtat.dernierTemps = 0;
+  synchroniserInterfaceTemporelle();
+  requestAnimationFrame(boucleAnimation);
+}
+
 const scheduleRender = debounce(() => {
   renderMainView();
   renderPalettesPoints();
+  synchroniserInterfaceTemporelle();
 }, 100);
 
 function selectGalleryRule(rule) {
@@ -1356,6 +1825,7 @@ function bindControls() {
     input.addEventListener("change", () => {
       state.initialMode = input.value;
       synchroniserInterfaceModeInitial();
+      synchroniserCanvasEdition();
       renderPalettesPoints();
       scheduleRender();
     });
@@ -1374,9 +1844,8 @@ function bindControls() {
   initPoints.addEventListener("input", (event) => {
     state.pointsInitiaux = event.target.value;
     if (state.pointsInitiaux.trim()) {
-      state.initialMode = "custom";
-      document.querySelector('input[name="init-mode"][value="custom"]').checked = true;
-      synchroniserInterfaceModeInitial();
+      activerModePoints();
+      synchroniserCanvasEdition();
     }
     renderPalettesPoints();
     scheduleRender();
@@ -1386,6 +1855,7 @@ function bindControls() {
     scheduleRender();
   });
   synchroniserInterfaceModeInitial();
+  synchroniserCanvasEdition();
   renderPalettesPoints();
 
   const bgColor = document.getElementById("bg-color");
@@ -1436,6 +1906,29 @@ function bindControls() {
     scheduleRender();
   });
 
+  const probabilityFieldActive = document.getElementById("probability-field-active");
+  const probabilityTop = document.getElementById("probability-top");
+  const probabilityBottom = document.getElementById("probability-bottom");
+  probabilityFieldActive.checked = state.champProbabiliteActif;
+  probabilityTop.value = String(state.probabiliteHaut);
+  probabilityBottom.value = String(state.probabiliteBas);
+  synchroniserChampProbabilite();
+  probabilityFieldActive.addEventListener("change", () => {
+    state.champProbabiliteActif = probabilityFieldActive.checked;
+    synchroniserChampProbabilite();
+    scheduleRender();
+  });
+  probabilityTop.addEventListener("input", (event) => {
+    state.probabiliteHaut = clamp(Number.parseFloat(event.target.value) || 0, 0, 1);
+    synchroniserChampProbabilite();
+    scheduleRender();
+  });
+  probabilityBottom.addEventListener("input", (event) => {
+    state.probabiliteBas = clamp(Number.parseFloat(event.target.value) || 0, 0, 1);
+    synchroniserChampProbabilite();
+    scheduleRender();
+  });
+
   document.querySelectorAll('input[name="direction"]').forEach((input) => {
     if (input.value === state.direction) input.checked = true;
     input.addEventListener("change", () => {
@@ -1443,6 +1936,36 @@ function bindControls() {
       scheduleRender();
     });
   });
+
+  const timeline = document.getElementById("timeline");
+  const animationSpeed = document.getElementById("animation-speed");
+  const animationSpeedDisplay = document.getElementById("animation-speed-display");
+  const pauseCollision = document.getElementById("pause-collision");
+  synchroniserInterfaceTemporelle();
+  animationSpeed.value = String(state.vitesseAnimation);
+  animationSpeedDisplay.textContent = `${state.vitesseAnimation.toFixed(1)}x`;
+  pauseCollision.checked = state.pauseSurCollision;
+  timeline.addEventListener("input", (event) => {
+    arreterAnimation();
+    state.progressionTemporelle = clamp((Number.parseInt(event.target.value, 10) || 0) / 1000, 0, 1);
+    synchroniserInterfaceTemporelle();
+    scheduleRender();
+  });
+  animationSpeed.addEventListener("input", (event) => {
+    state.vitesseAnimation = clamp(Number.parseFloat(event.target.value) || 1.2, 0.1, 6);
+    animationSpeedDisplay.textContent = `${state.vitesseAnimation.toFixed(1)}x`;
+  });
+  pauseCollision.addEventListener("change", () => {
+    state.pauseSurCollision = pauseCollision.checked;
+  });
+  document.getElementById("btn-play-forward").addEventListener("click", () => demarrerAnimation(1));
+  document.getElementById("btn-play-reverse").addEventListener("click", () => demarrerAnimation(-1));
+  document.getElementById("btn-pause-animation").addEventListener("click", () => arreterAnimation());
+
+  document.getElementById("btn-mirror-h").addEventListener("click", () => appliquerSymetrie("miroir-h"));
+  document.getElementById("btn-mirror-v").addEventListener("click", () => appliquerSymetrie("miroir-v"));
+  document.getElementById("btn-radial").addEventListener("click", () => appliquerSymetrie("radial"));
+  document.getElementById("btn-tile").addEventListener("click", () => appliquerSymetrie("tuile"));
 
   document.getElementById("btn-download").addEventListener("click", () => {
     const link = document.createElement("a");
@@ -1515,6 +2038,7 @@ async function init() {
   initTheme();
   loadFromURL();
   bindControls();
+  bindCanvasEditor();
   bindGallery();
   renderGradientPickers();
   renderPalettesPoints();

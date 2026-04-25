@@ -395,11 +395,28 @@ input[type="color"] {
   gap: 8px;
 }
 
+textarea,
+input[type="text"] {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: rgba(19, 39, 57, 0.88);
+  color: var(--text);
+  font: inherit;
+  resize: vertical;
+}
+
 .point-gradient-card {
   padding: 12px;
   border: 1px solid var(--border);
   border-radius: 16px;
   background: rgba(13, 30, 45, 0.72);
+}
+
+.point-gradient-card.active {
+  border-color: rgba(255, 209, 102, 0.65);
+  box-shadow: 0 0 0 1px rgba(255, 209, 102, 0.28);
 }
 
 .point-gradient-head {
@@ -413,6 +430,28 @@ input[type="color"] {
 .point-gradient-title {
   font-weight: 600;
   color: var(--accent-2);
+}
+
+.point-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.point-meta input[type="number"] {
+  width: 90px;
+}
+
+.point-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+#main-canvas.edition-points {
+  cursor: crosshair;
 }
 
 .gallery-panel,

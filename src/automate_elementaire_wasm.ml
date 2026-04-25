@@ -247,3 +247,50 @@ déf duree_note_depuis_densite(densite_sur_1000):
     si densite_sur_1000 > 400:
         retour 150
     retour 250
+
+
+# Logique d'automate supplementaire pour limiter la logique JS :
+# - champ stochastique vertical
+# - fenetre temporelle de rendu
+# - transformations de symetrie
+
+déf probabilite_ligne(probabilite_base_sur_1000, champ_actif, probabilite_haut_sur_1000, probabilite_bas_sur_1000, ligne, total_lignes):
+    si champ_actif == 0 ou total_lignes <= 1:
+        retour probabilite_base_sur_1000
+    soit progression = ligne / (total_lignes - 1)
+    soit modulation = probabilite_haut_sur_1000 + ((probabilite_bas_sur_1000 - probabilite_haut_sur_1000) * progression)
+    soit probabilite = (probabilite_base_sur_1000 * modulation) / 1000
+    si probabilite < 0:
+        retour 0
+    si probabilite > 1000:
+        retour 1000
+    retour probabilite
+
+
+déf ligne_visible(progression_sur_1000, ligne_origine, ligne_courante, total_lignes):
+    si total_lignes <= 1:
+        retour 1
+    soit distance = ligne_courante - ligne_origine
+    si distance < 0:
+        distance = 0 - distance
+    soit distance_max = (progression_sur_1000 * (total_lignes - 1)) // 1000
+    si distance <= distance_max:
+        retour 1
+    retour 0
+
+
+déf miroir_horizontal_colonne(colonne, largeur):
+    retour (largeur - 1) - colonne
+
+
+déf miroir_vertical_ligne(ligne, hauteur):
+    retour (hauteur - 1) - ligne
+
+
+déf coordonnee_tuilee(coordonnee, decalage, maximum):
+    soit resultat = coordonnee + decalage
+    si resultat < 0:
+        retour 0
+    si resultat > maximum:
+        retour maximum
+    retour resultat
