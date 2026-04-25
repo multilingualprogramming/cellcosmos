@@ -179,12 +179,23 @@ function hexToRgb(hex) {
   return [(numeric >> 16) & 255, (numeric >> 8) & 255, numeric & 255];
 }
 
+function normaliserHexSaisie(value) {
+  const brut = String(value || "").trim().replace(/^#/, "");
+  if (!brut) return "";
+  if (!/^[0-9a-fA-F]+$/.test(brut)) return null;
+  if (brut.length === 3) {
+    return `#${brut.split("").map((char) => char + char).join("").toUpperCase()}`;
+  }
+  if (brut.length === 6) return `#${brut.toUpperCase()}`;
+  return null;
+}
+
 function rgbToHex([r, g, b]) {
   return [r, g, b].map((value) => value.toString(16).padStart(2, "0")).join("");
 }
 
 function rgbToHexColor(rgb) {
-  return `#${rgbToHex(rgb)}`;
+  return `#${rgbToHex(rgb).toUpperCase()}`;
 }
 
 function clonerCouleurs(colors) {
@@ -1043,30 +1054,131 @@ function renderMainView() {
   }
 }
 
+function creerEditeurCouleur(color, onChange, options = {}) {
+  const { removable = false, onRemove = null, compact = false } = options;
+  const editor = document.createElement("div");
+  editor.className = `color-editor${compact ? " compact" : ""}`;
+
+  const swatch = document.createElement("span");
+  swatch.className = "color-swatch";
+  const appliquerCouleur = (hexColor) => {
+    swatch.style.background = hexColor;
+  };
+  const couleurInitiale = rgbToHexColor(color);
+  appliquerCouleur(couleurInitiale);
+  editor.appendChild(swatch);
+
+  const picker = document.createElement("input");
+  picker.type = "color";
+  picker.value = couleurInitiale;
+  picker.id = options.id || "";
+  picker.addEventListener("input", () => {
+    const rgb = hexToRgb(picker.value);
+    appliquerCouleur(picker.value);
+    hexInput.value = rgbToHexColor(rgb);
+    hexInput.classList.remove("invalid");
+    hint.textContent = "";
+    hint.classList.remove("error");
+    onChange(rgb);
+  });
+  editor.appendChild(picker);
+
+  const fields = document.createElement("div");
+  fields.className = "color-fields";
+  const hexInput = document.createElement("input");
+  hexInput.type = "text";
+  hexInput.className = "color-hex-input";
+  hexInput.inputMode = "text";
+  hexInput.autocapitalize = "characters";
+  hexInput.spellcheck = false;
+  hexInput.maxLength = 7;
+  hexInput.placeholder = "#RRGGBB";
+  hexInput.value = couleurInitiale;
+
+  const hint = document.createElement("div");
+  hint.className = "color-hex-hint";
+
+  const appliquerHexValide = (value) => {
+    const normalise = normaliserHexSaisie(value);
+    if (!normalise) return false;
+    const rgb = hexToRgb(normalise);
+    picker.value = normalise;
+    hexInput.value = normalise;
+    hexInput.classList.remove("invalid");
+    hint.textContent = "";
+    hint.classList.remove("error");
+    appliquerCouleur(normalise);
+    onChange(rgb);
+    return true;
+  };
+
+  hexInput.addEventListener("input", () => {
+    const normalise = normaliserHexSaisie(hexInput.value);
+    if (!hexInput.value.trim()) {
+      hexInput.classList.add("invalid");
+      hint.textContent = "Hex invalide";
+      hint.classList.add("error");
+      return;
+    }
+    if (!normalise) {
+      hexInput.classList.add("invalid");
+      hint.textContent = "Hex invalide";
+      hint.classList.add("error");
+      return;
+    }
+    appliquerHexValide(normalise);
+  });
+  hexInput.addEventListener("blur", () => {
+    if (!appliquerHexValide(hexInput.value)) {
+      hexInput.value = picker.value.toUpperCase();
+      hexInput.classList.remove("invalid");
+      hint.textContent = "";
+      hint.classList.remove("error");
+    }
+  });
+
+  fields.appendChild(hexInput);
+  fields.appendChild(hint);
+  editor.appendChild(fields);
+
+  if (removable) {
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "ghost-btn";
+    remove.textContent = "x";
+    remove.addEventListener("click", () => {
+      if (onRemove) onRemove();
+    });
+    editor.appendChild(remove);
+  }
+
+  return editor;
+}
+
 function renderColorStops(container, colors, onChange) {
   container.innerHTML = "";
   colors.forEach((color, index) => {
     const row = document.createElement("div");
     row.className = "color-stop";
-    const picker = document.createElement("input");
-    picker.type = "color";
-    picker.value = rgbToHexColor(color);
-    picker.addEventListener("input", () => {
-      onChange(index, hexToRgb(picker.value));
-    });
-    row.appendChild(picker);
-    if (colors.length > 1) {
-      const remove = document.createElement("button");
-      remove.type = "button";
-      remove.className = "ghost-btn";
-      remove.textContent = "x";
-      remove.addEventListener("click", () => {
-        onChange(index, null);
-      });
-      row.appendChild(remove);
-    }
+    row.appendChild(creerEditeurCouleur(color, (nextColor) => {
+      onChange(index, nextColor);
+    }, {
+      removable: colors.length > 1,
+      onRemove: () => onChange(index, null),
+      compact: true,
+    }));
     container.appendChild(row);
   });
+}
+
+function renderBackgroundColorControl() {
+  const container = document.getElementById("bg-color-row");
+  if (!container) return;
+  container.innerHTML = "";
+  container.appendChild(creerEditeurCouleur(state.bgColor, (nextColor) => {
+    state.bgColor = nextColor;
+    scheduleRender();
+  }, { id: "bg-color" }));
 }
 
 function renderGradientPickers() {
@@ -1451,10 +1563,7 @@ function applyTheme(theme) {
     else btn.textContent = "☀";
   }
 
-  const bgColorInput = document.getElementById("bg-color");
-  if (bgColorInput) {
-    bgColorInput.value = rgbToHexColor(state.bgColor);
-  }
+  renderBackgroundColorControl();
 }
 
 function cycleTheme() {
@@ -1892,12 +2001,7 @@ function bindControls() {
   synchroniserCanvasEdition();
   renderPalettesPoints();
 
-  const bgColor = document.getElementById("bg-color");
-  bgColor.value = rgbToHexColor(state.bgColor);
-  bgColor.addEventListener("input", (event) => {
-    state.bgColor = hexToRgb(event.target.value);
-    scheduleRender();
-  });
+  renderBackgroundColorControl();
 
   document.getElementById("btn-add-color").addEventListener("click", () => {
     state.gradientColors.push([255, 255, 255]);
