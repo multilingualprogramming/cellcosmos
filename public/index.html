@@ -74,148 +74,176 @@
         </div>
 
         <aside class="sidebar">
-          <div class="ctrl-section">
-            <p class="ctrl-title">Cellules</p>
-            <div class="ctrl-row">
-              <input aria-label="range" id="cell-size" min="1" max="10" value="3" />
-              <span id="cell-size-display" class="value-badge">3</span>
-              <span class="muted">px</span>
+          <div class="sidebar-tabs-container">
+            <div class="sidebar-tabs-nav">
+              <button type="button" class="sidebar-tab-btn active" data-tab="affichage">Affichage</button>
+              <button type="button" class="sidebar-tab-btn" data-tab="points">Points</button>
+              <button type="button" class="sidebar-tab-btn" data-tab="rendu">Rendu</button>
+              <button type="button" class="sidebar-tab-btn" data-tab="avance">Avancé</button>
             </div>
-          </div>
 
-          <div class="ctrl-section">
-            <p class="ctrl-title">Forme</p>
-            <div class="pill-group">
-              <label><input type="radio" name="shape" value="rect" checked /> Rectangle</label>
-              <label><input type="radio" name="shape" value="circle" /> Cercle</label>
-              <label><input type="radio" name="shape" value="ellipse" /> Ellipse</label>
-              <label><input type="radio" name="shape" value="triangle" /> Triangle</label>
-            </div>
-          </div>
+            <div class="sidebar-tabs-content">
+              <!-- Affichage Tab -->
+              <div class="sidebar-tab-panel active" data-tab="affichage">
+                <div class="ctrl-section">
+                  <p class="ctrl-title">Cellules</p>
+                  <div class="ctrl-row">
+                    <input aria-label="range" id="cell-size" min="1" max="10" value="3" />
+                    <span id="cell-size-display" class="value-badge">3</span>
+                    <span class="muted">px</span>
+                  </div>
+                </div>
 
-          <div class="ctrl-section">
-            <p class="ctrl-title">Texture</p>
-            <div class="pill-group">
-              <label><input type="radio" name="texture" value="solid" checked /> Solide</label>
-              <label><input type="radio" name="texture" value="dots" /> Points</label>
-              <label><input type="radio" name="texture" value="crosshatch" /> Hachures</label>
-              <label><input type="radio" name="texture" value="gradient" /> Dégradé</label>
-              <label><input type="radio" name="texture" value="noise" /> Bruit</label>
-            </div>
-          </div>
+                <div class="ctrl-section">
+                  <p class="ctrl-title">Forme</p>
+                  <div class="pill-group">
+                    <label><input type="radio" name="shape" value="rect" checked /> Rectangle</label>
+                    <label><input type="radio" name="shape" value="circle" /> Cercle</label>
+                    <label><input type="radio" name="shape" value="ellipse" /> Ellipse</label>
+                    <label><input type="radio" name="shape" value="triangle" /> Triangle</label>
+                  </div>
+                </div>
 
-          <div class="ctrl-section">
-            <p class="ctrl-title">&Eacute;tat initial</p>
-            <div class="pill-group">
-              <label><input type="radio" name="init-mode" value="top" checked /> Haut</label>
-              <label><input type="radio" name="init-mode" value="center" /> Centre</label>
-              <label><input type="radio" name="init-mode" value="bottom" /> Bas</label>
-              <label><input type="radio" name="init-mode" value="custom" /> Points</label>
-              <label><input type="radio" name="init-mode" value="random" /> Al&eacute;atoire</label>
-            </div>
-            <div id="custom-opts" class="stack" hidden>
-              <label>Points x:y
-                <textarea id="init-points" rows="4" placeholder="150:0, 140:20, 160:20"></textarea>
-              </label>
-              <p class="muted">Cliquez sur le canevas pour poser une graine, glissez pour la d&eacute;placer, clic droit pour supprimer, Maj+clic pour dupliquer.</p>
-              <div class="stack compact">
-                <span class="muted">Sym&eacute;tries</span>
-                <div class="pill-group">
-                  <button type="button" id="btn-mirror-h" class="ghost-btn">Miroir H</button>
-                  <button type="button" id="btn-mirror-v" class="ghost-btn">Miroir V</button>
-                  <button type="button" id="btn-radial" class="ghost-btn">Radial</button>
-                  <button type="button" id="btn-tile" class="ghost-btn">Tuile 2x2</button>
+                <div class="ctrl-section">
+                  <p class="ctrl-title">Texture</p>
+                  <div class="pill-group">
+                    <label><input type="radio" name="texture" value="solid" checked /> Solide</label>
+                    <label><input type="radio" name="texture" value="dots" /> Points</label>
+                    <label><input type="radio" name="texture" value="crosshatch" /> Hachures</label>
+                    <label><input type="radio" name="texture" value="gradient" /> Dégradé</label>
+                    <label><input type="radio" name="texture" value="noise" /> Bruit</label>
+                  </div>
+                </div>
+
+                <div class="ctrl-section">
+                  <p class="ctrl-title">Couleurs</p>
+                  <div class="ctrl-row">
+                    <label for="bg-color" class="muted">Fond</label>
+                    <input type="color" id="bg-color" value="#08111f" />
+                  </div>
+                  <div class="stack">
+                    <span class="muted">Dégradé global</span>
+                    <div id="gradient-colors" class="stack compact"></div>
+                    <button type="button" id="btn-add-color" class="ghost-btn">+ Ajouter</button>
+                  </div>
                 </div>
               </div>
-              <div id="point-gradients" class="stack compact" hidden>
-                <span class="muted">Graines, r&egrave;gles et d&eacute;grad&eacute;s</span>
-                <div id="point-gradient-list" class="stack compact"></div>
-              </div>
-            </div>
-            <div id="random-opts" class="stack" hidden>
-              <label>Nombre <input type="number" id="init-count" min="1" max="500" value="5" /></label>
-              <label>Graine <input type="number" id="init-seed" value="42" /></label>
-            </div>
-          </div>
 
-          <div class="ctrl-section">
-            <p class="ctrl-title">Couleurs</p>
-            <div class="ctrl-row">
-              <label for="bg-color" class="muted">Fond</label>
-              <input type="color" id="bg-color" value="#08111f" />
-            </div>
-            <div class="stack">
-              <span class="muted">D&eacute;grad&eacute; global</span>
-              <div id="gradient-colors" class="stack compact"></div>
-              <button type="button" id="btn-add-color" class="ghost-btn">+ Ajouter</button>
-            </div>
-          </div>
+              <!-- Points Tab -->
+              <div class="sidebar-tab-panel" data-tab="points">
+                <div class="ctrl-section">
+                  <p class="ctrl-title">État initial</p>
+                  <div class="pill-group">
+                    <label><input type="radio" name="init-mode" value="top" checked /> Haut</label>
+                    <label><input type="radio" name="init-mode" value="center" /> Centre</label>
+                    <label><input type="radio" name="init-mode" value="bottom" /> Bas</label>
+                    <label><input type="radio" name="init-mode" value="custom" /> Points</label>
+                    <label><input type="radio" name="init-mode" value="random" /> Aléatoire</label>
+                  </div>
+                  <div id="custom-opts" class="stack" hidden>
+                    <label>Points x:y
+                      <textarea id="init-points" rows="4" placeholder="150:0, 140:20, 160:20"></textarea>
+                    </label>
+                    <p class="muted">Cliquez sur le canevas pour poser une graine, glissez pour la déplacer, clic droit pour supprimer, Maj+clic pour dupliquer.</p>
+                    <div class="stack compact">
+                      <span class="muted">Symétries</span>
+                      <div class="pill-group">
+                        <button type="button" id="btn-mirror-h" class="ghost-btn">Miroir H</button>
+                        <button type="button" id="btn-mirror-v" class="ghost-btn">Miroir V</button>
+                        <button type="button" id="btn-radial" class="ghost-btn">Radial</button>
+                        <button type="button" id="btn-tile" class="ghost-btn">Tuile 2x2</button>
+                      </div>
+                    </div>
+                    <div id="point-gradients" class="stack compact" hidden>
+                      <span class="muted">Graines, règles et dégradés</span>
+                      <div id="point-gradient-list" class="stack compact"></div>
+                    </div>
+                  </div>
+                  <div id="random-opts" class="stack" hidden>
+                    <label>Nombre <input type="number" id="init-count" min="1" max="500" value="5" /></label>
+                    <label>Graine <input type="number" id="init-seed" value="42" /></label>
+                  </div>
+                </div>
+              </div>
 
-          <div class="ctrl-section">
-            <p class="ctrl-title">Rendu</p>
-            <div class="ctrl-row">
-              <label for="blend-mode" class="muted">Fusion</label>
-              <select id="blend-mode">
-                <option value="source-over">Normal</option>
-                <option value="screen">Écran</option>
-                <option value="multiply">Multiplier</option>
-                <option value="overlay">Superposer</option>
-                <option value="lighten">Éclaircir</option>
-                <option value="darken">Assombrir</option>
-                <option value="difference">Différence</option>
-                <option value="color-dodge">Esquiver</option>
-              </select>
-            </div>
-            <div class="ctrl-row">
-              <label for="layer-opacity" class="muted">Opacité</label>
-              <input type="range" id="layer-opacity" min="0" max="1" step="0.01" value="1" />
-              <span id="opacity-display" class="value-badge">1.00</span>
-            </div>
-            <div class="stack compact">
-              <span class="muted">Temps</span>
-              <div class="pill-group">
-                <button type="button" id="btn-play-reverse" class="ghost-btn">&#9664; Lecture</button>
-                <button type="button" id="btn-pause-animation" class="ghost-btn">Pause</button>
-                <button type="button" id="btn-play-forward" class="ghost-btn">Lecture &#9654;</button>
-              </div>
-              <div class="ctrl-row">
-                <label for="timeline" class="muted">Progression</label>
-                <input type="range" id="timeline" min="0" max="1000" value="1000" />
-                <span id="timeline-display" class="value-badge">100%</span>
-              </div>
-              <div class="ctrl-row">
-                <label for="animation-speed" class="muted">Vitesse</label>
-                <input type="range" id="animation-speed" min="0.1" max="6" step="0.1" value="1.2" />
-                <span id="animation-speed-display" class="value-badge">1.2x</span>
-              </div>
-              <label class="checkbox-row"><input type="checkbox" id="pause-collision" /> Pause sur collision</label>
-            </div>
-          </div>
+              <!-- Rendu Tab -->
+              <div class="sidebar-tab-panel" data-tab="rendu">
+                <div class="ctrl-section">
+                  <p class="ctrl-title">Rendu</p>
+                  <div class="ctrl-row">
+                    <label for="blend-mode" class="muted">Fusion</label>
+                    <select id="blend-mode">
+                      <option value="source-over">Normal</option>
+                      <option value="screen">Écran</option>
+                      <option value="multiply">Multiplier</option>
+                      <option value="overlay">Superposer</option>
+                      <option value="lighten">Éclaircir</option>
+                      <option value="darken">Assombrir</option>
+                      <option value="difference">Différence</option>
+                      <option value="color-dodge">Esquiver</option>
+                    </select>
+                  </div>
+                  <div class="ctrl-row">
+                    <label for="layer-opacity" class="muted">Opacité</label>
+                    <input type="range" id="layer-opacity" min="0" max="1" step="0.01" value="1" />
+                    <span id="opacity-display" class="value-badge">1.00</span>
+                  </div>
+                </div>
 
-          <div class="ctrl-section">
-            <p class="ctrl-title">Avanc&eacute;</p>
-            <label class="checkbox-row"><input type="checkbox" id="circular" /> Fronti&egrave;re circulaire</label>
-            <div class="ctrl-row">
-              <label for="probability" class="muted">Probabilit&eacute;</label>
-              <input type="range" id="probability" min="0" max="1" step="0.01" value="1" />
-              <span id="prob-display" class="value-badge">1.00</span>
-            </div>
-            <label class="checkbox-row"><input type="checkbox" id="probability-field-active" /> Champ stochastique spatial</label>
-            <div id="probability-field-opts" class="stack compact" hidden>
-              <div class="ctrl-row">
-                <label for="probability-top" class="muted">Haut</label>
-                <input type="range" id="probability-top" min="0" max="1" step="0.01" value="1" />
-                <span id="prob-top-display" class="value-badge">1.00</span>
+                <div class="ctrl-section">
+                  <p class="ctrl-title">Animation</p>
+                  <div class="pill-group">
+                    <button type="button" id="btn-play-reverse" class="ghost-btn">&#9664; Lecture</button>
+                    <button type="button" id="btn-pause-animation" class="ghost-btn">Pause</button>
+                    <button type="button" id="btn-play-forward" class="ghost-btn">Lecture &#9654;</button>
+                  </div>
+                  <div class="ctrl-row">
+                    <label for="timeline" class="muted">Progression</label>
+                    <input type="range" id="timeline" min="0" max="1000" value="1000" />
+                    <span id="timeline-display" class="value-badge">100%</span>
+                  </div>
+                  <div class="ctrl-row">
+                    <label for="animation-speed" class="muted">Vitesse</label>
+                    <input type="range" id="animation-speed" min="0.1" max="6" step="0.1" value="1.2" />
+                    <span id="animation-speed-display" class="value-badge">1.2x</span>
+                  </div>
+                  <label class="checkbox-row"><input type="checkbox" id="pause-collision" /> Pause sur collision</label>
+                </div>
               </div>
-              <div class="ctrl-row">
-                <label for="probability-bottom" class="muted">Bas</label>
-                <input type="range" id="probability-bottom" min="0" max="1" step="0.01" value="1" />
-                <span id="prob-bottom-display" class="value-badge">1.00</span>
+
+              <!-- Avancé Tab -->
+              <div class="sidebar-tab-panel" data-tab="avance">
+                <div class="ctrl-section">
+                  <p class="ctrl-title">Paramètres avancés</p>
+                  <label class="checkbox-row"><input type="checkbox" id="circular" /> Frontière circulaire</label>
+                  <div class="ctrl-row">
+                    <label for="probability" class="muted">Probabilité</label>
+                    <input type="range" id="probability" min="0" max="1" step="0.01" value="1" />
+                    <span id="prob-display" class="value-badge">1.00</span>
+                  </div>
+                  <label class="checkbox-row"><input type="checkbox" id="probability-field-active" /> Champ stochastique spatial</label>
+                  <div id="probability-field-opts" class="stack compact" hidden>
+                    <div class="ctrl-row">
+                      <label for="probability-top" class="muted">Haut</label>
+                      <input type="range" id="probability-top" min="0" max="1" step="0.01" value="1" />
+                      <span id="prob-top-display" class="value-badge">1.00</span>
+                    </div>
+                    <div class="ctrl-row">
+                      <label for="probability-bottom" class="muted">Bas</label>
+                      <input type="range" id="probability-bottom" min="0" max="1" step="0.01" value="1" />
+                      <span id="prob-bottom-display" class="value-badge">1.00</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="ctrl-section">
+                  <p class="ctrl-title">Direction</p>
+                  <div class="pill-group">
+                    <label><input type="radio" name="direction" value="ltr" checked /> LTR</label>
+                    <label><input type="radio" name="direction" value="rtl" /> RTL</label>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div class="pill-group">
-              <label><input type="radio" name="direction" value="ltr" checked /> LTR</label>
-              <label><input type="radio" name="direction" value="rtl" /> RTL</label>
             </div>
           </div>
         </aside>

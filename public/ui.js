@@ -2034,9 +2034,43 @@ function bindControls() {
   window.addEventListener("resize", scheduleRender);
 }
 
+function initSidebarTabs() {
+  const tabButtons = document.querySelectorAll('.sidebar-tab-btn');
+  const tabPanels = document.querySelectorAll('.sidebar-tab-panel');
+  const storageKey = 'sidebar-active-tab';
+
+  const restoreTabState = () => {
+    const savedTab = localStorage.getItem(storageKey) || 'affichage';
+    switchToTab(savedTab);
+  };
+
+  const switchToTab = (tabName) => {
+    tabButtons.forEach((btn) => btn.classList.remove('active'));
+    tabPanels.forEach((panel) => panel.classList.remove('active'));
+
+    const activeBtn = document.querySelector(`[data-tab="${tabName}"]`);
+    const activePanel = document.querySelector(`.sidebar-tab-panel[data-tab="${tabName}"]`);
+
+    if (activeBtn) activeBtn.classList.add('active');
+    if (activePanel) activePanel.classList.add('active');
+
+    localStorage.setItem(storageKey, tabName);
+  };
+
+  tabButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const tabName = btn.getAttribute('data-tab');
+      switchToTab(tabName);
+    });
+  });
+
+  restoreTabState();
+}
+
 async function init() {
   initTheme();
   loadFromURL();
+  initSidebarTabs();
   bindControls();
   bindCanvasEditor();
   bindGallery();
