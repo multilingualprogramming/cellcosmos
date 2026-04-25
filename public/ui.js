@@ -22,6 +22,22 @@ const DEFAULTS = {
   progressionTemporelle: 1,
   vitesseAnimation: 1.2,
   pauseSurCollision: false,
+  labShapeType: "circle",
+  labGeometryMode: "inside",
+  labShapeX: 150,
+  labShapeY: 90,
+  labShapeWidth: 48,
+  labShapeHeight: 30,
+  labShapeInner: 12,
+  labFieldBrush: 14,
+  labFieldStrength: 0.8,
+  labFieldMode: "paint",
+  labEventType: "pulse",
+  labEventRadius: 14,
+  labEventStrength: 0.8,
+  labShowMask: true,
+  labShowField: true,
+  labShowEvents: true,
 };
 
 const fallbackDomain = {
@@ -82,6 +98,46 @@ const fallbackDomain = {
   coordonneeTuilee(coordonnee, decalage, maximum) {
     return clamp(coordonnee + decalage, 0, maximum);
   },
+  laboratoireFormeContient(shapeCode, x, y, centerX, centerY, sizeA, sizeB, innerRadius) {
+    if (shapeCode === 1) {
+      return Math.abs(x - centerX) <= sizeA && Math.abs(y - centerY) <= sizeB ? 1 : 0;
+    }
+    const dx = x - centerX;
+    const dy = y - centerY;
+    const distanceSquared = dx * dx + dy * dy;
+    if (shapeCode === 2) {
+      return distanceSquared <= sizeA * sizeA ? 1 : 0;
+    }
+    if (shapeCode === 3) {
+      const outer = Math.max(sizeA, innerRadius);
+      return distanceSquared >= innerRadius * innerRadius && distanceSquared <= outer * outer ? 1 : 0;
+    }
+    return 0;
+  },
+  laboratoireModeAutorise(modeCode, contains) {
+    if (modeCode === 0) return 1;
+    if (modeCode === 1) return contains === 1 ? 1 : 0;
+    if (modeCode === 2 || modeCode === 3) return contains === 1 ? 0 : 1;
+    return 1;
+  },
+  laboratoireIntensiteRadiale(x, y, centerX, centerY, radius) {
+    if (radius <= 0) return x === centerX && y === centerY ? 1000 : 0;
+    const dx = x - centerX;
+    const dy = y - centerY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    if (distance > radius) return 0;
+    return clamp(Math.round((1 - distance / radius) * 1000), 0, 1000);
+  },
+  laboratoireProbabiliteModifiee(baseProbability, fieldValue) {
+    return clamp(Math.round((baseProbability * clamp(fieldValue, 0, 2000)) / 1000), 0, 1000);
+  },
+  laboratoireCelluleEvenement(initialValue, eventCode, intensity, threshold) {
+    if (intensity < threshold) return initialValue;
+    if (eventCode === 1) return 1;
+    if (eventCode === 2) return 0;
+    if (eventCode === 3) return initialValue === 1 ? 0 : 1;
+    return initialValue;
+  },
 };
 
 let state = structuredClone(DEFAULTS);
@@ -95,6 +151,19 @@ let dernieresCouches = null;
 let pointActif = "";
 const animationEtat = { actif: false, sens: 1, dernierTemps: 0 };
 const editeurPoints = { actif: false, cle: "", decalageX: 0, decalageY: 0 };
+const matterLab = {
+  fieldCols: 0,
+  fieldRows: 0,
+  fieldData: new Uint16Array(0),
+  frozenCols: 0,
+  frozenRows: 0,
+  frozenData: new Int16Array(0),
+  events: [],
+  geometryPlaced: false,
+  lastRender: null,
+  activeTab: "geometry",
+  painting: false,
+};
 
 function createDotsPattern(size, color, ctx) {
   const canvas = new OffscreenCanvas(size, size);
@@ -542,6 +611,61 @@ function coordonneeTuilee(coordonnee, decalage, maximum) {
   return fallbackDomain.coordonneeTuilee(coordonnee, decalage, maximum);
 }
 
+function laboratoireFormeContient(shapeCode, x, y, centerX, centerY, sizeA, sizeB, innerRadius) {
+  if (wasmAvailable && wasm && typeof wasm.laboratoire_forme_contient === "function") {
+    try {
+      return Number(wasm.laboratoire_forme_contient(shapeCode, x, y, centerX, centerY, sizeA, sizeB, innerRadius));
+    } catch (error) {
+      disableWasmRuntime(error);
+    }
+  }
+  return fallbackDomain.laboratoireFormeContient(shapeCode, x, y, centerX, centerY, sizeA, sizeB, innerRadius);
+}
+
+function laboratoireModeAutorise(modeCode, contains) {
+  if (wasmAvailable && wasm && typeof wasm.laboratoire_mode_autorise === "function") {
+    try {
+      return Number(wasm.laboratoire_mode_autorise(modeCode, contains));
+    } catch (error) {
+      disableWasmRuntime(error);
+    }
+  }
+  return fallbackDomain.laboratoireModeAutorise(modeCode, contains);
+}
+
+function laboratoireIntensiteRadiale(x, y, centerX, centerY, radius) {
+  if (wasmAvailable && wasm && typeof wasm.laboratoire_intensite_radiale === "function") {
+    try {
+      return Number(wasm.laboratoire_intensite_radiale(x, y, centerX, centerY, radius));
+    } catch (error) {
+      disableWasmRuntime(error);
+    }
+  }
+  return fallbackDomain.laboratoireIntensiteRadiale(x, y, centerX, centerY, radius);
+}
+
+function laboratoireProbabiliteModifiee(baseProbability, fieldValue) {
+  if (wasmAvailable && wasm && typeof wasm.laboratoire_probabilite_modifiee === "function") {
+    try {
+      return Number(wasm.laboratoire_probabilite_modifiee(baseProbability, fieldValue));
+    } catch (error) {
+      disableWasmRuntime(error);
+    }
+  }
+  return fallbackDomain.laboratoireProbabiliteModifiee(baseProbability, fieldValue);
+}
+
+function laboratoireCelluleEvenement(initialValue, eventCode, intensity, threshold) {
+  if (wasmAvailable && wasm && typeof wasm.laboratoire_cellule_evenement === "function") {
+    try {
+      return Number(wasm.laboratoire_cellule_evenement(initialValue, eventCode, intensity, threshold));
+    } catch (error) {
+      disableWasmRuntime(error);
+    }
+  }
+  return fallbackDomain.laboratoireCelluleEvenement(initialValue, eventCode, intensity, threshold);
+}
+
 function callWasmString(fn, ...args) {
   const ptr = Number(fn(...args));
   const length = Number(wasm.__ml_str_len());
@@ -908,6 +1032,10 @@ function syncRuleControls() {
   document.getElementById("rule-slider").value = String(state.rule);
   document.getElementById("rule-number").value = String(state.rule);
   document.getElementById("rule-display").textContent = String(state.rule);
+  const labSlider = document.getElementById("lab-rule-slider");
+  const labDisplay = document.getElementById("lab-rule-display");
+  if (labSlider) labSlider.value = String(state.rule);
+  if (labDisplay) labDisplay.textContent = String(state.rule);
   updateRuleInfo();
 }
 
@@ -1037,21 +1165,369 @@ function loadFromURL() {
 }
 
 function renderMainView() {
-  const canvas = document.getElementById("main-canvas");
-  const { rows, cols } = obtenirDimensionsRendu();
-  renderToCanvas(canvas, state.rule, rows, cols, state.cellSize);
-  const density = dernieresCouches ? calculerDensiteCouches(dernieresCouches) : 0;
-  updateCanvasHud(rows, cols, density);
+  const explorerPanel = document.getElementById("explorer-panel");
+  if (explorerPanel && !explorerPanel.hidden) {
+    const canvas = document.getElementById("main-canvas");
+    const { rows, cols } = obtenirDimensionsRendu();
+    renderToCanvas(canvas, state.rule, rows, cols, state.cellSize);
+    const density = dernieresCouches ? calculerDensiteCouches(dernieresCouches) : 0;
+    updateCanvasHud(rows, cols, density);
 
-  // Calculate pattern density for audio
-  if (audioEngine.active) {
-    const cls = wolframClass(state.rule);
-    audioEngine.update(state.rule, cls, density);
+    if (audioEngine.active) {
+      const cls = wolframClass(state.rule);
+      audioEngine.update(state.rule, cls, density);
+    }
+
+    if (sequenceur.active && dernieresCouches) {
+      sequenceur.refresh(dernieresCouches, state.rule);
+    }
+  }
+  renderMatterLabView();
+}
+
+const LAB_SHAPE_CODES = { none: 0, rect: 1, circle: 2, ring: 3 };
+const LAB_MODE_CODES = { none: 0, inside: 1, outside: 2, barrier: 3 };
+const LAB_EVENT_CODES = { none: 0, pulse: 1, erase: 2, invert: 3, freeze: 4 };
+
+function obtenirDimensionsMatterLab() {
+  const canvas = document.getElementById("lab-canvas");
+  const width = canvas?.parentElement?.clientWidth || 900;
+  return {
+    rows: Math.max(1, Math.floor((width * 0.6) / state.cellSize)),
+    cols: Math.max(1, Math.floor(width / state.cellSize)),
+  };
+}
+
+function indexMatterLab(x, y, cols) {
+  return (y * cols) + x;
+}
+
+function assurerBuffersMatterLab(rows, cols) {
+  const fieldChanged = matterLab.fieldRows !== rows || matterLab.fieldCols !== cols;
+  if (fieldChanged) {
+    matterLab.fieldRows = rows;
+    matterLab.fieldCols = cols;
+    matterLab.fieldData = new Uint16Array(rows * cols);
+    matterLab.fieldData.fill(1000);
+    matterLab.frozenRows = rows;
+    matterLab.frozenCols = cols;
+    matterLab.frozenData = new Int16Array(rows * cols);
+    matterLab.frozenData.fill(-1);
+    matterLab.events = [];
+    matterLab.geometryPlaced = false;
+  }
+  state.labShapeX = clamp(state.labShapeX, 0, cols - 1);
+  state.labShapeY = clamp(state.labShapeY, 0, rows - 1);
+  state.labShapeInner = clamp(state.labShapeInner, 0, state.labShapeWidth);
+}
+
+function reinitialiserMatterLab() {
+  matterLab.fieldRows = 0;
+  matterLab.fieldCols = 0;
+  matterLab.fieldData = new Uint16Array(0);
+  matterLab.frozenRows = 0;
+  matterLab.frozenCols = 0;
+  matterLab.frozenData = new Int16Array(0);
+  matterLab.events = [];
+  matterLab.geometryPlaced = false;
+  matterLab.lastRender = null;
+}
+
+function obtenirChampMatterLab(x, y, cols) {
+  return matterLab.fieldData[indexMatterLab(x, y, cols)] ?? 1000;
+}
+
+function moyenneChampMatterLab() {
+  if (!matterLab.fieldData.length) return 1000;
+  let total = 0;
+  matterLab.fieldData.forEach((value) => {
+    total += value;
+  });
+  return total / matterLab.fieldData.length;
+}
+
+function configurationGeometrieMatterLab(rows, cols) {
+  if (!matterLab.geometryPlaced) return null;
+  const centerX = clamp(state.labShapeX, 0, cols - 1);
+  const centerY = clamp(state.labShapeY, 0, rows - 1);
+  if (state.labShapeType === "rect") {
+    return {
+      shapeCode: LAB_SHAPE_CODES.rect,
+      modeCode: LAB_MODE_CODES[state.labGeometryMode] ?? LAB_MODE_CODES.inside,
+      centerX,
+      centerY,
+      sizeA: Math.max(1, Math.floor(state.labShapeWidth / 2)),
+      sizeB: Math.max(1, Math.floor(state.labShapeHeight / 2)),
+      innerRadius: 0,
+    };
+  }
+  if (state.labShapeType === "ring") {
+    return {
+      shapeCode: LAB_SHAPE_CODES.ring,
+      modeCode: LAB_MODE_CODES[state.labGeometryMode] ?? LAB_MODE_CODES.inside,
+      centerX,
+      centerY,
+      sizeA: Math.max(2, state.labShapeWidth),
+      sizeB: Math.max(2, state.labShapeWidth),
+      innerRadius: clamp(state.labShapeInner, 0, state.labShapeWidth - 1),
+    };
+  }
+  return {
+    shapeCode: LAB_SHAPE_CODES.circle,
+    modeCode: LAB_MODE_CODES[state.labGeometryMode] ?? LAB_MODE_CODES.inside,
+    centerX,
+    centerY,
+    sizeA: Math.max(2, state.labShapeWidth),
+    sizeB: Math.max(2, state.labShapeHeight),
+    innerRadius: 0,
+  };
+}
+
+function celluleAutoriseeMatterLab(x, y, rows, cols) {
+  const geometry = configurationGeometrieMatterLab(rows, cols);
+  if (!geometry) return true;
+  const contains = laboratoireFormeContient(
+    geometry.shapeCode,
+    x,
+    y,
+    geometry.centerX,
+    geometry.centerY,
+    geometry.sizeA,
+    geometry.sizeB,
+    geometry.innerRadius,
+  );
+  return laboratoireModeAutorise(geometry.modeCode, contains) === 1;
+}
+
+function probabiliteMatterLab(x, y, totalRows, cols) {
+  const baseProbability = Math.round(obtenirProbabiliteLigne(y, totalRows) * 1000);
+  const fieldProbability = laboratoireProbabiliteModifiee(baseProbability, obtenirChampMatterLab(x, y, cols));
+  return clamp(fieldProbability / 1000, 0, 1);
+}
+
+function getNextGenerationMatterLab(current, ruleNumber, rowSeed, rowIndex, totalRows) {
+  const nextGen = [];
+  const random = mulberry32(rowSeed);
+  const size = current.length;
+  const indices = state.direction === "ltr" ? [...Array(size).keys()] : [...Array(size).keys()].reverse();
+
+  for (const i of indices) {
+    if (!celluleAutoriseeMatterLab(i, rowIndex, totalRows, size)) {
+      nextGen.push(0);
+      continue;
+    }
+
+    if (random() > probabiliteMatterLab(i, rowIndex, totalRows, size)) {
+      nextGen.push(0);
+      continue;
+    }
+
+    let left;
+    let center;
+    let right;
+    if (state.direction === "ltr") {
+      left = i > 0 ? current[i - 1] : state.circular ? current[size - 1] : 0;
+      center = current[i];
+      right = i < size - 1 ? current[i + 1] : state.circular ? current[0] : 0;
+    } else {
+      right = i > 0 ? current[i - 1] : state.circular ? current[size - 1] : 0;
+      center = current[i];
+      left = i < size - 1 ? current[i + 1] : state.circular ? current[0] : 0;
+    }
+    nextGen.push(transition(ruleNumber, left, center, right));
   }
 
-  if (sequenceur.active && dernieresCouches) {
-    sequenceur.refresh(dernieresCouches, state.rule);
+  return state.direction === "ltr" ? nextGen : nextGen.reverse();
+}
+
+function evoluerDepuisPositionMatterLab(ruleNumber, rows, cols, position, baseSeed) {
+  const grid = Array.from({ length: rows }, () => Array(cols).fill(0));
+  const x = clamp(position.x ?? Math.floor(cols / 2), 0, cols - 1);
+  const origin = clamp(position.y ?? Math.floor(rows / 2), 0, rows - 1);
+  if (celluleAutoriseeMatterLab(x, origin, rows, cols)) {
+    grid[origin][x] = 1;
   }
+
+  for (let row = origin + 1; row < rows; row += 1) {
+    grid[row] = getNextGenerationMatterLab(grid[row - 1], ruleNumber, obtenirGraineLigne(baseSeed, row - 1, row), row, rows);
+  }
+  for (let row = origin - 1; row >= 0; row -= 1) {
+    grid[row] = getNextGenerationMatterLab(grid[row + 1], ruleNumber, obtenirGraineLigne(baseSeed, row + 1, row), row, rows);
+  }
+
+  return grid;
+}
+
+function construireGrilleMatterLab(ruleNumber, rows, cols) {
+  const positions = normaliserPositionsInitiales(cols, rows);
+  const baseSeed = Number.parseInt(state.seed || 0, 10);
+  const output = Array.from({ length: rows }, () => Array(cols).fill(0));
+  positions.forEach((position, index) => {
+    const grid = evoluerDepuisPositionMatterLab(ruleNumber, rows, cols, position, baseSeed + index);
+    for (let row = 0; row < rows; row += 1) {
+      for (let col = 0; col < cols; col += 1) {
+        if (grid[row][col] === 1) output[row][col] = 1;
+      }
+    }
+  });
+  return output;
+}
+
+function appliquerEvenementsMatterLab(baseGrid, rows, cols) {
+  const grid = baseGrid.map((row) => row.slice());
+  const threshold = 250;
+  matterLab.events.forEach((event) => {
+    const eventCode = LAB_EVENT_CODES[event.type] ?? LAB_EVENT_CODES.none;
+    const minX = clamp(event.x - event.radius, 0, cols - 1);
+    const maxX = clamp(event.x + event.radius, 0, cols - 1);
+    const minY = clamp(event.y - event.radius, 0, rows - 1);
+    const maxY = clamp(event.y + event.radius, 0, rows - 1);
+    for (let y = minY; y <= maxY; y += 1) {
+      for (let x = minX; x <= maxX; x += 1) {
+        const radial = laboratoireIntensiteRadiale(x, y, event.x, event.y, event.radius);
+        if (radial === 0) continue;
+        const intensity = Math.round(radial * event.strength);
+        grid[y][x] = laboratoireCelluleEvenement(grid[y][x], eventCode, intensity, threshold);
+      }
+    }
+  });
+
+  if (matterLab.frozenData.length === rows * cols) {
+    for (let y = 0; y < rows; y += 1) {
+      for (let x = 0; x < cols; x += 1) {
+        const frozenValue = matterLab.frozenData[indexMatterLab(x, y, cols)];
+        if (frozenValue >= 0) grid[y][x] = frozenValue;
+      }
+    }
+  }
+  return grid;
+}
+
+function dessinerChampMatterLab(ctx, rows, cols, cellSize) {
+  if (!state.labShowField || !matterLab.fieldData.length) return;
+  for (let y = 0; y < rows; y += 1) {
+    for (let x = 0; x < cols; x += 1) {
+      const value = obtenirChampMatterLab(x, y, cols);
+      const delta = value - 1000;
+      if (Math.abs(delta) < 40) continue;
+      const alpha = Math.min(Math.abs(delta) / 1400, 0.28);
+      ctx.fillStyle = delta > 0 ? `rgba(102, 227, 255, ${alpha})` : `rgba(255, 157, 77, ${alpha})`;
+      ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+    }
+  }
+}
+
+function dessinerGeometrieMatterLab(ctx, geometry, cellSize) {
+  if (!state.labShowMask || !geometry) return;
+  ctx.save();
+  ctx.strokeStyle = geometry.modeCode === LAB_MODE_CODES.barrier ? "rgba(255, 157, 77, 0.92)" : "rgba(102, 227, 255, 0.92)";
+  ctx.lineWidth = Math.max(1.5, cellSize * 0.5);
+  ctx.setLineDash([cellSize * 1.5, cellSize]);
+  if (geometry.shapeCode === LAB_SHAPE_CODES.rect) {
+    ctx.strokeRect(
+      (geometry.centerX - geometry.sizeA) * cellSize,
+      (geometry.centerY - geometry.sizeB) * cellSize,
+      geometry.sizeA * 2 * cellSize,
+      geometry.sizeB * 2 * cellSize,
+    );
+  } else {
+    ctx.beginPath();
+    ctx.arc(geometry.centerX * cellSize, geometry.centerY * cellSize, geometry.sizeA * cellSize, 0, Math.PI * 2);
+    ctx.stroke();
+    if (geometry.shapeCode === LAB_SHAPE_CODES.ring && geometry.innerRadius > 0) {
+      ctx.beginPath();
+      ctx.arc(geometry.centerX * cellSize, geometry.centerY * cellSize, geometry.innerRadius * cellSize, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+function dessinerEvenementsMatterLab(ctx, cellSize) {
+  if (!state.labShowEvents) return;
+  ctx.save();
+  matterLab.events.forEach((event) => {
+    ctx.strokeStyle = event.type === "erase"
+      ? "rgba(255, 107, 107, 0.82)"
+      : event.type === "invert"
+        ? "rgba(255, 209, 102, 0.82)"
+        : "rgba(102, 227, 255, 0.82)";
+    ctx.lineWidth = Math.max(1.5, cellSize * 0.4);
+    ctx.setLineDash(event.type === "invert" ? [cellSize, cellSize] : []);
+    ctx.beginPath();
+    ctx.arc(event.x * cellSize, event.y * cellSize, event.radius * cellSize, 0, Math.PI * 2);
+    ctx.stroke();
+  });
+  if (matterLab.frozenData.some((value) => value >= 0)) {
+    ctx.fillStyle = "rgba(195, 230, 255, 0.18)";
+    for (let y = 0; y < matterLab.frozenRows; y += 1) {
+      for (let x = 0; x < matterLab.frozenCols; x += 1) {
+        if (matterLab.frozenData[indexMatterLab(x, y, matterLab.frozenCols)] >= 0) {
+          ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+        }
+      }
+    }
+  }
+  ctx.restore();
+}
+
+function mettreAJourHudMatterLab(grid, rows, cols) {
+  let liveCells = 0;
+  grid.forEach((row) => row.forEach((value) => {
+    if (value === 1) liveCells += 1;
+  }));
+  const density = rows * cols > 0 ? Math.round((liveCells / (rows * cols)) * 100) : 0;
+  const averageField = Math.round(moyenneChampMatterLab() / 10);
+  const ruleDisplay = document.getElementById("lab-rule-display");
+  const hudRule = document.getElementById("lab-hud-rule");
+  const hudDensity = document.getElementById("lab-hud-density");
+  const hudField = document.getElementById("lab-hud-field");
+  const hudEvents = document.getElementById("lab-hud-events");
+  const status = document.getElementById("lab-geometry-status");
+  if (ruleDisplay) ruleDisplay.textContent = String(state.rule);
+  if (hudRule) hudRule.textContent = String(state.rule);
+  if (hudDensity) hudDensity.textContent = `${density}%`;
+  if (hudField) hudField.textContent = `${averageField}%`;
+  if (hudEvents) hudEvents.textContent = String(matterLab.events.length + (matterLab.frozenData.some((value) => value >= 0) ? 1 : 0));
+  if (status) {
+    if (!matterLab.geometryPlaced) status.textContent = "Aucune geometrie";
+    else if (state.labShapeType === "rect") status.textContent = `Rectangle ${state.labGeometryMode}`;
+    else if (state.labShapeType === "ring") status.textContent = `Anneau ${state.labGeometryMode}`;
+    else status.textContent = `Cercle ${state.labGeometryMode}`;
+  }
+}
+
+function renderMatterLabView() {
+  const panel = document.getElementById("matterlab-panel");
+  const canvas = document.getElementById("lab-canvas");
+  if (!panel || panel.hidden || !canvas) return;
+
+  const { rows, cols } = obtenirDimensionsMatterLab();
+  assurerBuffersMatterLab(rows, cols);
+  const baseGrid = construireGrilleMatterLab(state.rule, rows, cols);
+  const finalGrid = appliquerEvenementsMatterLab(baseGrid, rows, cols);
+  matterLab.lastRender = { rows, cols, grid: finalGrid.map((row) => row.slice()) };
+
+  canvas.width = cols * state.cellSize;
+  canvas.height = rows * state.cellSize;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = `rgb(${state.bgColor.join(",")})`;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  dessinerChampMatterLab(ctx, rows, cols, state.cellSize);
+
+  const gradient = generateGradient(state.gradientColors, rows);
+  finalGrid.forEach((row, rowIndex) => {
+    const color = `rgb(${gradient[rowIndex].join(",")})`;
+    row.forEach((value, colIndex) => {
+      if (value !== 1) return;
+      drawCell(ctx, colIndex * state.cellSize, rowIndex * state.cellSize, state.cellSize, color);
+    });
+  });
+
+  dessinerGeometrieMatterLab(ctx, configurationGeometrieMatterLab(rows, cols), state.cellSize);
+  dessinerEvenementsMatterLab(ctx, state.cellSize);
+  mettreAJourHudMatterLab(finalGrid, rows, cols);
 }
 
 function creerEditeurCouleur(color, onChange, options = {}) {
@@ -1412,17 +1888,142 @@ function bindCanvasEditor() {
   canvas.addEventListener("pointerleave", terminerEdition);
 }
 
+function synchroniserValeurMatterLab(inputId, displayId, formatter = (value) => value) {
+  const input = document.getElementById(inputId);
+  const display = document.getElementById(displayId);
+  if (input && display) display.textContent = formatter(input.value);
+}
+
+function obtenirCoordonneesMatterLabDepuisEvenement(event) {
+  const canvas = document.getElementById("lab-canvas");
+  const rect = canvas.getBoundingClientRect();
+  const { cols, rows } = obtenirDimensionsMatterLab();
+  return {
+    x: clamp(Math.floor(((event.clientX - rect.left) / rect.width) * cols), 0, cols - 1),
+    y: clamp(Math.floor(((event.clientY - rect.top) / rect.height) * rows), 0, rows - 1),
+    cols,
+    rows,
+  };
+}
+
+function peindreChampMatterLab(x, y, rows, cols) {
+  assurerBuffersMatterLab(rows, cols);
+  const radius = Math.max(1, Math.round(state.labFieldBrush));
+  const amplitude = Math.round(state.labFieldStrength * 1000);
+  const direction = state.labFieldMode === "erase" ? -1 : 1;
+  const minX = clamp(x - radius, 0, cols - 1);
+  const maxX = clamp(x + radius, 0, cols - 1);
+  const minY = clamp(y - radius, 0, rows - 1);
+  const maxY = clamp(y + radius, 0, rows - 1);
+  for (let row = minY; row <= maxY; row += 1) {
+    for (let col = minX; col <= maxX; col += 1) {
+      const radial = laboratoireIntensiteRadiale(col, row, x, y, radius);
+      if (radial === 0) continue;
+      const index = indexMatterLab(col, row, cols);
+      const delta = Math.round((amplitude * radial) / 1000) * direction;
+      matterLab.fieldData[index] = clamp(matterLab.fieldData[index] + delta, 0, 2000);
+    }
+  }
+}
+
+function declencherEvenementMatterLab(x, y, rows, cols) {
+  assurerBuffersMatterLab(rows, cols);
+  const event = {
+    type: state.labEventType,
+    x,
+    y,
+    radius: Math.max(1, Math.round(state.labEventRadius)),
+    strength: clamp(state.labEventStrength, 0.1, 1),
+  };
+  if (event.type === "freeze") {
+    const snapshot = matterLab.lastRender?.grid;
+    if (!snapshot) return;
+    const minX = clamp(x - event.radius, 0, cols - 1);
+    const maxX = clamp(x + event.radius, 0, cols - 1);
+    const minY = clamp(y - event.radius, 0, rows - 1);
+    const maxY = clamp(y + event.radius, 0, rows - 1);
+    for (let row = minY; row <= maxY; row += 1) {
+      for (let col = minX; col <= maxX; col += 1) {
+        const radial = laboratoireIntensiteRadiale(col, row, x, y, event.radius);
+        if (Math.round(radial * event.strength) < 250) continue;
+        matterLab.frozenData[indexMatterLab(col, row, cols)] = snapshot[row][col];
+      }
+    }
+    return;
+  }
+  matterLab.events.push(event);
+  if (matterLab.events.length > 24) matterLab.events.shift();
+}
+
+function bindMatterLabCanvas() {
+  const canvas = document.getElementById("lab-canvas");
+  if (!canvas) return;
+
+  const agir = (event) => {
+    const cible = obtenirCoordonneesMatterLabDepuisEvenement(event);
+    if (matterLab.activeTab === "geometry") {
+      state.labShapeX = cible.x;
+      state.labShapeY = cible.y;
+      matterLab.geometryPlaced = true;
+    } else if (matterLab.activeTab === "field") {
+      peindreChampMatterLab(cible.x, cible.y, cible.rows, cible.cols);
+    } else if (matterLab.activeTab === "event") {
+      declencherEvenementMatterLab(cible.x, cible.y, cible.rows, cible.cols);
+    }
+    scheduleRender();
+  };
+
+  canvas.addEventListener("pointerdown", (event) => {
+    matterLab.painting = true;
+    canvas.setPointerCapture(event.pointerId);
+    agir(event);
+  });
+
+  canvas.addEventListener("pointermove", (event) => {
+    if (!matterLab.painting) return;
+    if (matterLab.activeTab !== "field") return;
+    agir(event);
+  });
+
+  const terminer = (event) => {
+    matterLab.painting = false;
+    if (event?.pointerId != null && canvas.hasPointerCapture(event.pointerId)) {
+      canvas.releasePointerCapture(event.pointerId);
+    }
+  };
+  canvas.addEventListener("pointerup", terminer);
+  canvas.addEventListener("pointerleave", terminer);
+}
+
+function initMatterLabTabs() {
+  const buttons = document.querySelectorAll(".lab-tab-btn");
+  const panels = document.querySelectorAll(".lab-tab-panel");
+  const switchTab = (tabName) => {
+    matterLab.activeTab = tabName;
+    buttons.forEach((button) => button.classList.toggle("active", button.dataset.labTab === tabName));
+    panels.forEach((panel) => panel.classList.toggle("active", panel.dataset.labTab === tabName));
+  };
+  buttons.forEach((button) => {
+    button.addEventListener("click", () => switchTab(button.dataset.labTab));
+  });
+  switchTab(matterLab.activeTab);
+}
+
 function switchTab(tab) {
   const explorer = tab === "explorer";
+  const matterLabTab = tab === "lab";
   const gallery = tab === "gallery";
   const source = tab === "source";
   document.getElementById("explorer-panel").hidden = !explorer;
+  document.getElementById("matterlab-panel").hidden = !matterLabTab;
   document.getElementById("gallery-panel").hidden = !gallery;
   document.getElementById("source-panel").hidden = !source;
   document.getElementById("tab-explorer").classList.toggle("active", explorer);
+  document.getElementById("tab-lab").classList.toggle("active", matterLabTab);
   document.getElementById("tab-gallery").classList.toggle("active", gallery);
   document.getElementById("tab-source").classList.toggle("active", source);
   if (gallery) loadGalleryFragment();
+  if (matterLabTab) renderMatterLabView();
 }
 
 function synchroniserInterfaceTemporelle() {
@@ -2150,13 +2751,114 @@ function bindControls() {
 
   document.getElementById("btn-reset").addEventListener("click", () => {
     state = structuredClone(DEFAULTS);
+    reinitialiserMatterLab();
     history.replaceState(null, "", location.pathname);
     location.reload();
   });
 
   document.getElementById("tab-explorer").addEventListener("click", () => switchTab("explorer"));
+  document.getElementById("tab-lab").addEventListener("click", () => switchTab("lab"));
   document.getElementById("tab-gallery").addEventListener("click", () => switchTab("gallery"));
   document.getElementById("tab-source").addEventListener("click", () => switchTab("source"));
+
+  const labRuleSlider = document.getElementById("lab-rule-slider");
+  if (labRuleSlider) {
+    labRuleSlider.value = String(state.rule);
+    labRuleSlider.addEventListener("input", (event) => {
+      state.rule = Number.parseInt(event.target.value, 10);
+      syncRuleControls();
+      renderRuleDiagram();
+      scheduleRender();
+    });
+  }
+
+  const bindLabRange = (inputId, displayId, stateKey, parser = Number.parseInt, formatter = (value) => value) => {
+    const input = document.getElementById(inputId);
+    const display = document.getElementById(displayId);
+    if (!input || !display) return;
+    input.value = String(state[stateKey]);
+    display.textContent = formatter(input.value);
+    input.addEventListener("input", (event) => {
+      state[stateKey] = parser(event.target.value);
+      display.textContent = formatter(event.target.value);
+      scheduleRender();
+    });
+  };
+
+  bindLabRange("lab-shape-width", "lab-shape-width-display", "labShapeWidth");
+  bindLabRange("lab-shape-height", "lab-shape-height-display", "labShapeHeight");
+  bindLabRange("lab-shape-inner", "lab-shape-inner-display", "labShapeInner");
+  bindLabRange("lab-field-brush", "lab-field-brush-display", "labFieldBrush");
+  bindLabRange("lab-field-strength", "lab-field-strength-display", "labFieldStrength", Number.parseFloat, (value) => Number.parseFloat(value).toFixed(2));
+  bindLabRange("lab-event-radius", "lab-event-radius-display", "labEventRadius");
+  bindLabRange("lab-event-strength", "lab-event-strength-display", "labEventStrength", Number.parseFloat, (value) => Number.parseFloat(value).toFixed(2));
+
+  document.querySelectorAll('input[name="lab-shape"]').forEach((input) => {
+    if (input.value === state.labShapeType) input.checked = true;
+    input.addEventListener("change", () => {
+      state.labShapeType = input.value;
+      scheduleRender();
+    });
+  });
+  document.querySelectorAll('input[name="lab-geometry-mode"]').forEach((input) => {
+    if (input.value === state.labGeometryMode) input.checked = true;
+    input.addEventListener("change", () => {
+      state.labGeometryMode = input.value;
+      scheduleRender();
+    });
+  });
+  document.querySelectorAll('input[name="lab-field-mode"]').forEach((input) => {
+    if (input.value === state.labFieldMode) input.checked = true;
+    input.addEventListener("change", () => {
+      state.labFieldMode = input.value;
+    });
+  });
+  document.querySelectorAll('input[name="lab-event-type"]').forEach((input) => {
+    if (input.value === state.labEventType) input.checked = true;
+    input.addEventListener("change", () => {
+      state.labEventType = input.value;
+    });
+  });
+
+  const bindLabCheck = (id, stateKey, rerender = true) => {
+    const input = document.getElementById(id);
+    if (!input) return;
+    input.checked = Boolean(state[stateKey]);
+    input.addEventListener("change", () => {
+      state[stateKey] = input.checked;
+      if (rerender) scheduleRender();
+    });
+  };
+  bindLabCheck("lab-show-mask", "labShowMask");
+  bindLabCheck("lab-show-field", "labShowField");
+  bindLabCheck("lab-show-events", "labShowEvents");
+
+  document.getElementById("lab-btn-random")?.addEventListener("click", () => {
+    state.rule = Math.floor(Math.random() * 256);
+    syncRuleControls();
+    renderRuleDiagram();
+    scheduleRender();
+  });
+  document.getElementById("lab-btn-clear-field")?.addEventListener("click", () => {
+    if (matterLab.fieldData.length) matterLab.fieldData.fill(1000);
+    scheduleRender();
+  });
+  document.getElementById("lab-btn-clear-events")?.addEventListener("click", () => {
+    matterLab.events = [];
+    if (matterLab.frozenData.length) matterLab.frozenData.fill(-1);
+    scheduleRender();
+  });
+  document.getElementById("lab-btn-reset")?.addEventListener("click", () => {
+    reinitialiserMatterLab();
+    scheduleRender();
+  });
+  document.getElementById("lab-btn-download")?.addEventListener("click", () => {
+    renderMatterLabView();
+    const link = document.createElement("a");
+    link.href = document.getElementById("lab-canvas").toDataURL("image/png");
+    link.download = `matter-lab-regle-${state.rule}.png`;
+    link.click();
+  });
 
   document.addEventListener("keydown", (event) => {
     if (["INPUT", "TEXTAREA", "SELECT"].includes(event.target.tagName)) return;
@@ -2433,8 +3135,10 @@ async function init() {
   initTheme();
   loadFromURL();
   initSidebarTabs();
+  initMatterLabTabs();
   bindControls();
   bindCanvasEditor();
+  bindMatterLabCanvas();
   bindGallery();
   renderGradientPickers();
   renderPalettesPoints();

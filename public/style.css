@@ -527,6 +527,69 @@ main {
   top: 92px;
 }
 
+.matterlab-shell,
+.matterlab-sidebar {
+  min-height: 100%;
+}
+
+#lab-canvas {
+  display: block;
+  width: 100%;
+  aspect-ratio: 5 / 3;
+  border-radius: 20px;
+  background: #04080c;
+  image-rendering: pixelated;
+  cursor: crosshair;
+}
+
+.lab-tabs-nav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 12px 8px;
+  background: linear-gradient(180deg, rgba(13, 30, 45, 0.95) 0%, rgba(13, 30, 45, 0.85) 100%);
+  border-bottom: 1px solid rgba(129, 170, 199, 0.12);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+.lab-tab-btn {
+  position: relative;
+  padding: 11px 14px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  background: rgba(19, 39, 57, 0.4);
+  border: 1px solid rgba(129, 170, 199, 0.12);
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.lab-tab-btn.active {
+  color: #061018;
+  background: linear-gradient(135deg, var(--accent-3), var(--accent-2));
+  border-color: rgba(255, 255, 255, 0.38);
+}
+
+.lab-tabs-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.lab-tab-panel {
+  display: none;
+  padding: 8px 0;
+}
+
+.lab-tab-panel.active {
+  display: block;
+}
+
 .ctrl-section {
   padding: 16px 18px;
   border-bottom: 1px solid var(--border);
@@ -1221,6 +1284,10 @@ input[type="text"] {
   .sidebar-tab-btn {
     padding: 9px 12px;
     font-size: 0.7rem;
+  }
+
+  .lab-tabs-nav {
+    grid-template-columns: 1fr;
   }
 }
 

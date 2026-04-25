@@ -294,3 +294,142 @@ déf coordonnee_tuilee(coordonnee, decalage, maximum):
     si resultat > maximum:
         retour maximum
     retour resultat
+
+
+# Outils Matter Lab : geometrie, champ local de probabilite
+# et evenements reactifs compacts pour le frontend.
+
+déf laboratoire_forme_code_aucune():
+    retour 0
+
+
+déf laboratoire_forme_code_rectangle():
+    retour 1
+
+
+déf laboratoire_forme_code_cercle():
+    retour 2
+
+
+déf laboratoire_forme_code_anneau():
+    retour 3
+
+
+déf laboratoire_mode_code_aucun():
+    retour 0
+
+
+déf laboratoire_mode_code_interieur():
+    retour 1
+
+
+déf laboratoire_mode_code_exterieur():
+    retour 2
+
+
+déf laboratoire_mode_code_barriere():
+    retour 3
+
+
+déf laboratoire_evenement_code_aucun():
+    retour 0
+
+
+déf laboratoire_evenement_code_pulse():
+    retour 1
+
+
+déf laboratoire_evenement_code_effacer():
+    retour 2
+
+
+déf laboratoire_evenement_code_inverser():
+    retour 3
+
+
+déf laboratoire_evenement_code_geler():
+    retour 4
+
+
+déf laboratoire_distance_carre(ax, ay, bx, by):
+    soit dx = ax - bx
+    soit dy = ay - by
+    retour dx * dx + dy * dy
+
+
+déf laboratoire_forme_contient(code_forme, x, y, centre_x, centre_y, taille_a, taille_b, rayon_interieur):
+    si code_forme == laboratoire_forme_code_rectangle():
+        retour 1 si abs(x - centre_x) <= taille_a et abs(y - centre_y) <= taille_b sinon 0
+
+    soit distance_carre = laboratoire_distance_carre(x, y, centre_x, centre_y)
+
+    si code_forme == laboratoire_forme_code_cercle():
+        retour 1 si distance_carre <= taille_a * taille_a sinon 0
+
+    si code_forme == laboratoire_forme_code_anneau():
+        soit rayon_exterieur = taille_a
+        si rayon_exterieur < rayon_interieur:
+            rayon_exterieur = rayon_interieur
+        soit distance_interieure = rayon_interieur * rayon_interieur
+        soit distance_exterieure = rayon_exterieur * rayon_exterieur
+        retour 1 si distance_carre >= distance_interieure et distance_carre <= distance_exterieure sinon 0
+
+    retour 0
+
+
+déf laboratoire_mode_autorise(code_mode, contient):
+    si code_mode == laboratoire_mode_code_aucun():
+        retour 1
+    si code_mode == laboratoire_mode_code_interieur():
+        retour 1 si contient == 1 sinon 0
+    si code_mode == laboratoire_mode_code_exterieur():
+        retour 0 si contient == 1 sinon 1
+    si code_mode == laboratoire_mode_code_barriere():
+        retour 0 si contient == 1 sinon 1
+    retour 1
+
+
+déf laboratoire_intensite_radiale(x, y, centre_x, centre_y, rayon):
+    si rayon <= 0:
+        retour 1000 si x == centre_x et y == centre_y sinon 0
+
+    soit distance = math.sqrt(laboratoire_distance_carre(x, y, centre_x, centre_y))
+    si distance > rayon:
+        retour 0
+
+    soit intensite = (1 - (distance / rayon)) * 1000
+    si intensite < 0:
+        retour 0
+    si intensite > 1000:
+        retour 1000
+    retour math.floor(intensite + 0.5)
+
+
+déf laboratoire_probabilite_modifiee(probabilite_base_sur_1000, champ_local_sur_1000):
+    soit champ = champ_local_sur_1000
+    si champ < 0:
+        champ = 0
+    si champ > 2000:
+        champ = 2000
+
+    soit probabilite = (probabilite_base_sur_1000 * champ) / 1000
+    si probabilite < 0:
+        retour 0
+    si probabilite > 1000:
+        retour 1000
+    retour math.floor(probabilite + 0.5)
+
+
+déf laboratoire_cellule_evenement(etat_initial, code_evenement, intensite_sur_1000, seuil_sur_1000):
+    si intensite_sur_1000 < seuil_sur_1000:
+        retour etat_initial
+
+    si code_evenement == laboratoire_evenement_code_pulse():
+        retour 1
+    si code_evenement == laboratoire_evenement_code_effacer():
+        retour 0
+    si code_evenement == laboratoire_evenement_code_inverser():
+        retour 0 si etat_initial == 1 sinon 1
+
+    retour etat_initial
+

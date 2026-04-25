@@ -22,6 +22,7 @@
       </div>
       <nav class="tab-nav">
         <button type="button" class="tab active" id="tab-explorer">Explorateur</button>
+        <button type="button" class="tab" id="tab-lab">Matter Lab</button>
         <button type="button" class="tab" id="tab-gallery">Galerie</button>
         <button type="button" class="tab" id="tab-source">Sources</button>
         <a class="tab tab-link" href="https://github.com/multilingualprogramming/cellcosmos" target="_blank"
@@ -255,6 +256,137 @@
                     <label><input type="radio" name="direction" value="rtl" /> RTL</label>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <section id="matterlab-panel" class="panel-grid" hidden>
+        <div class="viewer-shell matterlab-shell">
+          <div class="rule-bar">
+            <span class="rule-label">Matter Lab</span>
+            <span id="lab-rule-display" class="rule-number">90</span>
+            <input type="range" id="lab-rule-slider" min="0" max="255" value="90" aria-label="Regle Matter Lab" />
+            <button type="button" class="ghost-btn" id="lab-btn-random">Aleatoire</button>
+            <span id="lab-geometry-status" class="rule-class">Aucune geometrie</span>
+          </div>
+
+          <div class="canvas-card">
+            <div class="canvas-frame">
+              <div class="canvas-hud" aria-label="Metriques Matter Lab">
+                <span><strong id="lab-hud-rule">90</strong> regle</span>
+                <span><strong id="lab-hud-density">0%</strong> densite</span>
+                <span><strong id="lab-hud-field">100%</strong> champ</span>
+                <span><strong id="lab-hud-events">0</strong> evenements</span>
+              </div>
+              <canvas id="lab-canvas" width="1200" height="720" aria-label="Matter Lab"></canvas>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button type="button" id="lab-btn-download">Telecharger PNG</button>
+            <button type="button" id="lab-btn-clear-field" class="ghost-btn">Effacer champ</button>
+            <button type="button" id="lab-btn-clear-events" class="ghost-btn">Effacer evenements</button>
+            <button type="button" id="lab-btn-reset" class="ghost-btn">Reinitialiser le labo</button>
+          </div>
+        </div>
+
+        <aside class="sidebar matterlab-sidebar">
+          <div class="lab-tabs-nav">
+            <button type="button" class="lab-tab-btn active" data-lab-tab="geometry">Geometrie</button>
+            <button type="button" class="lab-tab-btn" data-lab-tab="field">Champ</button>
+            <button type="button" class="lab-tab-btn" data-lab-tab="event">Evenements</button>
+          </div>
+
+          <div class="lab-tabs-content">
+            <div class="lab-tab-panel active" data-lab-tab="geometry">
+              <div class="ctrl-section">
+                <p class="ctrl-title">Forme</p>
+                <div class="pill-group">
+                  <label><input type="radio" name="lab-shape" value="circle" checked /> Cercle</label>
+                  <label><input type="radio" name="lab-shape" value="rect" /> Rectangle</label>
+                  <label><input type="radio" name="lab-shape" value="ring" /> Anneau</label>
+                </div>
+              </div>
+              <div class="ctrl-section">
+                <p class="ctrl-title">Mode</p>
+                <div class="pill-group">
+                  <label><input type="radio" name="lab-geometry-mode" value="inside" checked /> Interieur</label>
+                  <label><input type="radio" name="lab-geometry-mode" value="outside" /> Exterieur</label>
+                  <label><input type="radio" name="lab-geometry-mode" value="barrier" /> Barriere</label>
+                </div>
+                <label class="checkbox-row"><input type="checkbox" id="lab-show-mask" checked /> Afficher le masque</label>
+              </div>
+              <div class="ctrl-section">
+                <p class="ctrl-title">Dimensions</p>
+                <div class="ctrl-row">
+                  <label for="lab-shape-width" class="muted">Largeur</label>
+                  <input type="range" id="lab-shape-width" min="4" max="140" value="48" />
+                  <span id="lab-shape-width-display" class="value-badge">48</span>
+                </div>
+                <div class="ctrl-row">
+                  <label for="lab-shape-height" class="muted">Hauteur</label>
+                  <input type="range" id="lab-shape-height" min="4" max="120" value="30" />
+                  <span id="lab-shape-height-display" class="value-badge">30</span>
+                </div>
+                <div class="ctrl-row">
+                  <label for="lab-shape-inner" class="muted">Rayon interne</label>
+                  <input type="range" id="lab-shape-inner" min="0" max="100" value="12" />
+                  <span id="lab-shape-inner-display" class="value-badge">12</span>
+                </div>
+                <p class="hero-note">Cliquez dans le canevas pour positionner la geometrie active.</p>
+              </div>
+            </div>
+
+            <div class="lab-tab-panel" data-lab-tab="field">
+              <div class="ctrl-section">
+                <p class="ctrl-title">Pinceau</p>
+                <div class="pill-group">
+                  <label><input type="radio" name="lab-field-mode" value="paint" checked /> Peindre</label>
+                  <label><input type="radio" name="lab-field-mode" value="erase" /> Effacer</label>
+                </div>
+              </div>
+              <div class="ctrl-section">
+                <p class="ctrl-title">Champ de probabilite</p>
+                <div class="ctrl-row">
+                  <label for="lab-field-brush" class="muted">Rayon</label>
+                  <input type="range" id="lab-field-brush" min="2" max="40" value="14" />
+                  <span id="lab-field-brush-display" class="value-badge">14</span>
+                </div>
+                <div class="ctrl-row">
+                  <label for="lab-field-strength" class="muted">Intensite</label>
+                  <input type="range" id="lab-field-strength" min="0.1" max="1" step="0.05" value="0.8" />
+                  <span id="lab-field-strength-display" class="value-badge">0.80</span>
+                </div>
+                <label class="checkbox-row"><input type="checkbox" id="lab-show-field" checked /> Afficher le champ</label>
+              </div>
+            </div>
+
+            <div class="lab-tab-panel" data-lab-tab="event">
+              <div class="ctrl-section">
+                <p class="ctrl-title">Reaction</p>
+                <div class="pill-group">
+                  <label><input type="radio" name="lab-event-type" value="pulse" checked /> Pulse</label>
+                  <label><input type="radio" name="lab-event-type" value="erase" /> Effacer</label>
+                  <label><input type="radio" name="lab-event-type" value="invert" /> Inverser</label>
+                  <label><input type="radio" name="lab-event-type" value="freeze" /> Geler</label>
+                </div>
+              </div>
+              <div class="ctrl-section">
+                <p class="ctrl-title">Zone</p>
+                <div class="ctrl-row">
+                  <label for="lab-event-radius" class="muted">Rayon</label>
+                  <input type="range" id="lab-event-radius" min="2" max="50" value="14" />
+                  <span id="lab-event-radius-display" class="value-badge">14</span>
+                </div>
+                <div class="ctrl-row">
+                  <label for="lab-event-strength" class="muted">Force</label>
+                  <input type="range" id="lab-event-strength" min="0.1" max="1" step="0.05" value="0.8" />
+                  <span id="lab-event-strength-display" class="value-badge">0.80</span>
+                </div>
+                <label class="checkbox-row"><input type="checkbox" id="lab-show-events" checked /> Afficher les evenements</label>
+                <p class="hero-note">Cliquez dans le canevas pour injecter l'evenement actif.</p>
               </div>
             </div>
           </div>
