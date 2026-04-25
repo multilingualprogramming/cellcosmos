@@ -900,6 +900,36 @@ function syncRuleControls() {
   updateRuleInfo();
 }
 
+function romanWolframClass(cls) {
+  return ["I", "II", "III", "IV"][Math.max(0, Math.min(3, cls - 1))] || String(cls);
+}
+
+function calculerDensiteCouches(couches) {
+  let totalCells = 0;
+  let liveCells = 0;
+  couches.forEach((couche) => {
+    couche.automate.forEach((row) => {
+      row.forEach((cell) => {
+        totalCells++;
+        if (cell === 1) liveCells++;
+      });
+    });
+  });
+  return totalCells > 0 ? liveCells / totalCells : 0;
+}
+
+function updateCanvasHud(rows, cols, density) {
+  const cls = wolframClass(state.rule);
+  const hudRule = document.getElementById("hud-rule");
+  const hudClass = document.getElementById("hud-class");
+  const hudDensity = document.getElementById("hud-density");
+  const hudGrid = document.getElementById("hud-grid");
+  if (hudRule) hudRule.textContent = String(state.rule);
+  if (hudClass) hudClass.textContent = romanWolframClass(cls);
+  if (hudDensity) hudDensity.textContent = `${Math.round(density * 100)}%`;
+  if (hudGrid) hudGrid.textContent = `${cols} x ${rows}`;
+}
+
 function renderRuleDiagram() {
   const container = document.getElementById("rule-diagram");
   container.innerHTML = "";
@@ -999,21 +1029,11 @@ function renderMainView() {
   const canvas = document.getElementById("main-canvas");
   const { rows, cols } = obtenirDimensionsRendu();
   renderToCanvas(canvas, state.rule, rows, cols, state.cellSize);
+  const density = dernieresCouches ? calculerDensiteCouches(dernieresCouches) : 0;
+  updateCanvasHud(rows, cols, density);
 
   // Calculate pattern density for audio
   if (audioEngine.active) {
-    const couches = construireCouchesAutomate(state.rule, rows, cols);
-    let totalCells = 0;
-    let liveCells = 0;
-    couches.forEach((couche) => {
-      couche.automate.forEach((row) => {
-        row.forEach((cell) => {
-          totalCells++;
-          if (cell === 1) liveCells++;
-        });
-      });
-    });
-    const density = totalCells > 0 ? liveCells / totalCells : 0;
     const cls = wolframClass(state.rule);
     audioEngine.update(state.rule, cls, density);
   }

@@ -15,7 +15,7 @@
 
   <body>
     <header class="topbar">
-      <div>
+      <div class="brand-lockup">
         <p class="eyebrow">multilingual -> wasm</p>
         <h1>Cellcosmos</h1>
       </div>
@@ -23,12 +23,13 @@
         <button type="button" class="tab active" id="tab-explorer">Explorateur</button>
         <button type="button" class="tab" id="tab-gallery">Galerie</button>
         <button type="button" class="tab" id="tab-source">Sources</button>
+        <a class="tab tab-link" href="https://github.com/multilingualprogramming/cellcosmos" target="_blank"
+          rel="noopener noreferrer">GitHub</a>
         <button type="button" id="btn-theme" class="ghost-btn" aria-label="Changer de thème">☀</button>
       </nav>
     </header>
 
     <main>
-
       <section id="explorer-panel" class="panel-grid">
         <div class="viewer-shell">
           <div class="rule-bar">
@@ -57,7 +58,15 @@
           <div id="rule-diagram" class="rule-diagram"></div>
 
           <div class="canvas-card">
-            <canvas id="main-canvas" width="1200" height="720" aria-label="Automate cellulaire"></canvas>
+            <div class="canvas-frame">
+              <div class="canvas-hud" aria-label="Métriques du rendu">
+                <span><strong id="hud-rule">90</strong> règle</span>
+                <span><strong id="hud-class">III</strong> classe</span>
+                <span><strong id="hud-density">0%</strong> densité</span>
+                <span><strong id="hud-grid">0 x 0</strong> grille</span>
+              </div>
+              <canvas id="main-canvas" width="1200" height="720" aria-label="Automate cellulaire"></canvas>
+            </div>
           </div>
 
           <div class="actions">
@@ -88,7 +97,7 @@
                 <div class="ctrl-section">
                   <p class="ctrl-title">Cellules</p>
                   <div class="ctrl-row">
-                    <input aria-label="range" id="cell-size" min="1" max="10" value="3" />
+                    <input type="range" aria-label="Taille des cellules" id="cell-size" min="1" max="10" value="3" />
                     <span id="cell-size-display" class="value-badge">3</span>
                     <span class="muted">px</span>
                   </div>
@@ -311,14 +320,31 @@
           </section>
         </div>
       </section>
+
       <section class="hero">
-        <p>Cellcosmos est un explorateur d'automates cellulaires &eacute;l&eacute;mentaires compil&eacute; en WASM
-          depuis des sources
-          multilingual fran&ccedil;aises.</p>
-        <p class="hero-note">Le navigateur essaie d'utiliser `cellcosmos.wasm` pour acc&eacute;l&eacute;rer le calcul,
-          avec repli
-          automatique sur JavaScript si besoin.</p>
-        <p id="wasm-status" class="hero-note">V&eacute;rification du moteur WASM...</p>
+        <div class="hero-copy">
+          <p class="eyebrow">Observatoire d'automates cellulaires</p>
+          <h2>Explorez des univers discrets, visuels et sonores.</h2>
+          <p>Cellcosmos transforme les 256 règles élémentaires en paysages génératifs, compilés en WASM depuis des sources multilingual françaises.</p>
+        </div>
+        <div class="hero-status" aria-label="Statut du moteur et de l'expérience">
+          <div class="status-chip">
+            <span class="status-dot"></span>
+            <span id="wasm-status">Vérification du moteur WASM...</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Moteur</span>
+            <strong>WASM / JS</strong>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Règles</span>
+            <strong>256</strong>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Sortie</span>
+            <strong>Canvas + Audio</strong>
+          </div>
+        </div>
       </section>
     </main>
 
