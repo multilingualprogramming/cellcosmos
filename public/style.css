@@ -1146,3 +1146,337 @@ input[type="text"] {
     font-size: 0.7rem;
   }
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   FUTURISTIC UI ENHANCEMENTS - Enhanced Effects, Animations, Layout, Dark Mode,
+   Typography & Branding
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ─────────────────────────────────────────────────────────────────────────
+   1. NEW CSS VARIABLES & BIOLUMINESCENT THEME
+   ─────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --bio-green: #00ffb3;
+  --bio-purple: #7b2fff;
+  --neon-border: rgba(0, 255, 179, 0.35);
+  --cyan-bright: #66e3ff;
+}
+
+[data-theme="bio"] {
+  --bg: #020509;
+  --surface: rgba(2, 8, 14, 0.82);
+  --surface-strong: rgba(4, 12, 20, 0.94);
+  --panel: rgba(6, 15, 26, 0.88);
+  --border: rgba(0, 255, 179, 0.18);
+  --text: #e0fff5;
+  --muted: #5aaaa0;
+  --accent: #00ffb3;
+  --accent-2: #7b2fff;
+  --glow: rgba(0, 255, 179, 0.25);
+  --warm-glow: rgba(123, 47, 255, 0.35);
+  --shadow: 0 20px 60px rgba(0, 255, 179, 0.08);
+}
+
+[data-theme="bio"] body {
+  background:
+    radial-gradient(circle at top left, rgba(0, 255, 179, 0.15), transparent 28%),
+    radial-gradient(circle at 80% 0%, rgba(123, 47, 255, 0.12), transparent 24%),
+    linear-gradient(180deg, #020509 0%, #031014 45%, #020408 100%);
+}
+
+[data-theme="bio"] .topbar {
+  background: rgba(2, 6, 12, 0.92);
+  border-bottom-color: rgba(0, 255, 179, 0.2);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   2. ENHANCED VISUAL EFFECTS
+   ─────────────────────────────────────────────────────────────────────── */
+
+/* Animated Gradient Title */
+.topbar h1 {
+  background: linear-gradient(90deg, var(--accent), var(--accent-2), var(--accent));
+  background-size: 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradientShift 6s ease infinite;
+}
+
+@keyframes gradientShift {
+  0%, 100% { background-position: 0% center; }
+  50% { background-position: 100% center; }
+}
+
+/* Orbitron font for rule numbers */
+#rule-display,
+.rule-number {
+  font-family: 'Orbitron', 'IBM Plex Mono', monospace;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 22px var(--warm-glow);
+}
+
+/* Neon glow on active elements */
+.tab.active,
+.accent-btn {
+  box-shadow: 0 0 0 1px var(--accent), 0 0 18px var(--warm-glow);
+}
+
+.point-gradient-card.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 0 16px var(--warm-glow);
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(255, 157, 77, 0.2);
+}
+
+[data-theme="bio"] input:focus,
+[data-theme="bio"] textarea:focus,
+[data-theme="bio"] select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(0, 255, 179, 0.15);
+}
+
+/* Canvas float animation */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+.canvas-card {
+  animation: float 7s ease-in-out infinite;
+}
+
+/* CRT scan-line overlay */
+.viewer-shell {
+  position: relative;
+}
+
+.viewer-shell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  background: repeating-linear-gradient(0deg,
+    transparent 0px, transparent 3px,
+    rgba(0, 0, 0, 0.03) 3px, rgba(0, 0, 0, 0.03) 4px);
+  border-radius: inherit;
+}
+
+/* Enhanced glassmorphism */
+.viewer-shell,
+.sidebar {
+  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  backdrop-filter: blur(24px) saturate(1.6);
+}
+
+/* Holographic gallery hover */
+.gallery-item:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 24px var(--warm-glow), 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   3. MICRO-INTERACTIONS & ANIMATIONS
+   ─────────────────────────────────────────────────────────────────────── */
+
+/* Ripple effect on buttons */
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  width: 80px;
+  height: 80px;
+  background: radial-gradient(circle, rgba(255, 157, 77, 0.45) 0%, transparent 70%);
+  transform: scale(0);
+  pointer-events: none;
+  animation: rippleOut 0.55s ease-out forwards;
+}
+
+@keyframes rippleOut {
+  to {
+    transform: scale(3.5);
+    opacity: 0;
+  }
+}
+
+button,
+.tab,
+.sidebar-tab-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Staggered sidebar section entrance */
+.sidebar-tab-panel.active .ctrl-section {
+  animation: fadeIn 0.35s ease both;
+}
+
+.sidebar-tab-panel.active .ctrl-section:nth-child(1) { animation-delay: 0.05s; }
+.sidebar-tab-panel.active .ctrl-section:nth-child(2) { animation-delay: 0.10s; }
+.sidebar-tab-panel.active .ctrl-section:nth-child(3) { animation-delay: 0.15s; }
+.sidebar-tab-panel.active .ctrl-section:nth-child(4) { animation-delay: 0.20s; }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   4. LAYOUT & COMPOSITION
+   ─────────────────────────────────────────────────────────────────────── */
+
+/* Particle background canvas */
+#bg-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.45;
+}
+
+body > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Command palette */
+.cmd-palette {
+  position: fixed;
+  top: 20%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(540px, 90vw);
+  z-index: 100;
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  -webkit-backdrop-filter: blur(32px);
+  backdrop-filter: blur(32px);
+  box-shadow: 0 40px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px var(--accent);
+  overflow: hidden;
+  animation: fadeIn 0.2s ease forwards;
+}
+
+.cmd-palette[hidden] {
+  display: none;
+}
+
+.cmd-input {
+  width: 100%;
+  padding: 18px 20px;
+  font-size: 1.1rem;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  outline: none;
+  font-family: inherit;
+}
+
+.cmd-results {
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.cmd-result-item {
+  padding: 12px 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: background 120ms ease;
+  border-bottom: 1px solid rgba(139, 210, 255, 0.08);
+  font-size: 0.95rem;
+}
+
+.cmd-result-item:last-child {
+  border-bottom: 0;
+}
+
+.cmd-result-item:hover,
+.cmd-result-item.selected {
+  background: rgba(255, 157, 77, 0.12);
+}
+
+[data-theme="bio"] .cmd-result-item:hover,
+[data-theme="bio"] .cmd-result-item.selected {
+  background: rgba(0, 255, 179, 0.1);
+}
+
+.cmd-result-icon {
+  font-size: 0.9rem;
+  opacity: 0.6;
+  min-width: 20px;
+}
+
+/* Fullscreen mode */
+body.fullscreen-mode .sidebar,
+body.fullscreen-mode .topbar,
+body.fullscreen-mode .hero {
+  display: none !important;
+}
+
+body.fullscreen-mode .panel-grid {
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+
+body.fullscreen-mode .canvas-card {
+  padding: 0;
+}
+
+body.fullscreen-mode #main-canvas {
+  border-radius: 0;
+}
+
+body.fullscreen-mode main {
+  padding: 0;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   5. DARK MODE ENHANCEMENTS
+   ─────────────────────────────────────────────────────────────────────── */
+
+/* Bioluminescent theme toggle indicator */
+[data-theme="bio"] #btn-theme::before {
+  content: '⚗';
+  position: absolute;
+  font-size: 0.65em;
+  top: -2px;
+  right: -2px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   6. REDUCED MOTION SUPPORT FOR ALL NEW ANIMATIONS
+   ─────────────────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .topbar h1 {
+    animation: none;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2), var(--accent));
+    background-position: center;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .canvas-card {
+    animation: none;
+  }
+
+  .cmd-palette {
+    animation: none;
+  }
+
+  .ripple {
+    animation: none;
+    display: none;
+  }
+
+  .sidebar-tab-panel.active .ctrl-section {
+    animation: none;
+  }
+}

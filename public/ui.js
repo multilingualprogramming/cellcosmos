@@ -1436,17 +1436,33 @@ function applyTheme(theme) {
 
   const darkBg = [8, 17, 31];
   const lightBg = [244, 247, 250];
-  state.bgColor = theme === "light" ? lightBg : darkBg;
+  const bioBg = [2, 5, 9];
+
+  let bgColor = darkBg;
+  if (theme === "light") bgColor = lightBg;
+  else if (theme === "bio") bgColor = bioBg;
+
+  state.bgColor = bgColor;
 
   const btn = document.getElementById("btn-theme");
   if (btn) {
-    btn.textContent = theme === "light" ? "🌙" : "☀";
+    if (theme === "light") btn.textContent = "🌙";
+    else if (theme === "bio") btn.textContent = "⚗";
+    else btn.textContent = "☀";
   }
 
   const bgColorInput = document.getElementById("bg-color");
   if (bgColorInput) {
     bgColorInput.value = rgbToHexColor(state.bgColor);
   }
+}
+
+function cycleTheme() {
+  const currentTheme = document.documentElement.dataset.theme || "dark";
+  const themeOrder = ["dark", "bio", "light"];
+  const currentIndex = themeOrder.indexOf(currentTheme);
+  const nextIndex = (currentIndex + 1) % themeOrder.length;
+  applyTheme(themeOrder[nextIndex]);
 }
 
 function analyserMotifMusical(couches) {
@@ -1768,9 +1784,7 @@ function bindControls() {
   const presets = document.getElementById("presets");
 
   document.getElementById("btn-theme").addEventListener("click", () => {
-    const currentTheme = document.documentElement.dataset.theme || "dark";
-    const newTheme = currentTheme === "light" ? "dark" : "light";
-    applyTheme(newTheme);
+    cycleTheme();
     scheduleRender();
   });
 
@@ -2087,6 +2101,230 @@ function initSidebarTabs() {
   restoreTabState();
 }
 
+/* ════════════════════════════════════════════════════════════════════════════
+   FUTURISTIC FEATURES: Particle System, Ripple Effects, Command Palette
+   ════════════════════════════════════════════════════════════════════════════ */
+
+function initParticles() {
+  const canvas = document.getElementById('bg-canvas');
+  if (!canvas) return;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const particles = [];
+  const particleCount = 80;
+
+  for (let i = 0; i < particleCount; i++) {
+    particles.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: (Math.random() - 0.5) * 0.3,
+      size: Math.random() * 2 + 1,
+      opacity: Math.random() * 0.6 + 0.2,
+      twinkle: Math.random() > 0.7,
+      twinkleSpeed: Math.random() * 0.05 + 0.02,
+      twinklePhase: Math.random() * Math.PI * 2,
+    });
+  }
+
+  const animateParticles = () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    particles.forEach(p => {
+      p.x += p.vx;
+      p.y += p.vy;
+
+      if (p.x < 0) p.x = canvas.width;
+      if (p.x > canvas.width) p.x = 0;
+      if (p.y < 0) p.y = canvas.height;
+      if (p.y > canvas.height) p.y = 0;
+
+      let opacity = p.opacity;
+      if (p.twinkle) {
+        p.twinklePhase += p.twinkleSpeed;
+        opacity = p.opacity * (0.5 + 0.5 * Math.sin(p.twinklePhase));
+      }
+
+      ctx.fillStyle = `rgba(102, 227, 255, ${opacity})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    requestAnimationFrame(animateParticles);
+  };
+
+  animateParticles();
+
+  window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  });
+}
+
+function attachRippleEffects() {
+  const buttons = document.querySelectorAll('button, .tab, .sidebar-tab-btn');
+
+  buttons.forEach(btn => {
+    btn.addEventListener('pointerdown', (e) => {
+      const rect = btn.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      const ripple = document.createElement('span');
+      ripple.classList.add('ripple');
+      ripple.style.left = x + 'px';
+      ripple.style.top = y + 'px';
+
+      btn.appendChild(ripple);
+
+      ripple.addEventListener('animationend', () => {
+        ripple.remove();
+      });
+    });
+  });
+}
+
+function initCommandPalette() {
+  const paletteEl = document.getElementById('cmd-palette');
+  const inputEl = document.getElementById('cmd-input');
+  const resultsEl = document.getElementById('cmd-results');
+  const openBtn = document.getElementById('btn-cmd-palette');
+
+  if (!paletteEl || !inputEl || !resultsEl || !openBtn) return;
+
+  const presetNames = {
+    30: 'Chaos pseudo-aléatoire',
+    57: 'Asymétrie',
+    90: 'Triangle de Sierpinski',
+    110: 'Calcul universel',
+    150: 'XOR avec auto-référence',
+    184: 'Modèle de trafic',
+    225: 'Bandes',
+    254: 'Frontières seulement',
+  };
+
+  const openPalette = () => {
+    paletteEl.hidden = false;
+    inputEl.focus();
+    inputEl.value = '';
+    renderResults('');
+  };
+
+  const closePalette = () => {
+    paletteEl.hidden = true;
+    inputEl.value = '';
+    resultsEl.innerHTML = '';
+  };
+
+  const renderResults = (query) => {
+    const q = query.toLowerCase().trim();
+    const results = [];
+
+    for (let i = 0; i <= 255; i++) {
+      const name = presetNames[i] || `Règle ${i}`;
+      if (q === '' || i.toString().includes(q) || name.toLowerCase().includes(q)) {
+        results.push({ rule: i, name });
+      }
+    }
+
+    resultsEl.innerHTML = results
+      .slice(0, 12)
+      .map((r, idx) => `
+        <div class="cmd-result-item" data-rule="${r.rule}" data-idx="${idx}">
+          <span class="cmd-result-icon">◆</span>
+          <span><strong>Règle ${r.rule}</strong> ${r.name}</span>
+        </div>
+      `)
+      .join('');
+
+    const items = resultsEl.querySelectorAll('.cmd-result-item');
+    items.forEach((item, idx) => {
+      item.addEventListener('click', () => selectResult(item));
+      if (idx === 0) item.classList.add('selected');
+    });
+  };
+
+  const selectResult = (item) => {
+    const rule = Number.parseInt(item.getAttribute('data-rule'), 10);
+    state.rule = rule;
+    syncRuleControls();
+    renderRuleDiagram();
+    renderMainView();
+    closePalette();
+  };
+
+  inputEl.addEventListener('input', (e) => {
+    renderResults(e.target.value);
+  });
+
+  inputEl.addEventListener('keydown', (e) => {
+    const items = resultsEl.querySelectorAll('.cmd-result-item');
+    const selected = resultsEl.querySelector('.cmd-result-item.selected');
+    const selectedIdx = selected ? parseInt(selected.getAttribute('data-idx'), 10) : -1;
+
+    if (e.key === 'Escape') {
+      closePalette();
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const nextIdx = Math.min(selectedIdx + 1, items.length - 1);
+      items.forEach((item, idx) => item.classList.toggle('selected', idx === nextIdx));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const prevIdx = Math.max(selectedIdx - 1, 0);
+      items.forEach((item, idx) => item.classList.toggle('selected', idx === prevIdx));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (selected) selectResult(selected);
+    }
+  });
+
+  openBtn.addEventListener('click', openPalette);
+
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      e.preventDefault();
+      if (paletteEl.hidden) openPalette();
+      else closePalette();
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!paletteEl.contains(e.target) && e.target !== openBtn) {
+      closePalette();
+    }
+  });
+}
+
+function initFullscreenToggle() {
+  const btn = document.getElementById('btn-fullscreen');
+  if (!btn) return;
+
+  const toggleFullscreen = () => {
+    document.body.classList.toggle('fullscreen-mode');
+  };
+
+  btn.addEventListener('click', toggleFullscreen);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'f' || e.key === 'F') {
+      const activeElement = document.activeElement;
+      const isInput = activeElement?.tagName === 'INPUT' ||
+                      activeElement?.tagName === 'TEXTAREA' ||
+                      activeElement?.tagName === 'SELECT';
+      if (!isInput) {
+        e.preventDefault();
+        toggleFullscreen();
+      }
+    }
+  });
+}
+
 async function init() {
   initTheme();
   loadFromURL();
@@ -2102,6 +2340,12 @@ async function init() {
   await loadWasm();
   renderRuleDiagram();
   scheduleRender();
+
+  // Futuristic enhancements
+  initParticles();
+  attachRippleEffects();
+  initCommandPalette();
+  initFullscreenToggle();
 }
 
 init();

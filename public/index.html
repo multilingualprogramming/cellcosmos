@@ -8,12 +8,13 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&family=Orbitron:wght@400;700&display=swap"
       rel="stylesheet" />
     <link rel="stylesheet" href="style.css" />
   </head>
 
   <body>
+    <canvas id="bg-canvas"></canvas>
     <header class="topbar">
       <div class="brand-lockup">
         <p class="eyebrow">multilingual -> wasm</p>
@@ -25,6 +26,7 @@
         <button type="button" class="tab" id="tab-source">Sources</button>
         <a class="tab tab-link" href="https://github.com/multilingualprogramming/cellcosmos" target="_blank"
           rel="noopener noreferrer">GitHub</a>
+        <button type="button" id="btn-cmd-palette" class="ghost-btn" aria-label="Palette de commandes" title="Ctrl+K">⌘</button>
         <button type="button" id="btn-theme" class="ghost-btn" aria-label="Changer de thème">☀</button>
       </nav>
     </header>
@@ -74,6 +76,7 @@
             <button type="button" id="btn-sound">▶ Son</button>
             <button type="button" id="btn-sequencer">▶ S&eacute;quenceur</button>
             <button type="button" id="btn-share" class="accent-btn">Copier le lien</button>
+            <button type="button" id="btn-fullscreen" class="ghost-btn" aria-label="Plein écran" title="F">⛶</button>
             <button type="button" id="btn-reset">R&eacute;initialiser</button>
           </div>
 
@@ -347,6 +350,11 @@
         </div>
       </section>
     </main>
+
+    <div id="cmd-palette" class="cmd-palette" hidden>
+      <input type="text" id="cmd-input" class="cmd-input" placeholder="Rechercher une règle, preset…" />
+      <div id="cmd-results" class="cmd-results"></div>
+    </div>
 
     <script type="module" src="ui.js"></script>
   </body>
