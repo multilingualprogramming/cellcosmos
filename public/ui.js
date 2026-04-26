@@ -1467,6 +1467,38 @@ function updateCanvasHud(rows, cols, density) {
   if (hudGrid) hudGrid.textContent = `${cols} x ${rows}`;
 }
 
+function updateAnalyticsPanel(grid) {
+  if (!grid || grid.length === 0) return;
+
+  metricsHistory.record(grid);
+  const metrics = metricsHistory.getAverages();
+
+  const updates = [
+    { id: "metrics-entropy-bar", id_val: "metrics-entropy-value", value: metrics.entropy, type: "entropy" },
+    { id: "metrics-compactness-bar", id_val: "metrics-compactness-value", value: metrics.compactness, type: "compactness" },
+    { id: "metrics-fragmentation-bar", id_val: "metrics-fragmentation-value", value: metrics.fragmentation, type: "neutral" },
+    { id: "metrics-symmetry-bar", id_val: "metrics-symmetry-value", value: metrics.symmetry, type: "neutral" },
+    { id: "metrics-growth-bar", id_val: "metrics-growth-value", value: (metrics.growthRate + 1) / 2, type: "growth" },
+  ];
+
+  updates.forEach(({ id, id_val, value, type }) => {
+    const bar = document.getElementById(id);
+    const val = document.getElementById(id_val);
+    if (bar && val) {
+      const percentage = Math.max(0, Math.min(100, value * 100));
+      bar.style.width = `${percentage}%`;
+      bar.style.backgroundColor = getMetricsColor(value, type);
+      val.textContent = value.toFixed(2);
+    }
+  });
+
+  const classification = classifyDynamics(metrics);
+  const classEl = document.getElementById("metrics-classification");
+  if (classEl) {
+    classEl.textContent = classification;
+  }
+}
+
 function renderRuleDiagram() {
   const container = document.getElementById("rule-diagram");
   container.innerHTML = "";
@@ -1584,6 +1616,10 @@ function renderMainView() {
     renderToCanvas(canvas, state.rule, rows, cols, state.cellSize);
     const density = explorerLab.lastRender ? calculerDensiteGrille(explorerLab.lastRender.finalGrid) : (dernieresCouches ? calculerDensiteCouches(dernieresCouches) : 0);
     updateCanvasHud(rows, cols, density);
+
+    if (explorerLab.lastRender) {
+      updateAnalyticsPanel(explorerLab.lastRender.finalGrid);
+    }
 
     if (audioEngine.active) {
       const cls = wolframClass(state.rule);

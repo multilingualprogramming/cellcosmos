@@ -133,6 +133,7 @@
               <button type="button" class="sidebar-tab-btn" data-tab="points">Points</button>
               <button type="button" class="sidebar-tab-btn" data-tab="rendu">Rendu</button>
               <button type="button" class="sidebar-tab-btn" data-tab="avance">Avancé</button>
+              <button type="button" class="sidebar-tab-btn" data-tab="analytique">Analytique</button>
             </div>
 
             <div class="sidebar-tabs-content">
@@ -340,6 +341,64 @@
                     </div>
                     <button type="button" id="btn-clear-explorer-events" class="ghost-btn">Effacer les perturbations</button>
                   </div>
+                </div>
+              </div>
+
+              <!-- Analytique Tab -->
+              <div class="sidebar-tab-panel" data-tab="analytique">
+                <div class="ctrl-section">
+                  <p class="ctrl-title">Signature vitale</p>
+                  <div class="metrics-grid">
+                    <div class="metric-item">
+                      <span class="metric-label">Entropie</span>
+                      <div class="metric-bar">
+                        <div id="metrics-entropy-bar" class="metric-fill"></div>
+                      </div>
+                      <span id="metrics-entropy-value" class="value-badge">0.00</span>
+                    </div>
+                    <div class="metric-item">
+                      <span class="metric-label">Compacité</span>
+                      <div class="metric-bar">
+                        <div id="metrics-compactness-bar" class="metric-fill"></div>
+                      </div>
+                      <span id="metrics-compactness-value" class="value-badge">0.00</span>
+                    </div>
+                    <div class="metric-item">
+                      <span class="metric-label">Fragmentation</span>
+                      <div class="metric-bar">
+                        <div id="metrics-fragmentation-bar" class="metric-fill"></div>
+                      </div>
+                      <span id="metrics-fragmentation-value" class="value-badge">0.00</span>
+                    </div>
+                    <div class="metric-item">
+                      <span class="metric-label">Symétrie</span>
+                      <div class="metric-bar">
+                        <div id="metrics-symmetry-bar" class="metric-fill"></div>
+                      </div>
+                      <span id="metrics-symmetry-value" class="value-badge">0.00</span>
+                    </div>
+                    <div class="metric-item">
+                      <span class="metric-label">Taux de croissance</span>
+                      <div class="metric-bar">
+                        <div id="metrics-growth-bar" class="metric-fill"></div>
+                      </div>
+                      <span id="metrics-growth-value" class="value-badge">0.00</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="ctrl-section">
+                  <p class="ctrl-title">Classification</p>
+                  <div class="metric-classification">
+                    <span id="metrics-classification" class="muted">—</span>
+                  </div>
+                </div>
+
+                <div class="ctrl-section">
+                  <p class="ctrl-title">Information</p>
+                  <p class="muted hero-note" style="font-size: 0.85em; line-height: 1.4;">
+                    Les métriques suivent le comportement biologique de l'automate : entropie (ordre/chaos), compacité (structure), fragmentation (dispersion), symétrie (régularité) et croissance (dynamique).
+                  </p>
                 </div>
               </div>
             </div>
@@ -573,6 +632,7 @@
       <div id="cmd-results" class="cmd-results"></div>
     </div>
 
+    <script src="metrics.js"></script>
     <script type="module" src="ui.js"></script>
   </body>
 

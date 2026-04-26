@@ -1623,6 +1623,58 @@ select:focus {
   box-shadow: 0 0 0 2px rgba(0, 255, 179, 0.15);
 }
 
+.metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.metric-item {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.25rem;
+}
+
+.metric-label {
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.metric-bar {
+  height: 6px;
+  background: rgba(12, 29, 45, 0.84);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.metric-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  width: 0%;
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.metric-item .value-badge {
+  font-size: 0.75rem;
+  text-align: right;
+}
+
+.metric-classification {
+  padding: 0.75rem;
+  background: rgba(12, 29, 45, 0.6);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-align: center;
+}
+
 /* Canvas float animation */
 @keyframes float {
 
