@@ -962,6 +962,9 @@ function synchroniserInterfaceModeInitial() {
 function synchroniserOutilsExplorateur() {
   const panel = document.getElementById("explorer-perturbation-panel");
   if (panel) panel.hidden = state.explorerTool !== "perturb";
+  document.querySelectorAll('input[name="explorer-tool"]').forEach((input) => {
+    input.checked = input.value === state.explorerTool;
+  });
   synchroniserCanvasEdition();
 }
 
@@ -3547,6 +3550,14 @@ function initSidebarTabs() {
 
     if (activeBtn) activeBtn.classList.add('active');
     if (activePanel) activePanel.classList.add('active');
+
+    if (tabName === "points") {
+      state.explorerTool = "points";
+      synchroniserOutilsExplorateur();
+    } else if (state.explorerTool === "points") {
+      state.explorerTool = "inspect";
+      synchroniserOutilsExplorateur();
+    }
 
     localStorage.setItem(storageKey, tabName);
   };
