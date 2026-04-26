@@ -261,7 +261,7 @@ const matterLab = {
 };
 
 function createDotsPattern(size, color, ctx) {
-  const canvas = new OffscreenCanvas(size, size);
+  const canvas = createScratchCanvas(size, size);
   const c = canvas.getContext("2d");
   c.fillStyle = color;
   c.beginPath();
@@ -271,7 +271,7 @@ function createDotsPattern(size, color, ctx) {
 }
 
 function createCrosshatchPattern(size, color, ctx) {
-  const canvas = new OffscreenCanvas(size, size);
+  const canvas = createScratchCanvas(size, size);
   const c = canvas.getContext("2d");
   c.strokeStyle = color;
   c.lineWidth = Math.max(1, size / 8);
@@ -287,7 +287,7 @@ function createCrosshatchPattern(size, color, ctx) {
 }
 
 function createNoisePattern(size, color, ctx) {
-  const canvas = new OffscreenCanvas(size, size);
+  const canvas = createScratchCanvas(size, size);
   const c = canvas.getContext("2d");
   const imageData = c.createImageData(size, size);
   const data = imageData.data;
@@ -376,6 +376,21 @@ function mulberry32(seed) {
   };
 }
 
+function assetUrl(path) {
+  const script = document.querySelector('script[src$="ui.js"]');
+  return new URL(path, script?.src || location.href);
+}
+
+function createScratchCanvas(width, height) {
+  if (typeof OffscreenCanvas === "function") {
+    return new OffscreenCanvas(width, height);
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  return canvas;
+}
+
 function interpolateColor(a, b, t) {
   const progressScaled = Math.round(t * 1000);
   return a.map((value, index) => interpolateComponent(value, b[index], progressScaled));
@@ -405,7 +420,7 @@ function obtenirDimensionsRendu() {
 async function loadWasm() {
   const status = document.getElementById("wasm-status");
   try {
-    const response = await fetch("cellcosmos.wasm");
+    const response = await fetch(assetUrl("cellcosmos.wasm"));
     if (!response.ok) {
       throw new Error(`Fichier WASM indisponible (${response.status}).`);
     }
@@ -1435,7 +1450,7 @@ function renderToCanvas(canvas, ruleNumber, rows, cols, cellSize) {
 
   couches.forEach((couche) => {
     // Create offscreen canvas for this layer
-    const offscreen = new OffscreenCanvas(canvasWidth, canvasHeight);
+    const offscreen = createScratchCanvas(canvasWidth, canvasHeight);
     const offscreenCtx = offscreen.getContext("2d");
 
     const gradient = generateGradient(couche.couleurs, rows);
@@ -2719,7 +2734,7 @@ async function loadGalleryFragment() {
   if (galleryLoading) return galleryLoading;
   const grid = document.getElementById("gallery-grid");
   grid.innerHTML = '<p class="muted">Chargement de la galerie...</p>';
-  galleryLoading = fetch("gallery-fragment.html")
+  galleryLoading = fetch(assetUrl("gallery-fragment.html"))
     .then((response) => {
       if (!response.ok) {
         throw new Error(`Fragment galerie indisponible (${response.status}).`);
