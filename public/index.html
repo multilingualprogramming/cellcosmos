@@ -4,7 +4,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Cellcosmos</title>
+    <title>Cellcosmos - Cellular Automata Simulation Lab</title>
+    <meta name="description"
+      content="Cellcosmos is a cellular automata simulation lab built with Multilingual Programming, WASM, and interactive visual tools." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -27,13 +29,17 @@
         <button type="button" class="tab" id="tab-source">Sources</button>
         <a class="tab tab-link" href="https://github.com/multilingualprogramming/cellcosmos" target="_blank"
           rel="noopener noreferrer">GitHub</a>
-        <button type="button" id="btn-cmd-palette" class="ghost-btn" aria-label="Palette de commandes" title="Ctrl+K">⌘</button>
+        <button type="button" id="btn-cmd-palette" class="ghost-btn" aria-label="Palette de commandes"
+          title="Ctrl+K">⌘</button>
         <button type="button" id="btn-theme" class="ghost-btn" aria-label="Changer de thème">☀</button>
       </nav>
     </header>
 
     <main>
-      <section id="explorer-panel" class="panel-grid">
+      <section id="explorer-panel" class="panel-grid" aria-labelledby="explorer-title">
+        <div style="position:absolute;left:-9999px;">
+          <h2 id="explorer-title">Explorateur Cellcosmos</h2>
+        </div>
         <div class="viewer-shell">
           <div class="rule-bar">
             <span class="rule-label">R&egrave;gle</span>
@@ -82,7 +88,9 @@
           </div>
 
           <div id="seq-status" class="seq-status" hidden>
-            <span class="muted">Tempo&nbsp;</span><span id="seq-tempo">—</span><span class="muted"> BPM &nbsp;·&nbsp; Gamme&nbsp;</span><span id="seq-gamme">—</span><span class="muted"> &nbsp;·&nbsp; Rang&nbsp;</span><span id="seq-row">—</span>
+            <span class="muted">Tempo&nbsp;</span><span id="seq-tempo">—</span><span class="muted"> BPM &nbsp;·&nbsp;
+              Gamme&nbsp;</span><span id="seq-gamme">—</span><span class="muted"> &nbsp;·&nbsp; Rang&nbsp;</span><span
+              id="seq-row">—</span>
           </div>
           <div id="microscope-panel" class="microscope-panel" hidden>
             <div class="microscope-header">
@@ -203,7 +211,8 @@
                     <label>Points x:y
                       <textarea id="init-points" rows="4" placeholder="150:0, 140:20, 160:20"></textarea>
                     </label>
-                    <p class="muted">Cliquez sur le canevas pour poser une graine, glissez pour la déplacer, clic droit pour supprimer, Maj+clic pour dupliquer.</p>
+                    <p class="muted">Cliquez sur le canevas pour poser une graine, glissez pour la déplacer, clic droit
+                      pour supprimer, Maj+clic pour dupliquer.</p>
                     <div class="stack compact">
                       <span class="muted">Symétries</span>
                       <div class="pill-group">
@@ -280,7 +289,8 @@
                     <input type="range" id="probability" min="0" max="1" step="0.01" value="1" />
                     <span id="prob-display" class="value-badge">1.00</span>
                   </div>
-                  <label class="checkbox-row"><input type="checkbox" id="probability-field-active" /> Champ stochastique spatial</label>
+                  <label class="checkbox-row"><input type="checkbox" id="probability-field-active" /> Champ stochastique
+                    spatial</label>
                   <div id="probability-field-opts" class="stack compact" hidden>
                     <div class="ctrl-row">
                       <label for="probability-top" class="muted">Haut</label>
@@ -309,7 +319,8 @@
                   <div class="ctrl-row">
                     <label for="morph-target-slider" class="muted">Cible</label>
                     <input type="range" id="morph-target-slider" min="0" max="255" value="110" />
-                    <input type="number" id="morph-target-number" min="0" max="255" value="110" aria-label="Regle cible" />
+                    <input type="number" id="morph-target-number" min="0" max="255" value="110"
+                      aria-label="Regle cible" />
                   </div>
                   <div class="ctrl-row">
                     <label for="morph-intensity" class="muted">Intensite</label>
@@ -344,7 +355,8 @@
                       <input type="range" id="explorer-event-strength" min="0.1" max="1" step="0.05" value="0.8" />
                       <span id="explorer-event-strength-display" class="value-badge">0.80</span>
                     </div>
-                    <button type="button" id="btn-clear-explorer-events" class="ghost-btn">Effacer les perturbations</button>
+                    <button type="button" id="btn-clear-explorer-events" class="ghost-btn">Effacer les
+                      perturbations</button>
                   </div>
                 </div>
               </div>
@@ -402,7 +414,8 @@
                 <div class="ctrl-section">
                   <p class="ctrl-title">Information</p>
                   <p class="muted hero-note" style="font-size: 0.85em; line-height: 1.4;">
-                    Les métriques suivent le comportement biologique de l'automate : entropie (ordre/chaos), compacité (structure), fragmentation (dispersion), symétrie (régularité) et croissance (dynamique).
+                    Les métriques suivent le comportement biologique de l'automate : entropie (ordre/chaos), compacité
+                    (structure), fragmentation (dispersion), symétrie (régularité) et croissance (dynamique).
                   </p>
                 </div>
               </div>
@@ -411,7 +424,10 @@
         </aside>
       </section>
 
-      <section id="matterlab-panel" class="panel-grid" hidden>
+      <section id="matterlab-panel" class="panel-grid" hidden aria-labelledby="matterlab-title">
+        <div style="position:absolute;left:-9999px;">
+          <h2 id="matterlab-title">Matter Lab</h2>
+        </div>
         <div class="viewer-shell matterlab-shell">
           <div class="rule-bar">
             <span class="rule-label">Matter Lab</span>
@@ -465,7 +481,8 @@
                   <label><input type="radio" name="lab-geometry-mode" value="outside" /> Exterieur</label>
                   <label><input type="radio" name="lab-geometry-mode" value="barrier" /> Barriere</label>
                 </div>
-                <label class="checkbox-row"><input type="checkbox" id="lab-show-mask" checked /> Afficher le masque</label>
+                <label class="checkbox-row"><input type="checkbox" id="lab-show-mask" checked /> Afficher le
+                  masque</label>
               </div>
               <div class="ctrl-section">
                 <p class="ctrl-title">Dimensions</p>
@@ -508,7 +525,8 @@
                   <input type="range" id="lab-field-strength" min="0.1" max="1" step="0.05" value="0.8" />
                   <span id="lab-field-strength-display" class="value-badge">0.80</span>
                 </div>
-                <label class="checkbox-row"><input type="checkbox" id="lab-show-field" checked /> Afficher le champ</label>
+                <label class="checkbox-row"><input type="checkbox" id="lab-show-field" checked /> Afficher le
+                  champ</label>
               </div>
             </div>
 
@@ -534,7 +552,8 @@
                   <input type="range" id="lab-event-strength" min="0.1" max="1" step="0.05" value="0.8" />
                   <span id="lab-event-strength-display" class="value-badge">0.80</span>
                 </div>
-                <label class="checkbox-row"><input type="checkbox" id="lab-show-events" checked /> Afficher les evenements</label>
+                <label class="checkbox-row"><input type="checkbox" id="lab-show-events" checked /> Afficher les
+                  evenements</label>
                 <p class="hero-note">Cliquez dans le canevas pour injecter l'evenement actif.</p>
               </div>
             </div>
@@ -542,17 +561,18 @@
         </aside>
       </section>
 
-      <section id="gallery-panel" class="gallery-panel" hidden>
+      <section id="gallery-panel" class="gallery-panel" hidden aria-labelledby="gallery-title">
         <div class="gallery-header">
+          <h2 id="gallery-title">Galerie des r&egrave;gles</h2>
           <p>Les 256 r&egrave;gles sont pr&eacute;calcul&eacute;es au build puis charg&eacute;es depuis un fragment
             statique s&eacute;par&eacute;, afin de garder `index.html` compact.</p>
         </div>
         <div id="gallery-grid" class="gallery-grid"></div>
       </section>
 
-      <section id="source-panel" class="source-panel" hidden>
+      <section id="source-panel" class="source-panel" hidden aria-labelledby="source-title">
         <div class="source-header">
-          <h2>Sources canoniques</h2>
+          <h2 id="source-title">Sources canoniques</h2>
           <p>Ces fichiers sont copi&eacute;s dans `public/` lors de la compilation WASM. Le d&eacute;p&ocirc;t GitHub
             contient l'ensemble du code source.</p>
         </div>
@@ -605,23 +625,35 @@
         </div>
       </section>
 
-      <section class="hero">
+      <section class="hero" aria-labelledby="intro-title">
         <div class="hero-copy">
           <p class="eyebrow">Observatoire d'automates cellulaires</p>
-          <h2>Explorez des univers discrets, visuels et sonores.</h2>
-          <p>Cellcosmos transforme les 256 règles élémentaires en paysages génératifs, compilés en WASM depuis des sources multilingual françaises.</p>
+          <h2 id="intro-title">Cellcosmos est un laboratoire interactif de simulation d'automates cellulaires.</h2>
+          <p>Cellcosmos est un projet web consacr&eacute; &agrave; l'exploration des automates cellulaires
+            &eacute;l&eacute;mentaires par la simulation visuelle, le son et l'analyse des r&egrave;gles. Il combine
+            JavaScript et WebAssembly g&eacute;n&eacute;r&eacute; &agrave; partir de sources Multilingual Programming
+            afin de
+            rendre les syst&egrave;mes discrets plus lisibles, plus testables et plus faciles &agrave; partager.</p>
+          <p>Le projet est utile aux chercheurs, aux &eacute;tudiants et aux d&eacute;veloppeurs curieux parce qu'il
+            transforme les 256 r&egrave;gles classiques en terrain d'exp&eacute;rimentation concret. Vous pouvez y
+            comparer des comportements, inspecter les changements d'&eacute;tat locaux et comprendre comment des
+            r&egrave;gles simples produisent des structures complexes.</p>
         </div>
-        <div class="hero-status" aria-label="Statut du moteur et de l'expérience">
+        <div class="hero-status" aria-label="R&eacute;sum&eacute; du projet et statut du moteur">
           <div class="status-chip">
             <span class="status-dot"></span>
-            <span id="wasm-status">Vérification du moteur WASM...</span>
+            <span id="wasm-status">V&eacute;rification du moteur WASM...</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Projet</span>
+            <strong>Cellcosmos</strong>
           </div>
           <div class="metric-card">
             <span class="metric-label">Moteur</span>
             <strong>WASM / JS</strong>
           </div>
           <div class="metric-card">
-            <span class="metric-label">Règles</span>
+            <span class="metric-label">R&egrave;gles</span>
             <strong>256</strong>
           </div>
           <div class="metric-card">
@@ -630,7 +662,78 @@
           </div>
         </div>
       </section>
+      <section class="source-panel" aria-labelledby="overview-title">
+        <div class="source-header">
+          <h2 id="overview-title">Ce que vous pouvez faire avec Cellcosmos</h2>
+          <p>Cette page d'accueil sert &agrave; la fois de documentation et de d&eacute;monstration : ce contenu
+            explique le projet m&ecirc;me si JavaScript ne se charge pas, tandis que les panneaux interactifs
+            proposent l'exp&eacute;rience compl&egrave;te de simulation.</p>
+        </div>
+        <div class="source-stack">
+          <section class="source-group" aria-labelledby="features-title">
+            <h3 id="features-title" class="source-group-title">Fonctionnalit&eacute;s</h3>
+            <div class="source-list">
+              <article class="source-card source-card-file">
+                <h4>Explorateur interactif de r&egrave;gles</h4>
+                <p>Parcourez les automates cellulaires &eacute;l&eacute;mentaires, changez de preset, ajustez le rendu
+                  et observez le comportement de la grille en temps r&eacute;el.</p>
+              </article>
+              <article class="source-card source-card-file">
+                <h4>Contr&ocirc;les de simulation</h4>
+                <p>Modifiez les graines initiales, les champs de probabilit&eacute;, la direction, la morphose et les
+                  perturbations depuis une seule interface.</p>
+              </article>
+              <article class="source-card source-card-file">
+                <h4>Multilingual Programming vers WebAssembly</h4>
+                <p>Le projet met en valeur la programmation multilingue en compilant des sources canoniques vers une
+                  application WASM ex&eacute;cut&eacute;e dans le navigateur.</p>
+              </article>
+            </div>
+          </section>
+          <section class="source-group" aria-labelledby="how-it-works-title">
+            <h3 id="how-it-works-title" class="source-group-title">Comment &ccedil;a marche</h3>
+            <div class="source-list">
+              <article class="source-card source-card-file">
+                <h4>&Eacute;volution pilot&eacute;e par r&egrave;gle</h4>
+                <p>Chaque ligne est g&eacute;n&eacute;r&eacute;e &agrave; partir de la pr&eacute;c&eacute;dente selon
+                  une
+                  r&egrave;gle d'automate cellulaire &eacute;l&eacute;mentaire, ce qui permet de comparer simplement
+                  ordre, chaos, sym&eacute;trie et croissance.</p>
+              </article>
+              <article class="source-card source-card-file">
+                <h4>Retour visuel et analytique</h4>
+                <p>Le rendu canvas, les m&eacute;triques, le microscope et les classifications montrent comment des
+                  motifs binaires locaux produisent des structures complexes &eacute;mergentes.</p>
+              </article>
+              <article class="source-card source-card-file">
+                <h4>Exemple de parcours</h4>
+                <p>Commencez avec la r&egrave;gle 90 ou 110, changez la graine initiale, puis observez la densit&eacute;
+                  et l'entropie pour voir comment un petit changement de param&egrave;tre transforme toute la
+                  simulation.</p>
+              </article>
+            </div>
+          </section>
+        </div>
+      </section>
     </main>
+
+    <footer class="source-panel" aria-labelledby="footer-title">
+      <div class="source-header">
+        <h2 id="footer-title">&Agrave; propos de cette d&eacute;monstration</h2>
+        <p>Cellcosmos est une vitrine HTML5 publi&eacute;e via GitHub Pages pour la simulation d'automates
+          cellulaires, la documentation technique et la compilation de Multilingual Programming vers WebAssembly.</p>
+      </div>
+    </footer>
+
+    <noscript>
+      <footer class="source-panel" aria-label="Notice sans JavaScript">
+        <div class="source-header">
+          <h2>JavaScript d&eacute;sactiv&eacute;</h2>
+          <p>Cellcosmos reste lisible ici comme documentation projet, mais la simulation interactive d'automates
+            cellulaires n&eacute;cessite JavaScript et WebAssembly.</p>
+        </div>
+      </footer>
+    </noscript>
 
     <div id="cmd-palette" class="cmd-palette" hidden>
       <input type="text" id="cmd-input" class="cmd-input" placeholder="Rechercher une règle, preset…" />
