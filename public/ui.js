@@ -1,3 +1,54 @@
+const COLOR_THEMES = [
+  {
+    id: "cosmos",
+    label: "Cosmos",
+    bgColor: [8, 17, 31],
+    gradientColors: [[255, 157, 77], [255, 209, 102], [83, 176, 255]],
+  },
+  {
+    id: "nature",
+    label: "Nature",
+    bgColor: [5, 18, 10],
+    gradientColors: [[0, 200, 80], [180, 240, 60], [30, 120, 40]],
+  },
+  {
+    id: "espace",
+    label: "Espace",
+    bgColor: [2, 2, 18],
+    gradientColors: [[120, 60, 220], [60, 180, 255], [255, 255, 255]],
+  },
+  {
+    id: "feu",
+    label: "Feu",
+    bgColor: [10, 3, 0],
+    gradientColors: [[255, 60, 0], [255, 180, 0], [255, 240, 160]],
+  },
+  {
+    id: "ocean",
+    label: "Océan",
+    bgColor: [3, 10, 22],
+    gradientColors: [[0, 60, 180], [0, 180, 200], [150, 240, 255]],
+  },
+  {
+    id: "aurore",
+    label: "Aurore",
+    bgColor: [2, 8, 18],
+    gradientColors: [[0, 240, 160], [180, 60, 255], [60, 200, 255]],
+  },
+  {
+    id: "lave",
+    label: "Lave",
+    bgColor: [10, 2, 2],
+    gradientColors: [[200, 0, 50], [255, 80, 0], [255, 220, 100]],
+  },
+  {
+    id: "fantome",
+    label: "Fantôme",
+    bgColor: [5, 5, 10],
+    gradientColors: [[60, 60, 100], [200, 200, 255], [255, 255, 255]],
+  },
+];
+
 const DEFAULTS = {
   rule: 90,
   cellSize: 3,
@@ -2117,6 +2168,54 @@ function renderGradientPickers() {
   });
 }
 
+function applyColorTheme(themeId) {
+  const theme = COLOR_THEMES.find(t => t.id === themeId);
+  if (!theme) return;
+
+  state.bgColor = [...theme.bgColor];
+  state.gradientColors = clonerCouleurs(theme.gradientColors);
+
+  renderBackgroundColorControl();
+  renderGradientPickers();
+  renderColorThemes();
+  scheduleRender();
+}
+
+function renderColorThemes() {
+  const container = document.getElementById("color-themes-grid");
+  if (!container) return;
+
+  container.innerHTML = "";
+  COLOR_THEMES.forEach((theme) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "theme-swatch";
+    if (
+      state.bgColor[0] === theme.bgColor[0]
+      && state.bgColor[1] === theme.bgColor[1]
+      && state.bgColor[2] === theme.bgColor[2]
+      && state.gradientColors.length === theme.gradientColors.length
+      && state.gradientColors.every((c, i) => c[0] === theme.gradientColors[i][0] && c[1] === theme.gradientColors[i][1] && c[2] === theme.gradientColors[i][2])
+    ) {
+      button.classList.add("active");
+    }
+
+    const strip = document.createElement("div");
+    strip.className = "theme-swatch-strip";
+    strip.style.background = `linear-gradient(90deg, ${theme.gradientColors.map(c => `rgb(${c.join(",")})`).join(", ")})`;
+
+    const label = document.createElement("div");
+    label.className = "theme-swatch-label";
+    label.textContent = theme.label;
+
+    button.appendChild(strip);
+    button.appendChild(label);
+    button.addEventListener("click", () => applyColorTheme(theme.id));
+
+    container.appendChild(button);
+  });
+}
+
 function renderPalettesPoints() {
   const wrapper = document.getElementById("point-gradients");
   const container = document.getElementById("point-gradient-list");
@@ -3695,6 +3794,7 @@ async function init() {
   bindCanvasEditor();
   bindMatterLabCanvas();
   bindGallery();
+  renderColorThemes();
   renderGradientPickers();
   renderPalettesPoints();
   syncRuleControls();

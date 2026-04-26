@@ -1675,6 +1675,49 @@ select:focus {
   text-align: center;
 }
 
+.color-themes-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.theme-swatch {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: transparent;
+  border: 2px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.theme-swatch:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 12px rgba(102, 227, 255, 0.2);
+}
+
+.theme-swatch.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 16px var(--glow);
+}
+
+.theme-swatch-strip {
+  height: 24px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+
+.theme-swatch-label {
+  font-size: 0.75rem;
+  text-align: center;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
 /* Canvas float animation */
 @keyframes float {
 
