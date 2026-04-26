@@ -84,6 +84,46 @@
           <div id="seq-status" class="seq-status" hidden>
             <span class="muted">Tempo&nbsp;</span><span id="seq-tempo">—</span><span class="muted"> BPM &nbsp;·&nbsp; Gamme&nbsp;</span><span id="seq-gamme">—</span><span class="muted"> &nbsp;·&nbsp; Rang&nbsp;</span><span id="seq-row">—</span>
           </div>
+          <div id="microscope-panel" class="microscope-panel" hidden>
+            <div class="microscope-header">
+              <span class="microscope-title">Microscope</span>
+              <span id="microscope-pos" class="value-badge">x0 y0</span>
+            </div>
+            <div class="microscope-grid">
+              <div class="microscope-card">
+                <span class="microscope-label">Etat final</span>
+                <strong id="microscope-state">0</strong>
+              </div>
+              <div class="microscope-card">
+                <span class="microscope-label">Etat source</span>
+                <strong id="microscope-base-state">0</strong>
+              </div>
+              <div class="microscope-card">
+                <span class="microscope-label">Motif</span>
+                <strong id="microscope-pattern">000</strong>
+              </div>
+              <div class="microscope-card">
+                <span class="microscope-label">Regle effective</span>
+                <strong id="microscope-rule">0</strong>
+              </div>
+              <div class="microscope-card">
+                <span class="microscope-label">Morphose</span>
+                <strong id="microscope-morph">0%</strong>
+              </div>
+              <div class="microscope-card">
+                <span class="microscope-label">Probabilite</span>
+                <strong id="microscope-prob">0%</strong>
+              </div>
+              <div class="microscope-card">
+                <span class="microscope-label">Origine</span>
+                <strong id="microscope-origin">0</strong>
+              </div>
+              <div class="microscope-card">
+                <span class="microscope-label">Perturbations</span>
+                <strong id="microscope-events">0</strong>
+              </div>
+            </div>
+          </div>
         </div>
 
         <aside class="sidebar">
@@ -254,6 +294,51 @@
                   <div class="pill-group">
                     <label><input type="radio" name="direction" value="ltr" checked /> LTR</label>
                     <label><input type="radio" name="direction" value="rtl" /> RTL</label>
+                  </div>
+                </div>
+
+                <div class="ctrl-section">
+                  <p class="ctrl-title">Morphose de regle</p>
+                  <label class="checkbox-row"><input type="checkbox" id="morph-enabled" /> Activer</label>
+                  <div class="ctrl-row">
+                    <label for="morph-target-slider" class="muted">Cible</label>
+                    <input type="range" id="morph-target-slider" min="0" max="255" value="110" />
+                    <input type="number" id="morph-target-number" min="0" max="255" value="110" aria-label="Regle cible" />
+                  </div>
+                  <div class="ctrl-row">
+                    <label for="morph-intensity" class="muted">Intensite</label>
+                    <input type="range" id="morph-intensity" min="0" max="1" step="0.01" value="0" />
+                    <span id="morph-intensity-display" class="value-badge">0%</span>
+                  </div>
+                </div>
+
+                <div class="ctrl-section">
+                  <p class="ctrl-title">Outils canevas</p>
+                  <div class="pill-group">
+                    <label><input type="radio" name="explorer-tool" value="inspect" checked /> Microscope</label>
+                    <label><input type="radio" name="explorer-tool" value="points" /> Points</label>
+                    <label><input type="radio" name="explorer-tool" value="perturb" /> Perturber</label>
+                  </div>
+                  <div id="explorer-perturbation-panel" class="stack compact" hidden>
+                    <span class="muted">Injection</span>
+                    <div class="pill-group">
+                      <label><input type="radio" name="explorer-event-type" value="pulse" checked /> Pulse</label>
+                      <label><input type="radio" name="explorer-event-type" value="erase" /> Effacer</label>
+                      <label><input type="radio" name="explorer-event-type" value="invert" /> Inverser</label>
+                      <label><input type="radio" name="explorer-event-type" value="mutate" /> Muter</label>
+                      <label><input type="radio" name="explorer-event-type" value="freeze" /> Geler</label>
+                    </div>
+                    <div class="ctrl-row">
+                      <label for="explorer-event-radius" class="muted">Rayon</label>
+                      <input type="range" id="explorer-event-radius" min="1" max="40" value="12" />
+                      <span id="explorer-event-radius-display" class="value-badge">12</span>
+                    </div>
+                    <div class="ctrl-row">
+                      <label for="explorer-event-strength" class="muted">Force</label>
+                      <input type="range" id="explorer-event-strength" min="0.1" max="1" step="0.05" value="0.8" />
+                      <span id="explorer-event-strength-display" class="value-badge">0.80</span>
+                    </div>
+                    <button type="button" id="btn-clear-explorer-events" class="ghost-btn">Effacer les perturbations</button>
                   </div>
                 </div>
               </div>

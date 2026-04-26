@@ -42,6 +42,49 @@ déf sortie_motif(numero_regle, motif):
     retour (numero_regle // 128) % 2
 
 
+déf code_motif(gauche, centre, droite):
+    retour gauche * 4 + centre * 2 + droite
+
+
+déf progression_morphosee(distance, distance_max, intensite_sur_1000):
+    soit intensite = intensite_sur_1000
+    si intensite < 0:
+        intensite = 0
+    si intensite > 1000:
+        intensite = 1000
+    si distance_max <= 0:
+        retour intensite
+    soit distance_normale = distance
+    si distance_normale < 0:
+        distance_normale = 0 - distance_normale
+    si distance_normale > distance_max:
+        distance_normale = distance_max
+    soit progression_locale = (distance_normale * 1000) // distance_max
+    retour (progression_locale * intensite) // 1000
+
+
+déf regle_morphee(regle_source, regle_cible, progression_sur_1000):
+    soit progression = progression_sur_1000
+    si progression < 0:
+        progression = 0
+    si progression > 1000:
+        progression = 1000
+
+    soit regle = 0
+    pour motif dans range(8):
+        soit seuil = ((motif + 1) * 1000) // 8
+        soit bit = sortie_motif(regle_source, motif)
+        si progression >= seuil:
+            bit = sortie_motif(regle_cible, motif)
+        regle = regle + (bit * (2 ** motif))
+    retour regle
+
+
+déf cellule_morphosee(regle_source, regle_cible, progression_sur_1000, gauche, centre, droite):
+    soit regle = regle_morphee(regle_source, regle_cible, progression_sur_1000)
+    retour cellule_suivante(regle, gauche, centre, droite)
+
+
 déf classe_wolfram(numero_regle):
     si numero_regle == 0 ou numero_regle == 8 ou numero_regle == 32 ou numero_regle == 40 ou numero_regle == 64 ou numero_regle == 72 ou numero_regle == 96 ou numero_regle == 104 ou numero_regle == 128 ou numero_regle == 136 ou numero_regle == 160 ou numero_regle == 168 ou numero_regle == 192 ou numero_regle == 200 ou numero_regle == 224 ou numero_regle == 232 ou numero_regle == 248 ou numero_regle == 255:
         retour 1

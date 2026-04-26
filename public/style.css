@@ -623,6 +623,14 @@ main {
   image-rendering: pixelated;
 }
 
+#main-canvas.inspect-mode {
+  cursor: crosshair;
+}
+
+#main-canvas.perturb-mode {
+  cursor: cell;
+}
+
 .sidebar {
   padding: 8px 0;
   position: sticky;
@@ -1206,6 +1214,70 @@ input[type="text"] {
   color: var(--muted);
   border-top: 1px solid var(--border);
   background: var(--seq-status-bg);
+}
+
+.microscope-panel {
+  display: grid;
+  gap: 12px;
+  padding: 14px 18px 18px;
+  border-top: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(102, 227, 255, 0.04), rgba(255, 157, 77, 0.03));
+}
+
+.microscope-panel[hidden] {
+  display: none;
+}
+
+.microscope-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.microscope-title,
+.microscope-label {
+  font-family: "IBM Plex Mono", monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.microscope-title {
+  color: var(--accent-2);
+  font-size: 0.82rem;
+}
+
+.microscope-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.microscope-card {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(5, 13, 22, 0.28);
+}
+
+.microscope-label {
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.microscope-card strong {
+  color: var(--text);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.95rem;
+}
+
+@media (max-width: 900px) {
+  .microscope-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

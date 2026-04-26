@@ -15,6 +15,7 @@ def _load_namespace():
         .replace("retour", "return")
         .replace("soit ", "")
         .replace("si ", "if ")
+        .replace("pour ", "for ")
         .replace(" ou ", " or ")
         .replace(" et ", " and ")
         .replace(" dans ", " in ")
@@ -103,3 +104,30 @@ def test_composante_interpolee_rounds_like_ui_gradient():
     assert composante_interpolee(0, 255, 0) == 0
     assert composante_interpolee(0, 255, 500) == 128
     assert composante_interpolee(0, 255, 1000) == 255
+
+
+def test_progression_morphosee_scales_distance_by_intensity():
+    ns = _load_namespace()
+    progression_morphosee = ns["progression_morphosee"]
+
+    assert progression_morphosee(0, 10, 1000) == 0
+    assert progression_morphosee(5, 10, 1000) == 500
+    assert progression_morphosee(10, 10, 600) == 600
+
+
+def test_regle_morphee_reveals_target_bits_progressively():
+    ns = _load_namespace()
+    regle_morphee = ns["regle_morphee"]
+
+    assert regle_morphee(0, 255, 0) == 0
+    assert regle_morphee(0, 255, 125) == 1
+    assert regle_morphee(0, 255, 500) == 15
+    assert regle_morphee(0, 255, 1000) == 255
+
+
+def test_cellule_morphosee_uses_morphed_rule():
+    ns = _load_namespace()
+    cellule_morphosee = ns["cellule_morphosee"]
+
+    assert cellule_morphosee(0, 255, 0, 1, 0, 1) == 0
+    assert cellule_morphosee(0, 255, 1000, 1, 0, 1) == 1

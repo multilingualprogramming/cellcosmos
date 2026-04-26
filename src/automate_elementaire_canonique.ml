@@ -265,6 +265,42 @@ déf get_rule_dict(rule_number):
     retour {f"{i:03b}": (rule_number >> i) & 1 pour i dans range(8)}
 
 
+déf code_motif(gauche, centre, droite):
+    retour gauche * 4 + centre * 2 + droite
+
+
+déf progression_morphosee(distance, distance_max, intensite_sur_1000):
+    soit intensite = intensite_sur_1000
+    si intensite < 0:
+        intensite = 0
+    si intensite > 1000:
+        intensite = 1000
+    si distance_max <= 0:
+        retour intensite
+    soit distance_normale = abs(distance)
+    si distance_normale > distance_max:
+        distance_normale = distance_max
+    soit progression_locale = (distance_normale * 1000) // distance_max
+    retour (progression_locale * intensite) // 1000
+
+
+déf regle_morphee(regle_source, regle_cible, progression_sur_1000):
+    soit progression = progression_sur_1000
+    si progression < 0:
+        progression = 0
+    si progression > 1000:
+        progression = 1000
+
+    soit regle = 0
+    pour motif dans range(8):
+        soit seuil = ((motif + 1) * 1000) // 8
+        soit bit = (regle_source >> motif) & 1
+        si progression >= seuil:
+            bit = (regle_cible >> motif) & 1
+        regle = regle + (bit * (2 ** motif))
+    retour regle
+
+
 déf get_next_generation(current, rule_dict, circular=Faux, probability=1.0, direction="ltr"):
     soit next_gen = []
     soit size = len(current)

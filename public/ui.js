@@ -22,6 +22,13 @@ const DEFAULTS = {
   progressionTemporelle: 1,
   vitesseAnimation: 1.2,
   pauseSurCollision: false,
+  morphingActive: false,
+  morphTargetRule: 110,
+  morphIntensity: 0,
+  explorerTool: "inspect",
+  explorerEventType: "pulse",
+  explorerEventRadius: 12,
+  explorerEventStrength: 0.8,
   labShapeType: "circle",
   labGeometryMode: "inside",
   labShapeX: 150,
@@ -50,6 +57,9 @@ const fallbackDomain = {
   patternOutput(ruleNumber, patternIndex) {
     return Math.floor(ruleNumber / (2 ** patternIndex)) % 2;
   },
+  patternCode(left, center, right) {
+    return left * 4 + center * 2 + right;
+  },
   wolframClass(ruleNumber) {
     if ([0, 8, 32, 40, 64, 72, 96, 104, 128, 136, 160, 168, 192, 200, 224, 232, 248, 255].includes(ruleNumber)) return 1;
     if ([18, 22, 30, 45, 60, 90, 105, 122, 126, 150].includes(ruleNumber)) return 3;
@@ -67,6 +77,28 @@ const fallbackDomain = {
   },
   interpolateComponent(start, end, progressScaled) {
     return Math.round(start + (end - start) * (progressScaled / 1000));
+  },
+  progressionMorphosee(distance, distanceMax, intensiteSur1000) {
+    const intensite = clamp(intensiteSur1000, 0, 1000);
+    if (distanceMax <= 0) return intensite;
+    const progressionLocale = Math.floor((Math.min(Math.abs(distance), distanceMax) * 1000) / distanceMax);
+    return Math.floor((progressionLocale * intensite) / 1000);
+  },
+  ruleMorphee(ruleSource, ruleTarget, progressScaled) {
+    const progression = clamp(progressScaled, 0, 1000);
+    let rule = 0;
+    for (let motif = 0; motif < 8; motif += 1) {
+      const threshold = Math.floor(((motif + 1) * 1000) / 8);
+      const sourceBit = Math.floor(ruleSource / (2 ** motif)) % 2;
+      const targetBit = Math.floor(ruleTarget / (2 ** motif)) % 2;
+      const bit = progression >= threshold ? targetBit : sourceBit;
+      rule += bit * (2 ** motif);
+    }
+    return rule;
+  },
+  celluleMorphosee(ruleSource, ruleTarget, progressScaled, left, center, right) {
+    const rule = this.ruleMorphee(ruleSource, ruleTarget, progressScaled);
+    return this.transition(rule, left, center, right);
   },
   frequenceFondamentale(ruleNumber) {
     return 110 * Math.pow(2, ruleNumber / 64);
@@ -153,6 +185,15 @@ let dernieresCouches = null;
 let pointActif = "";
 const animationEtat = { actif: false, sens: 1, dernierTemps: 0 };
 const editeurPoints = { actif: false, cle: "", decalageX: 0, decalageY: 0 };
+const explorerLab = {
+  frozenCols: 0,
+  frozenRows: 0,
+  frozenData: new Int16Array(0),
+  events: [],
+  painting: false,
+  selection: null,
+  lastRender: null,
+};
 const matterLab = {
   fieldCols: 0,
   fieldRows: 0,
@@ -528,6 +569,17 @@ function patternOutput(ruleNumber, patternIndex) {
   return fallbackDomain.patternOutput(ruleNumber, patternIndex);
 }
 
+function patternCode(left, center, right) {
+  if (wasmAvailable && wasm && typeof wasm.code_motif === "function") {
+    try {
+      return Number(wasm.code_motif(left, center, right));
+    } catch (error) {
+      disableWasmRuntime(error);
+    }
+  }
+  return fallbackDomain.patternCode(left, center, right);
+}
+
 function wolframClass(ruleNumber) {
   if (wasmAvailable && wasm && typeof wasm.classe_wolfram === "function") {
     try {
@@ -557,6 +609,39 @@ function ruleNoteLabel(ruleNumber) {
 
 function interpolateComponent(start, end, progressScaled) {
   return fallbackDomain.interpolateComponent(start, end, progressScaled);
+}
+
+function progressionMorphosee(distance, distanceMax, intensiteSur1000) {
+  if (wasmAvailable && wasm && typeof wasm.progression_morphosee === "function") {
+    try {
+      return Number(wasm.progression_morphosee(distance, distanceMax, intensiteSur1000));
+    } catch (error) {
+      disableWasmRuntime(error);
+    }
+  }
+  return fallbackDomain.progressionMorphosee(distance, distanceMax, intensiteSur1000);
+}
+
+function ruleMorphee(ruleSource, ruleTarget, progressScaled) {
+  if (wasmAvailable && wasm && typeof wasm.regle_morphee === "function") {
+    try {
+      return Number(wasm.regle_morphee(ruleSource, ruleTarget, progressScaled));
+    } catch (error) {
+      disableWasmRuntime(error);
+    }
+  }
+  return fallbackDomain.ruleMorphee(ruleSource, ruleTarget, progressScaled);
+}
+
+function celluleMorphosee(ruleSource, ruleTarget, progressScaled, left, center, right) {
+  if (wasmAvailable && wasm && typeof wasm.cellule_morphosee === "function") {
+    try {
+      return Number(wasm.cellule_morphosee(ruleSource, ruleTarget, progressScaled, left, center, right));
+    } catch (error) {
+      disableWasmRuntime(error);
+    }
+  }
+  return fallbackDomain.celluleMorphosee(ruleSource, ruleTarget, progressScaled, left, center, right);
 }
 
 function probabiliteLigne(probabiliteBaseSur1000, champActif, probabiliteHautSur1000, probabiliteBasSur1000, ligne, totalLignes) {
@@ -732,7 +817,9 @@ function obtenirPointsActifsPersonnalises() {
 function synchroniserCanvasEdition() {
   const canvas = document.getElementById("main-canvas");
   if (!canvas) return;
-  canvas.classList.toggle("edition-points", state.initialMode === "custom");
+  canvas.classList.toggle("edition-points", state.explorerTool === "points" && state.initialMode === "custom");
+  canvas.classList.toggle("inspect-mode", state.explorerTool === "inspect");
+  canvas.classList.toggle("perturb-mode", state.explorerTool === "perturb");
 }
 
 function normaliserPositionsInitiales(cols, rows) {
@@ -775,6 +862,29 @@ function obtenirProbabiliteLigne(ligne, totalLignes) {
   return clamp(probabiliteSur1000 / 1000, 0, 1);
 }
 
+function obtenirProgressionMorphosee(rowIndex, originRow, totalRows, intensite = state.morphIntensity) {
+  if (!state.morphingActive || intensite <= 0) return 0;
+  return progressionMorphosee(
+    Math.abs(rowIndex - originRow),
+    Math.max(1, totalRows - 1),
+    Math.round(clamp(intensite, 0, 1) * 1000),
+  );
+}
+
+function obtenirRegleEffective(ruleNumber, rowIndex, originRow, totalRows, intensite = state.morphIntensity) {
+  const progression = obtenirProgressionMorphosee(rowIndex, originRow, totalRows, intensite);
+  if (progression <= 0) return ruleNumber;
+  return ruleMorphee(ruleNumber, state.morphTargetRule, progression);
+}
+
+function extraireVoisinage(row, index) {
+  const size = row.length;
+  const left = index > 0 ? row[index - 1] : state.circular ? row[size - 1] : 0;
+  const center = row[index];
+  const right = index < size - 1 ? row[index + 1] : state.circular ? row[0] : 0;
+  return { left, center, right };
+}
+
 function evoluerDepuisPosition(ruleNumber, rows, cols, position, baseSeed) {
   const grid = Array.from({ length: rows }, () => Array(cols).fill(0));
   const x = clamp(position.x ?? Math.floor(cols / 2), 0, cols - 1);
@@ -782,10 +892,10 @@ function evoluerDepuisPosition(ruleNumber, rows, cols, position, baseSeed) {
   grid[origine][x] = 1;
 
   for (let row = origine + 1; row < rows; row += 1) {
-    grid[row] = getNextGeneration(grid[row - 1], ruleNumber, obtenirGraineLigne(baseSeed, row - 1, row), row, rows);
+    grid[row] = getNextGeneration(grid[row - 1], ruleNumber, obtenirGraineLigne(baseSeed, row - 1, row), row, rows, origine);
   }
   for (let row = origine - 1; row >= 0; row -= 1) {
-    grid[row] = getNextGeneration(grid[row + 1], ruleNumber, obtenirGraineLigne(baseSeed, row + 1, row), row, rows);
+    grid[row] = getNextGeneration(grid[row + 1], ruleNumber, obtenirGraineLigne(baseSeed, row + 1, row), row, rows, origine);
   }
 
   return grid;
@@ -796,6 +906,12 @@ function synchroniserInterfaceModeInitial() {
   const optionsPersonnalisees = document.getElementById("custom-opts");
   if (optionsAleatoires) optionsAleatoires.hidden = state.initialMode !== "random";
   if (optionsPersonnalisees) optionsPersonnalisees.hidden = state.initialMode !== "custom";
+}
+
+function synchroniserOutilsExplorateur() {
+  const panel = document.getElementById("explorer-perturbation-panel");
+  if (panel) panel.hidden = state.explorerTool !== "perturb";
+  synchroniserCanvasEdition();
 }
 
 function synchroniserPalettesPoints() {
@@ -901,12 +1017,265 @@ function construireCouchesAutomate(ruleNumber, rows, cols) {
   }));
 }
 
-function getNextGeneration(current, ruleNumber, rowSeed, rowIndex = 0, totalRows = 1) {
+const EXPLORER_EVENT_CODES = { none: 0, pulse: 1, erase: 2, invert: 3, freeze: 4, mutate: 5 };
+
+function indexExplorer(x, y, cols) {
+  return (y * cols) + x;
+}
+
+function assurerBuffersExplorer(rows, cols) {
+  const fieldChanged = explorerLab.frozenRows !== rows || explorerLab.frozenCols !== cols;
+  if (fieldChanged) {
+    explorerLab.frozenRows = rows;
+    explorerLab.frozenCols = cols;
+    explorerLab.frozenData = new Int16Array(rows * cols);
+    explorerLab.frozenData.fill(-1);
+    explorerLab.events = [];
+    explorerLab.lastRender = null;
+  }
+  if (explorerLab.selection) {
+    explorerLab.selection = {
+      x: clamp(explorerLab.selection.x, 0, cols - 1),
+      y: clamp(explorerLab.selection.y, 0, rows - 1),
+    };
+  }
+}
+
+function reinitialiserExplorerLab() {
+  explorerLab.frozenRows = 0;
+  explorerLab.frozenCols = 0;
+  explorerLab.frozenData = new Int16Array(0);
+  explorerLab.events = [];
+  explorerLab.painting = false;
+  explorerLab.selection = null;
+  explorerLab.lastRender = null;
+}
+
+function trouverOrigineProche(rowIndex, origines) {
+  if (!origines.length) return Math.floor(rowIndex);
+  return origines.reduce((meilleure, origine) => (
+    Math.abs(origine - rowIndex) < Math.abs(meilleure - rowIndex) ? origine : meilleure
+  ), origines[0]);
+}
+
+function fusionnerCouchesVisibles(couches, rows, cols) {
+  const grid = Array.from({ length: rows }, () => Array(cols).fill(0));
+  const counts = Array.from({ length: rows }, () => Array(cols).fill(0));
+  couches.forEach((couche) => {
+    couche.automate.forEach((row, rowIndex) => {
+      if (!estLigneVisiblePourCouche(couche, rowIndex, rows)) return;
+      row.forEach((value, colIndex) => {
+        if (value !== 1) return;
+        grid[rowIndex][colIndex] = 1;
+        counts[rowIndex][colIndex] += 1;
+      });
+    });
+  });
+  return { grid, counts };
+}
+
+function compterPerturbationsExplorer(x, y) {
+  let total = 0;
+  explorerLab.events.forEach((event) => {
+    if (laboratoireIntensiteRadiale(x, y, event.x, event.y, event.radius) > 0) total += 1;
+  });
+  if (explorerLab.frozenData.length === explorerLab.frozenRows * explorerLab.frozenCols && explorerLab.frozenCols > 0) {
+    if (explorerLab.frozenData[indexExplorer(x, y, explorerLab.frozenCols)] >= 0) total += 1;
+  }
+  return total;
+}
+
+function appliquerPerturbationsExplorer(baseGrid, rows, cols, origines) {
+  const grid = baseGrid.map((row) => row.slice());
+  const threshold = 250;
+
+  explorerLab.events.forEach((event) => {
+    const minX = clamp(event.x - event.radius, 0, cols - 1);
+    const maxX = clamp(event.x + event.radius, 0, cols - 1);
+    const minY = clamp(event.y - event.radius, 0, rows - 1);
+    const maxY = clamp(event.y + event.radius, 0, rows - 1);
+
+    for (let y = minY; y <= maxY; y += 1) {
+      for (let x = minX; x <= maxX; x += 1) {
+        const radial = laboratoireIntensiteRadiale(x, y, event.x, event.y, event.radius);
+        if (radial === 0) continue;
+        const intensity = Math.round(radial * event.strength);
+        if (event.type === "mutate") {
+          if (intensity < threshold) continue;
+          const originRow = trouverOrigineProche(y, origines);
+          const sourceRow = y === originRow ? originRow : clamp(y + (y > originRow ? -1 : 1), 0, rows - 1);
+          const voisinage = extraireVoisinage(grid[sourceRow], x);
+          const progression = clamp(
+            obtenirProgressionMorphosee(y, originRow, rows) + Math.round((1000 - obtenirProgressionMorphosee(y, originRow, rows)) * event.strength),
+            0,
+            1000,
+          );
+          grid[y][x] = celluleMorphosee(state.rule, state.morphTargetRule, progression, voisinage.left, voisinage.center, voisinage.right);
+          continue;
+        }
+        const eventCode = EXPLORER_EVENT_CODES[event.type] ?? EXPLORER_EVENT_CODES.none;
+        grid[y][x] = laboratoireCelluleEvenement(grid[y][x], eventCode, intensity, threshold);
+      }
+    }
+  });
+
+  if (explorerLab.frozenData.length === rows * cols) {
+    for (let y = 0; y < rows; y += 1) {
+      for (let x = 0; x < cols; x += 1) {
+        const frozenValue = explorerLab.frozenData[indexExplorer(x, y, cols)];
+        if (frozenValue >= 0) grid[y][x] = frozenValue;
+      }
+    }
+  }
+
+  return grid;
+}
+
+function dessinerDifferencesExplorer(ctx, baseGrid, finalGrid, rows, cols, cellSize) {
+  const gradient = generateGradient(state.gradientColors, rows);
+  for (let y = 0; y < rows; y += 1) {
+    const color = `rgb(${gradient[y].join(",")})`;
+    for (let x = 0; x < cols; x += 1) {
+      if (baseGrid[y][x] === finalGrid[y][x]) continue;
+      if (finalGrid[y][x] === 0) {
+        ctx.fillStyle = `rgb(${state.bgColor.join(",")})`;
+        ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+      } else {
+        drawCell(ctx, x * cellSize, y * cellSize, cellSize, color);
+      }
+    }
+  }
+}
+
+function dessinerPerturbationsExplorer(ctx, cellSize) {
+  ctx.save();
+  explorerLab.events.forEach((event) => {
+    ctx.strokeStyle = event.type === "erase"
+      ? "rgba(255, 107, 107, 0.78)"
+      : event.type === "invert"
+        ? "rgba(255, 209, 102, 0.82)"
+        : event.type === "mutate"
+          ? "rgba(123, 47, 255, 0.82)"
+          : "rgba(102, 227, 255, 0.82)";
+    ctx.lineWidth = Math.max(1.5, cellSize * 0.35);
+    ctx.setLineDash(event.type === "freeze" || event.type === "mutate" ? [cellSize, cellSize] : []);
+    ctx.beginPath();
+    ctx.arc(event.x * cellSize, event.y * cellSize, event.radius * cellSize, 0, Math.PI * 2);
+    ctx.stroke();
+  });
+  if (explorerLab.frozenData.some((value) => value >= 0)) {
+    ctx.fillStyle = "rgba(195, 230, 255, 0.14)";
+    for (let y = 0; y < explorerLab.frozenRows; y += 1) {
+      for (let x = 0; x < explorerLab.frozenCols; x += 1) {
+        if (explorerLab.frozenData[indexExplorer(x, y, explorerLab.frozenCols)] >= 0) {
+          ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+        }
+      }
+    }
+  }
+  ctx.restore();
+}
+
+function analyserCelluleMicroscope(selection) {
+  const rendu = explorerLab.lastRender;
+  if (!selection || !rendu) return null;
+  const x = clamp(selection.x, 0, rendu.cols - 1);
+  const y = clamp(selection.y, 0, rendu.rows - 1);
+  const originRow = trouverOrigineProche(y, rendu.origines);
+  const sourceRow = y === originRow ? originRow : clamp(y + (y > originRow ? -1 : 1), 0, rendu.rows - 1);
+  const voisinage = extraireVoisinage(rendu.baseGrid[sourceRow], x);
+  const morphProgress = obtenirProgressionMorphosee(y, originRow, rendu.rows);
+  const effectiveRule = obtenirRegleEffective(state.rule, y, originRow, rendu.rows);
+  return {
+    x,
+    y,
+    sourceRow,
+    originRow,
+    finalState: rendu.finalGrid[y][x],
+    baseState: rendu.baseGrid[y][x],
+    pattern: `${voisinage.left}${voisinage.center}${voisinage.right}`,
+    patternIndex: patternCode(voisinage.left, voisinage.center, voisinage.right),
+    effectiveRule,
+    morphProgress,
+    probability: obtenirProbabiliteLigne(y, rendu.rows),
+    perturbations: compterPerturbationsExplorer(x, y),
+  };
+}
+
+function mettreAJourMicroscope() {
+  const panel = document.getElementById("microscope-panel");
+  if (!panel) return;
+  if (state.explorerTool !== "inspect") {
+    panel.hidden = true;
+    return;
+  }
+  const analyse = analyserCelluleMicroscope(explorerLab.selection);
+  panel.hidden = !analyse;
+  if (!analyse) return;
+  document.getElementById("microscope-pos").textContent = `x${analyse.x} y${analyse.y}`;
+  document.getElementById("microscope-state").textContent = String(analyse.finalState);
+  document.getElementById("microscope-base-state").textContent = String(analyse.baseState);
+  document.getElementById("microscope-pattern").textContent = analyse.pattern;
+  document.getElementById("microscope-rule").textContent = String(analyse.effectiveRule);
+  document.getElementById("microscope-morph").textContent = `${Math.round(analyse.morphProgress / 10)}%`;
+  document.getElementById("microscope-prob").textContent = `${Math.round(analyse.probability * 100)}%`;
+  document.getElementById("microscope-origin").textContent = String(analyse.originRow);
+  document.getElementById("microscope-events").textContent = String(analyse.perturbations);
+}
+
+function dessinerSelectionMicroscope(ctx, cellSize) {
+  if (state.explorerTool !== "inspect") return;
+  const analyse = analyserCelluleMicroscope(explorerLab.selection);
+  if (!analyse) return;
+  ctx.save();
+  ctx.strokeStyle = "rgba(255, 209, 102, 0.95)";
+  ctx.lineWidth = Math.max(1.5, cellSize * 0.35);
+  ctx.strokeRect(analyse.x * cellSize, analyse.y * cellSize, cellSize, cellSize);
+  ctx.strokeStyle = "rgba(102, 227, 255, 0.75)";
+  ctx.setLineDash([cellSize * 0.8, cellSize * 0.6]);
+  for (let offset = -1; offset <= 1; offset += 1) {
+    const col = clamp(analyse.x + offset, 0, explorerLab.lastRender.cols - 1);
+    ctx.strokeRect(col * cellSize, analyse.sourceRow * cellSize, cellSize, cellSize);
+  }
+  ctx.restore();
+}
+
+function declencherPerturbationExplorer(x, y, rows, cols) {
+  assurerBuffersExplorer(rows, cols);
+  const event = {
+    type: state.explorerEventType,
+    x,
+    y,
+    radius: Math.max(1, Math.round(state.explorerEventRadius)),
+    strength: clamp(state.explorerEventStrength, 0.1, 1),
+  };
+  if (event.type === "freeze") {
+    const snapshot = explorerLab.lastRender?.finalGrid;
+    if (!snapshot) return;
+    const minX = clamp(x - event.radius, 0, cols - 1);
+    const maxX = clamp(x + event.radius, 0, cols - 1);
+    const minY = clamp(y - event.radius, 0, rows - 1);
+    const maxY = clamp(y + event.radius, 0, rows - 1);
+    for (let row = minY; row <= maxY; row += 1) {
+      for (let col = minX; col <= maxX; col += 1) {
+        const radial = laboratoireIntensiteRadiale(col, row, x, y, event.radius);
+        if (Math.round(radial * event.strength) < 250) continue;
+        explorerLab.frozenData[indexExplorer(col, row, cols)] = snapshot[row][col];
+      }
+    }
+    return;
+  }
+  explorerLab.events.push(event);
+  if (explorerLab.events.length > 24) explorerLab.events.shift();
+}
+
+function getNextGeneration(current, ruleNumber, rowSeed, rowIndex = 0, totalRows = 1, originRow = rowIndex) {
   const nextGen = [];
   const random = mulberry32(rowSeed);
   const size = current.length;
   const indices = state.direction === "ltr" ? [...Array(size).keys()] : [...Array(size).keys()].reverse();
   const probabiliteCourante = obtenirProbabiliteLigne(rowIndex, totalRows);
+  const regleEffective = obtenirRegleEffective(ruleNumber, rowIndex, originRow, totalRows);
 
   for (const i of indices) {
     if (random() > probabiliteCourante) {
@@ -925,7 +1294,7 @@ function getNextGeneration(current, ruleNumber, rowSeed, rowIndex = 0, totalRows
       center = current[i];
       left = i < size - 1 ? current[i + 1] : state.circular ? current[0] : 0;
     }
-    nextGen.push(transition(ruleNumber, left, center, right));
+    nextGen.push(transition(regleEffective, left, center, right));
   }
   return state.direction === "ltr" ? nextGen : nextGen.reverse();
 }
@@ -979,6 +1348,7 @@ function renderToCanvas(canvas, ruleNumber, rows, cols, cellSize) {
   const ctx = canvas.getContext("2d");
   canvas.width = cols * cellSize;
   canvas.height = rows * cellSize;
+  assurerBuffersExplorer(rows, cols);
 
   // Fill background
   ctx.fillStyle = `rgb(${state.bgColor.join(",")})`;
@@ -988,8 +1358,9 @@ function renderToCanvas(canvas, ruleNumber, rows, cols, cellSize) {
   dernieresCouches = couches;
   const canvasWidth = cols * cellSize;
   const canvasHeight = rows * cellSize;
+  const { grid: baseGrid, counts } = fusionnerCouchesVisibles(couches, rows, cols);
   const collisions = new Set();
-  const occupation = new Set();
+  const origines = couches.map((couche) => couche.position.y);
 
   couches.forEach((couche) => {
     // Create offscreen canvas for this layer
@@ -1002,9 +1373,7 @@ function renderToCanvas(canvas, ruleNumber, rows, cols, cellSize) {
       const color = `rgb(${gradient[rowIndex].join(",")})`;
       row.forEach((value, colIndex) => {
         if (value !== 1) return;
-        const cleCellule = `${colIndex}:${rowIndex}`;
-        if (occupation.has(cleCellule)) collisions.add(cleCellule);
-        occupation.add(cleCellule);
+        if (counts[rowIndex][colIndex] > 1) collisions.add(`${colIndex}:${rowIndex}`);
         drawCell(offscreenCtx, colIndex * cellSize, rowIndex * cellSize, cellSize, color);
       });
     });
@@ -1018,6 +1387,20 @@ function renderToCanvas(canvas, ruleNumber, rows, cols, cellSize) {
   // Reset to default state
   ctx.globalCompositeOperation = "source-over";
   ctx.globalAlpha = 1.0;
+
+  const finalGrid = appliquerPerturbationsExplorer(baseGrid, rows, cols, origines);
+  explorerLab.lastRender = {
+    rows,
+    cols,
+    baseGrid,
+    finalGrid,
+    origines,
+    collisions,
+  };
+  dessinerDifferencesExplorer(ctx, baseGrid, finalGrid, rows, cols, cellSize);
+  dessinerPerturbationsExplorer(ctx, cellSize);
+  dessinerSelectionMicroscope(ctx, cellSize);
+  mettreAJourMicroscope();
 
   if (state.pauseSurCollision && animationEtat.actif && collisions.size > 0) {
     arreterAnimation();
@@ -1055,6 +1438,18 @@ function calculerDensiteCouches(couches) {
         totalCells++;
         if (cell === 1) liveCells++;
       });
+    });
+  });
+  return totalCells > 0 ? liveCells / totalCells : 0;
+}
+
+function calculerDensiteGrille(grid) {
+  let totalCells = 0;
+  let liveCells = 0;
+  grid.forEach((row) => {
+    row.forEach((cell) => {
+      totalCells += 1;
+      if (cell === 1) liveCells += 1;
     });
   });
   return totalCells > 0 ? liveCells / totalCells : 0;
@@ -1122,6 +1517,13 @@ function buildShareURL() {
     tl: state.progressionTemporelle.toFixed(3),
     as: state.vitesseAnimation.toFixed(1),
     pc: state.pauseSurCollision ? "1" : "0",
+    me: state.morphingActive ? "1" : "0",
+    mt: state.morphTargetRule,
+    mi: state.morphIntensity.toFixed(2),
+    et: state.explorerTool,
+    ee: state.explorerEventType,
+    er: state.explorerEventRadius,
+    es: state.explorerEventStrength.toFixed(2),
   });
   return `${location.origin}${location.pathname}?${params}`;
 }
@@ -1165,6 +1567,13 @@ function loadFromURL() {
   if (params.has("tl")) state.progressionTemporelle = clamp(Number.parseFloat(params.get("tl")) || 0, 0, 1);
   if (params.has("as")) state.vitesseAnimation = clamp(Number.parseFloat(params.get("as")) || 1.2, 0.1, 6);
   if (params.has("pc")) state.pauseSurCollision = params.get("pc") === "1";
+  if (params.has("me")) state.morphingActive = params.get("me") === "1";
+  if (params.has("mt")) state.morphTargetRule = clamp(Number.parseInt(params.get("mt"), 10) || state.morphTargetRule, 0, 255);
+  if (params.has("mi")) state.morphIntensity = clamp(Number.parseFloat(params.get("mi")) || 0, 0, 1);
+  if (params.has("et")) state.explorerTool = params.get("et");
+  if (params.has("ee")) state.explorerEventType = params.get("ee");
+  if (params.has("er")) state.explorerEventRadius = clamp(Number.parseInt(params.get("er"), 10) || state.explorerEventRadius, 1, 40);
+  if (params.has("es")) state.explorerEventStrength = clamp(Number.parseFloat(params.get("es")) || state.explorerEventStrength, 0.1, 1);
 }
 
 function renderMainView() {
@@ -1173,7 +1582,7 @@ function renderMainView() {
     const canvas = document.getElementById("main-canvas");
     const { rows, cols } = obtenirDimensionsRendu();
     renderToCanvas(canvas, state.rule, rows, cols, state.cellSize);
-    const density = dernieresCouches ? calculerDensiteCouches(dernieresCouches) : 0;
+    const density = explorerLab.lastRender ? calculerDensiteGrille(explorerLab.lastRender.finalGrid) : (dernieresCouches ? calculerDensiteCouches(dernieresCouches) : 0);
     updateCanvasHud(rows, cols, density);
 
     if (audioEngine.active) {
@@ -1796,7 +2205,7 @@ function bindCanvasEditor() {
   if (!canvas) return;
 
   canvas.addEventListener("contextmenu", (event) => {
-    if (state.initialMode !== "custom") return;
+    if (state.explorerTool !== "points" || state.initialMode !== "custom") return;
     event.preventDefault();
     const cible = obtenirCoordonneesCelluleDepuisEvenement(event);
     const points = obtenirPointsActifsPersonnalises();
@@ -1813,6 +2222,23 @@ function bindCanvasEditor() {
 
   canvas.addEventListener("pointerdown", (event) => {
     const cible = obtenirCoordonneesCelluleDepuisEvenement(event);
+    synchroniserCanvasEdition();
+
+    if (state.explorerTool === "inspect") {
+      explorerLab.selection = { x: cible.x, y: cible.y };
+      scheduleRender();
+      return;
+    }
+
+    if (state.explorerTool === "perturb") {
+      explorerLab.painting = true;
+      canvas.setPointerCapture(event.pointerId);
+      declencherPerturbationExplorer(cible.x, cible.y, cible.rows, cible.cols);
+      explorerLab.selection = { x: cible.x, y: cible.y };
+      scheduleRender();
+      return;
+    }
+
     let points = obtenirPointsActifsPersonnalises();
     let palettes = { ...state.palettesPoints };
     let regles = { ...state.reglesPoints };
@@ -1855,8 +2281,20 @@ function bindCanvasEditor() {
   });
 
   canvas.addEventListener("pointermove", (event) => {
-    if (!editeurPoints.actif) return;
     const cible = obtenirCoordonneesCelluleDepuisEvenement(event);
+    if (state.explorerTool === "inspect") {
+      explorerLab.selection = { x: cible.x, y: cible.y };
+      scheduleRender();
+      return;
+    }
+    if (state.explorerTool === "perturb") {
+      if (!explorerLab.painting) return;
+      declencherPerturbationExplorer(cible.x, cible.y, cible.rows, cible.cols);
+      explorerLab.selection = { x: cible.x, y: cible.y };
+      scheduleRender();
+      return;
+    }
+    if (!editeurPoints.actif) return;
     const points = obtenirPointsActifsPersonnalises();
     const index = points.findIndex((point) => obtenirClePoint(point) === editeurPoints.cle);
     if (index < 0) return;
@@ -1881,8 +2319,8 @@ function bindCanvasEditor() {
   });
 
   const terminerEdition = (event) => {
-    if (!editeurPoints.actif) return;
-    editeurPoints.actif = false;
+    explorerLab.painting = false;
+    if (editeurPoints.actif) editeurPoints.actif = false;
     if (event?.pointerId != null && canvas.hasPointerCapture(event.pointerId)) {
       canvas.releasePointerCapture(event.pointerId);
     }
@@ -2688,6 +3126,74 @@ function bindControls() {
     });
   });
 
+  const morphEnabled = document.getElementById("morph-enabled");
+  const morphTargetSlider = document.getElementById("morph-target-slider");
+  const morphTargetNumber = document.getElementById("morph-target-number");
+  const morphIntensity = document.getElementById("morph-intensity");
+  const morphIntensityDisplay = document.getElementById("morph-intensity-display");
+  if (morphEnabled) morphEnabled.checked = state.morphingActive;
+  if (morphTargetSlider) morphTargetSlider.value = String(state.morphTargetRule);
+  if (morphTargetNumber) morphTargetNumber.value = String(state.morphTargetRule);
+  if (morphIntensity) morphIntensity.value = String(state.morphIntensity);
+  if (morphIntensityDisplay) morphIntensityDisplay.textContent = `${Math.round(state.morphIntensity * 100)}%`;
+  morphEnabled?.addEventListener("change", () => {
+    state.morphingActive = morphEnabled.checked;
+    scheduleRender();
+  });
+  morphTargetSlider?.addEventListener("input", (event) => {
+    state.morphTargetRule = clamp(Number.parseInt(event.target.value, 10) || 0, 0, 255);
+    if (morphTargetNumber) morphTargetNumber.value = String(state.morphTargetRule);
+    scheduleRender();
+  });
+  morphTargetNumber?.addEventListener("change", (event) => {
+    state.morphTargetRule = clamp(Number.parseInt(event.target.value, 10) || 0, 0, 255);
+    if (morphTargetSlider) morphTargetSlider.value = String(state.morphTargetRule);
+    event.target.value = String(state.morphTargetRule);
+    scheduleRender();
+  });
+  morphIntensity?.addEventListener("input", (event) => {
+    state.morphIntensity = clamp(Number.parseFloat(event.target.value) || 0, 0, 1);
+    if (morphIntensityDisplay) morphIntensityDisplay.textContent = `${Math.round(state.morphIntensity * 100)}%`;
+    scheduleRender();
+  });
+
+  document.querySelectorAll('input[name="explorer-tool"]').forEach((input) => {
+    if (input.value === state.explorerTool) input.checked = true;
+    input.addEventListener("change", () => {
+      state.explorerTool = input.value;
+      synchroniserOutilsExplorateur();
+      scheduleRender();
+    });
+  });
+  document.querySelectorAll('input[name="explorer-event-type"]').forEach((input) => {
+    if (input.value === state.explorerEventType) input.checked = true;
+    input.addEventListener("change", () => {
+      state.explorerEventType = input.value;
+    });
+  });
+  const explorerEventRadius = document.getElementById("explorer-event-radius");
+  const explorerEventRadiusDisplay = document.getElementById("explorer-event-radius-display");
+  const explorerEventStrength = document.getElementById("explorer-event-strength");
+  const explorerEventStrengthDisplay = document.getElementById("explorer-event-strength-display");
+  if (explorerEventRadius) explorerEventRadius.value = String(state.explorerEventRadius);
+  if (explorerEventRadiusDisplay) explorerEventRadiusDisplay.textContent = String(state.explorerEventRadius);
+  if (explorerEventStrength) explorerEventStrength.value = String(state.explorerEventStrength);
+  if (explorerEventStrengthDisplay) explorerEventStrengthDisplay.textContent = state.explorerEventStrength.toFixed(2);
+  explorerEventRadius?.addEventListener("input", (event) => {
+    state.explorerEventRadius = clamp(Number.parseInt(event.target.value, 10) || 1, 1, 40);
+    if (explorerEventRadiusDisplay) explorerEventRadiusDisplay.textContent = String(state.explorerEventRadius);
+  });
+  explorerEventStrength?.addEventListener("input", (event) => {
+    state.explorerEventStrength = clamp(Number.parseFloat(event.target.value) || 0.1, 0.1, 1);
+    if (explorerEventStrengthDisplay) explorerEventStrengthDisplay.textContent = state.explorerEventStrength.toFixed(2);
+  });
+  document.getElementById("btn-clear-explorer-events")?.addEventListener("click", () => {
+    if (explorerLab.frozenData.length) explorerLab.frozenData.fill(-1);
+    explorerLab.events = [];
+    scheduleRender();
+  });
+  synchroniserOutilsExplorateur();
+
   const timeline = document.getElementById("timeline");
   const animationSpeed = document.getElementById("animation-speed");
   const animationSpeedDisplay = document.getElementById("animation-speed-display");
@@ -2763,6 +3269,7 @@ function bindControls() {
 
   document.getElementById("btn-reset").addEventListener("click", () => {
     state = structuredClone(DEFAULTS);
+    reinitialiserExplorerLab();
     reinitialiserMatterLab();
     history.replaceState(null, "", location.pathname);
     location.reload();
