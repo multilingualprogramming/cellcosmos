@@ -134,6 +134,20 @@ def test_cellule_morphosee_uses_morphed_rule():
     assert cellule_morphosee(0, 255, 1000, 1, 0, 1) == 1
 
 
+def test_laboratoire_forme_cellule_matches_exact_cell_only():
+    ns = _load_namespace()
+    shape_code = ns["laboratoire_forme_code_cellule"]()
+    contains = ns["laboratoire_forme_contient"]
+    autorise = ns["laboratoire_mode_autorise"]
+    barrier = ns["laboratoire_mode_code_barriere"]()
+
+    assert contains(shape_code, 10, 12, 10, 12, 0, 0, 0) == 1
+    assert contains(shape_code, 10, 3, 10, 12, 0, 0, 0) == 0
+    assert contains(shape_code, 9, 12, 10, 12, 0, 0, 0) == 0
+    assert autorise(barrier, contains(shape_code, 10, 12, 10, 12, 0, 0, 0)) == 0
+    assert autorise(barrier, contains(shape_code, 9, 12, 10, 12, 0, 0, 0)) == 1
+
+
 def test_life_signature_metric_formulas_are_exported_from_multilingual():
     ns = _load_namespace()
 

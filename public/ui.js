@@ -184,6 +184,9 @@ const fallbackDomain = {
     return clamp(coordonnee + decalage, 0, maximum);
   },
   laboratoireFormeContient(shapeCode, x, y, centerX, centerY, sizeA, sizeB, innerRadius) {
+    if (shapeCode === 4) {
+      return x === centerX && y === centerY ? 1 : 0;
+    }
     if (shapeCode === 1) {
       return Math.abs(x - centerX) <= sizeA && Math.abs(y - centerY) <= sizeB ? 1 : 0;
     }
@@ -253,7 +256,8 @@ const matterLab = {
   frozenRows: 0,
   frozenData: new Int16Array(0),
   events: [],
-  geometryPlaced: false,
+  primaryGeometry: null,
+  barriers: [],
   lastRender: null,
   activeTab: "geometry",
   painting: false,
@@ -508,6 +512,18 @@ function validateWasmExports(exports) {
     ];
     for (const [rule, expected] of classChecks) {
       if (Number(exports.classe_wolfram(rule)) !== expected) {
+        return false;
+      }
+    }
+
+    if (typeof exports.laboratoire_forme_contient === "function") {
+      if (Number(exports.laboratoire_forme_contient(4, 10, 12, 10, 12, 0, 0, 0)) !== 1) {
+        return false;
+      }
+      if (Number(exports.laboratoire_forme_contient(4, 10, 11, 10, 12, 0, 0, 0)) !== 0) {
+        return false;
+      }
+      if (Number(exports.laboratoire_forme_contient(4, 9, 12, 10, 12, 0, 0, 0)) !== 0) {
         return false;
       }
     }
@@ -1722,7 +1738,7 @@ function renderMainView() {
   renderMatterLabView();
 }
 
-const LAB_SHAPE_CODES = { none: 0, rect: 1, circle: 2, ring: 3 };
+const LAB_SHAPE_CODES = { none: 0, rect: 1, circle: 2, ring: 3, cell: 4 };
 const LAB_MODE_CODES = { none: 0, inside: 1, outside: 2, barrier: 3 };
 const LAB_EVENT_CODES = { none: 0, pulse: 1, erase: 2, invert: 3, freeze: 4 };
 
@@ -1751,7 +1767,8 @@ function assurerBuffersMatterLab(rows, cols) {
     matterLab.frozenData = new Int16Array(rows * cols);
     matterLab.frozenData.fill(-1);
     matterLab.events = [];
-    matterLab.geometryPlaced = false;
+    matterLab.primaryGeometry = null;
+    matterLab.barriers = [];
   }
   state.labShapeX = clamp(state.labShapeX, 0, cols - 1);
   state.labShapeY = clamp(state.labShapeY, 0, rows - 1);
@@ -1766,7 +1783,8 @@ function reinitialiserMatterLab() {
   matterLab.frozenCols = 0;
   matterLab.frozenData = new Int16Array(0);
   matterLab.events = [];
-  matterLab.geometryPlaced = false;
+  matterLab.primaryGeometry = null;
+  matterLab.barriers = [];
   matterLab.lastRender = null;
   matterLab.defaultRuleApplied = false;
 }
@@ -1784,46 +1802,143 @@ function moyenneChampMatterLab() {
   return total / matterLab.fieldData.length;
 }
 
-function configurationGeometrieMatterLab(rows, cols) {
-  if (!matterLab.geometryPlaced) return null;
-  const centerX = clamp(state.labShapeX, 0, cols - 1);
-  const centerY = clamp(state.labShapeY, 0, rows - 1);
-  if (state.labShapeType === "rect") {
+function nomGeometrieMatterLab(shapeCode) {
+  if (shapeCode === LAB_SHAPE_CODES.rect) return "Rectangle";
+  if (shapeCode === LAB_SHAPE_CODES.ring) return "Anneau";
+  if (shapeCode === LAB_SHAPE_CODES.cell) return "Cellule";
+  return "Cercle";
+}
+
+function nomModeGeometrieMatterLab(modeCode) {
+  if (modeCode === LAB_MODE_CODES.outside) return "outside";
+  if (modeCode === LAB_MODE_CODES.barrier) return "barrier";
+  return "inside";
+}
+
+function synchroniserControleModeCelluleMatterLab() {
+  const cellMode = state.labShapeType === "cell";
+  if (cellMode) state.labGeometryMode = "barrier";
+  document.querySelectorAll('input[name="lab-geometry-mode"]').forEach((input) => {
+    const locked = cellMode && input.value !== "barrier";
+    input.disabled = locked;
+    input.closest("label")?.classList.toggle("is-disabled", locked);
+    input.checked = input.value === state.labGeometryMode;
+  });
+}
+
+function normaliserGeometrieMatterLab(geometry, rows, cols) {
+  if (!geometry) return null;
+  const centerX = clamp(geometry.centerX, 0, cols - 1);
+  const centerY = clamp(geometry.centerY, 0, rows - 1);
+  if (geometry.shapeCode === LAB_SHAPE_CODES.rect) {
     return {
-      shapeCode: LAB_SHAPE_CODES.rect,
-      modeCode: LAB_MODE_CODES[state.labGeometryMode] ?? LAB_MODE_CODES.inside,
+      ...geometry,
       centerX,
       centerY,
-      sizeA: Math.max(1, Math.floor(state.labShapeWidth / 2)),
-      sizeB: Math.max(1, Math.floor(state.labShapeHeight / 2)),
+      sizeA: Math.max(1, Math.floor(geometry.sizeA)),
+      sizeB: Math.max(1, Math.floor(geometry.sizeB)),
       innerRadius: 0,
     };
   }
-  if (state.labShapeType === "ring") {
+  if (geometry.shapeCode === LAB_SHAPE_CODES.ring) {
+    const sizeA = Math.max(2, Math.floor(geometry.sizeA));
     return {
-      shapeCode: LAB_SHAPE_CODES.ring,
-      modeCode: LAB_MODE_CODES[state.labGeometryMode] ?? LAB_MODE_CODES.inside,
+      ...geometry,
       centerX,
       centerY,
-      sizeA: Math.max(2, state.labShapeWidth),
-      sizeB: Math.max(2, state.labShapeWidth),
-      innerRadius: clamp(state.labShapeInner, 0, state.labShapeWidth - 1),
+      sizeA,
+      sizeB: sizeA,
+      innerRadius: clamp(Math.floor(geometry.innerRadius), 0, sizeA - 1),
+    };
+  }
+  if (geometry.shapeCode === LAB_SHAPE_CODES.cell) {
+    return {
+      ...geometry,
+      centerX,
+      centerY,
+      sizeA: 0,
+      sizeB: 0,
+      innerRadius: 0,
     };
   }
   return {
-    shapeCode: LAB_SHAPE_CODES.circle,
-    modeCode: LAB_MODE_CODES[state.labGeometryMode] ?? LAB_MODE_CODES.inside,
+    ...geometry,
     centerX,
     centerY,
-    sizeA: Math.max(2, state.labShapeWidth),
-    sizeB: Math.max(2, state.labShapeHeight),
+    sizeA: Math.max(2, Math.floor(geometry.sizeA)),
+    sizeB: Math.max(2, Math.floor(geometry.sizeB)),
     innerRadius: 0,
   };
 }
 
-function celluleAutoriseeMatterLab(x, y, rows, cols) {
-  const geometry = configurationGeometrieMatterLab(rows, cols);
-  if (!geometry) return true;
+function construireGeometrieMatterLab(shapeType, modeName, centerX, centerY, rows, cols) {
+  if (shapeType === "rect") {
+    return normaliserGeometrieMatterLab({
+      shapeCode: LAB_SHAPE_CODES.rect,
+      modeCode: LAB_MODE_CODES[modeName] ?? LAB_MODE_CODES.inside,
+      centerX,
+      centerY,
+      sizeA: state.labShapeWidth / 2,
+      sizeB: state.labShapeHeight / 2,
+      innerRadius: 0,
+    }, rows, cols);
+  }
+  if (shapeType === "ring") {
+    return normaliserGeometrieMatterLab({
+      shapeCode: LAB_SHAPE_CODES.ring,
+      modeCode: LAB_MODE_CODES[modeName] ?? LAB_MODE_CODES.inside,
+      centerX,
+      centerY,
+      sizeA: state.labShapeWidth,
+      sizeB: state.labShapeWidth,
+      innerRadius: state.labShapeInner,
+    }, rows, cols);
+  }
+  if (shapeType === "cell") {
+    return normaliserGeometrieMatterLab({
+      shapeCode: LAB_SHAPE_CODES.cell,
+      modeCode: LAB_MODE_CODES.barrier,
+      centerX,
+      centerY,
+      sizeA: 0,
+      sizeB: 0,
+      innerRadius: 0,
+    }, rows, cols);
+  }
+  return normaliserGeometrieMatterLab({
+    shapeCode: LAB_SHAPE_CODES.circle,
+    modeCode: LAB_MODE_CODES[modeName] ?? LAB_MODE_CODES.inside,
+    centerX,
+    centerY,
+    sizeA: state.labShapeWidth,
+    sizeB: state.labShapeHeight,
+    innerRadius: 0,
+  }, rows, cols);
+}
+
+function synchroniserGeometriePrimaireMatterLab(rows, cols) {
+  if (!matterLab.primaryGeometry || state.labGeometryMode === "barrier") return;
+  matterLab.primaryGeometry = construireGeometrieMatterLab(
+    state.labShapeType,
+    state.labGeometryMode,
+    matterLab.primaryGeometry.centerX,
+    matterLab.primaryGeometry.centerY,
+    rows,
+    cols,
+  );
+}
+
+function configurationGeometrieMatterLab(rows, cols) {
+  return normaliserGeometrieMatterLab(matterLab.primaryGeometry, rows, cols);
+}
+
+function configurationsBarrieresMatterLab(rows, cols) {
+  return matterLab.barriers
+    .map((geometry) => normaliserGeometrieMatterLab(geometry, rows, cols))
+    .filter(Boolean);
+}
+
+function geometrieAutoriseCelluleMatterLab(geometry, x, y) {
   const contains = laboratoireFormeContient(
     geometry.shapeCode,
     x,
@@ -1835,6 +1950,12 @@ function celluleAutoriseeMatterLab(x, y, rows, cols) {
     geometry.innerRadius,
   );
   return laboratoireModeAutorise(geometry.modeCode, contains) === 1;
+}
+
+function celluleAutoriseeMatterLab(x, y, rows, cols) {
+  const geometry = configurationGeometrieMatterLab(rows, cols);
+  if (geometry && !geometrieAutoriseCelluleMatterLab(geometry, x, y)) return false;
+  return configurationsBarrieresMatterLab(rows, cols).every((barrier) => geometrieAutoriseCelluleMatterLab(barrier, x, y));
 }
 
 function probabiliteMatterLab(x, y, totalRows, cols) {
@@ -1968,6 +2089,13 @@ function dessinerGeometrieMatterLab(ctx, geometry, cellSize) {
       geometry.sizeA * 2 * cellSize,
       geometry.sizeB * 2 * cellSize,
     );
+  } else if (geometry.shapeCode === LAB_SHAPE_CODES.cell) {
+    ctx.strokeRect(
+      geometry.centerX * cellSize,
+      geometry.centerY * cellSize,
+      cellSize,
+      cellSize,
+    );
   } else {
     ctx.beginPath();
     ctx.arc(geometry.centerX * cellSize, geometry.centerY * cellSize, geometry.sizeA * cellSize, 0, Math.PI * 2);
@@ -2022,16 +2150,18 @@ function mettreAJourHudMatterLab(grid, rows, cols) {
   const hudField = document.getElementById("lab-hud-field");
   const hudEvents = document.getElementById("lab-hud-events");
   const status = document.getElementById("lab-geometry-status");
+  const geometry = configurationGeometrieMatterLab(rows, cols);
+  const barriers = configurationsBarrieresMatterLab(rows, cols);
   if (ruleDisplay) ruleDisplay.textContent = String(state.rule);
   if (hudRule) hudRule.textContent = String(state.rule);
   if (hudDensity) hudDensity.textContent = `${density}%`;
   if (hudField) hudField.textContent = `${averageField}%`;
   if (hudEvents) hudEvents.textContent = String(matterLab.events.length + (matterLab.frozenData.some((value) => value >= 0) ? 1 : 0));
   if (status) {
-    if (!matterLab.geometryPlaced) status.textContent = "Aucune geometrie";
-    else if (state.labShapeType === "rect") status.textContent = `Rectangle ${state.labGeometryMode}`;
-    else if (state.labShapeType === "ring") status.textContent = `Anneau ${state.labGeometryMode}`;
-    else status.textContent = `Cercle ${state.labGeometryMode}`;
+    if (!geometry && barriers.length === 0) status.textContent = "Aucune geometrie";
+    else if (!geometry) status.textContent = `${barriers.length} barriere${barriers.length > 1 ? "s" : ""}`;
+    else if (barriers.length === 0) status.textContent = `${nomGeometrieMatterLab(geometry.shapeCode)} ${nomModeGeometrieMatterLab(geometry.modeCode)}`;
+    else status.textContent = `${nomGeometrieMatterLab(geometry.shapeCode)} + ${barriers.length} barriere${barriers.length > 1 ? "s" : ""}`;
   }
 }
 
@@ -2063,7 +2193,10 @@ function renderMatterLabView() {
     });
   });
 
-  dessinerGeometrieMatterLab(ctx, configurationGeometrieMatterLab(rows, cols), state.cellSize);
+  const geometry = configurationGeometrieMatterLab(rows, cols);
+  const barriers = configurationsBarrieresMatterLab(rows, cols);
+  dessinerGeometrieMatterLab(ctx, geometry, state.cellSize);
+  barriers.forEach((barrier) => dessinerGeometrieMatterLab(ctx, barrier, state.cellSize));
   dessinerEvenementsMatterLab(ctx, state.cellSize);
   mettreAJourHudMatterLab(finalGrid, rows, cols);
 }
@@ -2579,7 +2712,12 @@ function bindMatterLabCanvas() {
     if (matterLab.activeTab === "geometry") {
       state.labShapeX = cible.x;
       state.labShapeY = cible.y;
-      matterLab.geometryPlaced = true;
+      const geometry = construireGeometrieMatterLab(state.labShapeType, state.labGeometryMode, cible.x, cible.y, cible.rows, cible.cols);
+      if (state.labGeometryMode === "barrier") {
+        matterLab.barriers.push({ ...geometry, modeCode: LAB_MODE_CODES.barrier });
+      } else {
+        matterLab.primaryGeometry = geometry;
+      }
     } else if (matterLab.activeTab === "field") {
       peindreChampMatterLab(cible.x, cible.y, cible.rows, cible.cols);
     } else if (matterLab.activeTab === "event") {
@@ -3473,6 +3611,8 @@ function bindControls() {
     input.addEventListener("input", (event) => {
       state[stateKey] = parser(event.target.value);
       display.textContent = formatter(event.target.value);
+      const { rows, cols } = obtenirDimensionsMatterLab();
+      synchroniserGeometriePrimaireMatterLab(rows, cols);
       scheduleRender();
     });
   };
@@ -3489,16 +3629,26 @@ function bindControls() {
     if (input.value === state.labShapeType) input.checked = true;
     input.addEventListener("change", () => {
       state.labShapeType = input.value;
+      synchroniserControleModeCelluleMatterLab();
+      const { rows, cols } = obtenirDimensionsMatterLab();
+      synchroniserGeometriePrimaireMatterLab(rows, cols);
       scheduleRender();
     });
   });
   document.querySelectorAll('input[name="lab-geometry-mode"]').forEach((input) => {
     if (input.value === state.labGeometryMode) input.checked = true;
     input.addEventListener("change", () => {
+      if (state.labShapeType === "cell" && input.value !== "barrier") {
+        synchroniserControleModeCelluleMatterLab();
+        return;
+      }
       state.labGeometryMode = input.value;
+      const { rows, cols } = obtenirDimensionsMatterLab();
+      synchroniserGeometriePrimaireMatterLab(rows, cols);
       scheduleRender();
     });
   });
+  synchroniserControleModeCelluleMatterLab();
   document.querySelectorAll('input[name="lab-field-mode"]').forEach((input) => {
     if (input.value === state.labFieldMode) input.checked = true;
     input.addEventListener("change", () => {
@@ -3538,6 +3688,11 @@ function bindControls() {
   document.getElementById("lab-btn-clear-events")?.addEventListener("click", () => {
     matterLab.events = [];
     if (matterLab.frozenData.length) matterLab.frozenData.fill(-1);
+    scheduleRender();
+  });
+  document.getElementById("lab-btn-clear-geometry")?.addEventListener("click", () => {
+    matterLab.primaryGeometry = null;
+    matterLab.barriers = [];
     scheduleRender();
   });
   document.getElementById("lab-btn-reset")?.addEventListener("click", () => {

@@ -358,6 +358,10 @@ déf laboratoire_forme_code_anneau():
     retour 3
 
 
+déf laboratoire_forme_code_cellule():
+    retour 4
+
+
 déf laboratoire_mode_code_aucun():
     retour 0
 
@@ -401,6 +405,9 @@ déf laboratoire_distance_carre(ax, ay, bx, by):
 
 
 déf laboratoire_forme_contient(code_forme, x, y, centre_x, centre_y, taille_a, taille_b, rayon_interieur):
+    si code_forme == laboratoire_forme_code_cellule():
+        retour 1 si x == centre_x et y == centre_y sinon 0
+
     si code_forme == laboratoire_forme_code_rectangle():
         retour 1 si abs(x - centre_x) <= taille_a et abs(y - centre_y) <= taille_b sinon 0
 

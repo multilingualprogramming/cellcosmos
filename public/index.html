@@ -451,6 +451,7 @@
 
           <div class="actions">
             <button type="button" id="lab-btn-download">Telecharger PNG</button>
+            <button type="button" id="lab-btn-clear-geometry" class="ghost-btn">Effacer geometries</button>
             <button type="button" id="lab-btn-clear-field" class="ghost-btn">Effacer champ</button>
             <button type="button" id="lab-btn-clear-events" class="ghost-btn">Effacer evenements</button>
             <button type="button" id="lab-btn-reset" class="ghost-btn">Reinitialiser le labo</button>
@@ -472,6 +473,7 @@
                   <label><input type="radio" name="lab-shape" value="circle" checked /> Cercle</label>
                   <label><input type="radio" name="lab-shape" value="rect" /> Rectangle</label>
                   <label><input type="radio" name="lab-shape" value="ring" /> Anneau</label>
+                  <label><input type="radio" name="lab-shape" value="cell" /> Cellule</label>
                 </div>
               </div>
               <div class="ctrl-section">
@@ -501,7 +503,7 @@
                   <input type="range" id="lab-shape-inner" min="0" max="100" value="12" />
                   <span id="lab-shape-inner-display" class="value-badge">12</span>
                 </div>
-                <p class="hero-note">Cliquez dans le canevas pour positionner la geometrie active.</p>
+                <p class="hero-note">Cliquez dans le canevas pour positionner la geometrie active. La forme Cellule fonctionne uniquement comme barriere, et chaque clic ajoute une nouvelle barriere.</p>
               </div>
             </div>
 

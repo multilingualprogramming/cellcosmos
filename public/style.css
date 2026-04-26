@@ -771,6 +771,13 @@ main {
   box-shadow: var(--control-active-shadow);
 }
 
+.pill-group label.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 input[type="range"] {
   flex: 1;
   accent-color: var(--accent);
@@ -815,6 +822,13 @@ select:hover,
   background: var(--control-hover-bg);
   border-color: var(--control-hover-border);
   box-shadow: var(--control-hover-shadow);
+}
+
+.pill-group label.is-disabled:hover {
+  transform: none;
+  background: var(--panel);
+  border-color: var(--border);
+  box-shadow: none;
 }
 
 button:focus-visible,
