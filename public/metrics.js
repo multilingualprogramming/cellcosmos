@@ -1,73 +1,95 @@
 /**
- * Life Signatures: Bio-inspired complexity metrics for cellular automata
+ * Life Signatures: browser-side grid scans with multilingual/WASM formulas.
  */
 
-function calculateEntropy(grid) {
-  if (!grid || grid.length === 0) return 0;
+function metricsWasm() {
+  return window.cellcosmosWasm || null;
+}
 
+function callMetricExport(name, fallback, ...args) {
+  const exports = metricsWasm();
+  if (exports && typeof exports[name] === "function") {
+    try {
+      return Number(exports[name](...args));
+    } catch (error) {
+      console.error(error);
+    }
+  }
+  return fallback(...args);
+}
+
+function countLiveCells(grid) {
   let totalCells = 0;
   let liveCells = 0;
 
-  grid.forEach(row => {
-    row.forEach(cell => {
+  grid.forEach((row) => {
+    row.forEach((cell) => {
       totalCells += 1;
       if (cell === 1) liveCells += 1;
     });
   });
 
-  if (totalCells === 0) return 0;
+  return { totalCells, liveCells };
+}
 
+function fallbackEntropy(totalCells, liveCells) {
+  if (totalCells === 0) return 0;
   const p = liveCells / totalCells;
   const q = 1 - p;
-
   if (p === 0 || p === 1) return 0;
-
   return -(p * Math.log2(p) + q * Math.log2(q));
+}
+
+function calculateEntropy(grid) {
+  if (!grid || grid.length === 0) return 0;
+  const { totalCells, liveCells } = countLiveCells(grid);
+  return callMetricExport("metrique_entropie_depuis_comptage", fallbackEntropy, totalCells, liveCells);
+}
+
+function fallbackCompactness(liveCells, perimeter) {
+  if (liveCells === 0) return 0;
+  const minPerimeter = 2 * Math.sqrt(Math.PI * liveCells);
+  return Math.min(1, minPerimeter / Math.max(1, perimeter));
+}
+
+function measureCompactness(grid) {
+  const rows = grid.length;
+  const cols = grid[0].length;
+  let liveCells = 0;
+  let perimeter = 0;
+
+  for (let y = 0; y < rows; y += 1) {
+    for (let x = 0; x < cols; x += 1) {
+      if (grid[y][x] !== 1) continue;
+      liveCells += 1;
+
+      const neighbors = [[y - 1, x], [y + 1, x], [y, x - 1], [y, x + 1]];
+      neighbors.forEach(([ny, nx]) => {
+        if (ny < 0 || ny >= rows || nx < 0 || nx >= cols || grid[ny][nx] === 0) {
+          perimeter += 1;
+        }
+      });
+    }
+  }
+
+  return { liveCells, perimeter };
 }
 
 function calculateCompactness(grid) {
   if (!grid || grid.length === 0) return 0;
-
-  const rows = grid.length;
-  const cols = grid[0].length;
-
-  let liveCells = 0;
-  let perimeter = 0;
-
-  for (let y = 0; y < rows; y++) {
-    for (let x = 0; x < cols; x++) {
-      if (grid[y][x] === 1) {
-        liveCells += 1;
-
-        const neighbors = [
-          [y - 1, x], [y + 1, x],
-          [y, x - 1], [y, x + 1]
-        ];
-
-        neighbors.forEach(([ny, nx]) => {
-          if (ny < 0 || ny >= rows || nx < 0 || nx >= cols || grid[ny][nx] === 0) {
-            perimeter += 1;
-          }
-        });
-      }
-    }
-  }
-
-  if (liveCells === 0) return 0;
-
-  const minPerimeter = 2 * Math.sqrt(Math.PI * liveCells);
-  const compactness = minPerimeter / Math.max(1, perimeter);
-
-  return Math.min(1, compactness);
+  const { liveCells, perimeter } = measureCompactness(grid);
+  return callMetricExport("metrique_compacite_depuis_mesures", fallbackCompactness, liveCells, perimeter);
 }
 
-function calculateFragmentation(grid) {
-  if (!grid || grid.length === 0) return 0;
+function fallbackFragmentation(clusters, liveCells) {
+  if (liveCells === 0) return 0;
+  return Math.min(1, (clusters / Math.sqrt(liveCells)) / 5);
+}
 
+function measureFragmentation(grid) {
   const rows = grid.length;
   const cols = grid[0].length;
   const visited = Array(rows).fill(null).map(() => Array(cols).fill(false));
-
   let clusters = 0;
   let liveCells = 0;
 
@@ -76,84 +98,83 @@ function calculateFragmentation(grid) {
       return;
     }
     visited[y][x] = true;
-
     dfs(y - 1, x);
     dfs(y + 1, x);
     dfs(y, x - 1);
     dfs(y, x + 1);
   }
 
-  for (let y = 0; y < rows; y++) {
-    for (let x = 0; x < cols; x++) {
-      if (grid[y][x] === 1) {
-        liveCells += 1;
-        if (!visited[y][x]) {
-          clusters += 1;
-          dfs(y, x);
-        }
+  for (let y = 0; y < rows; y += 1) {
+    for (let x = 0; x < cols; x += 1) {
+      if (grid[y][x] !== 1) continue;
+      liveCells += 1;
+      if (!visited[y][x]) {
+        clusters += 1;
+        dfs(y, x);
       }
     }
   }
 
-  if (liveCells === 0) return 0;
+  return { clusters, liveCells };
+}
 
-  const normalizedFragmentation = clusters / Math.sqrt(liveCells);
-  return Math.min(1, normalizedFragmentation / 5);
+function calculateFragmentation(grid) {
+  if (!grid || grid.length === 0) return 0;
+  const { clusters, liveCells } = measureFragmentation(grid);
+  return callMetricExport("metrique_fragmentation_depuis_mesures", fallbackFragmentation, clusters, liveCells);
+}
+
+function fallbackGrowthRate(previousLive, currentLive) {
+  if (previousLive === 0) return currentLive > 0 ? 1 : 0;
+  return Math.max(-1, Math.min(1, (currentLive - previousLive) / previousLive));
 }
 
 function calculateGrowthRate(previousGrid, currentGrid) {
   if (!previousGrid || !currentGrid || previousGrid.length === 0) return 0;
-
-  let previousLive = 0;
-  let currentLive = 0;
-
-  previousGrid.forEach(row => {
-    row.forEach(cell => {
-      if (cell === 1) previousLive += 1;
-    });
-  });
-
-  currentGrid.forEach(row => {
-    row.forEach(cell => {
-      if (cell === 1) currentLive += 1;
-    });
-  });
-
-  if (previousLive === 0) return currentLive > 0 ? 1 : 0;
-
-  const rate = (currentLive - previousLive) / previousLive;
-  return Math.max(-1, Math.min(1, rate));
+  const previousLive = countLiveCells(previousGrid).liveCells;
+  const currentLive = countLiveCells(currentGrid).liveCells;
+  return callMetricExport("metrique_croissance_depuis_comptages", fallbackGrowthRate, previousLive, currentLive);
 }
 
-function calculateSymmetry(grid) {
-  if (!grid || grid.length === 0) return 0;
+function fallbackSymmetry(horizontalMatches, verticalMatches, total) {
+  if (total === 0) return 0;
+  return (horizontalMatches + verticalMatches) / (2 * total);
+}
 
+function measureSymmetry(grid) {
   const rows = grid.length;
   const cols = grid[0].length;
-
   let horizontalMatches = 0;
   let verticalMatches = 0;
   let total = 0;
 
-  for (let y = 0; y < rows; y++) {
-    for (let x = 0; x < Math.ceil(cols / 2); x++) {
-      const left = grid[y][x];
-      const right = grid[y][cols - 1 - x];
-      if (left === right) horizontalMatches += 1;
+  for (let y = 0; y < rows; y += 1) {
+    for (let x = 0; x < Math.ceil(cols / 2); x += 1) {
+      if (grid[y][x] === grid[y][cols - 1 - x]) horizontalMatches += 1;
       total += 1;
     }
   }
 
-  for (let x = 0; x < cols; x++) {
-    for (let y = 0; y < Math.ceil(rows / 2); y++) {
-      const top = grid[y][x];
-      const bottom = grid[rows - 1 - y][x];
-      if (top === bottom) verticalMatches += 1;
+  for (let x = 0; x < cols; x += 1) {
+    for (let y = 0; y < Math.ceil(rows / 2); y += 1) {
+      if (grid[y][x] === grid[rows - 1 - y][x]) verticalMatches += 1;
       total += 1;
     }
   }
 
-  return (horizontalMatches + verticalMatches) / (2 * total);
+  return { horizontalMatches, verticalMatches, total };
+}
+
+function calculateSymmetry(grid) {
+  if (!grid || grid.length === 0) return 0;
+  const { horizontalMatches, verticalMatches, total } = measureSymmetry(grid);
+  return callMetricExport(
+    "metrique_symetrie_depuis_correspondances",
+    fallbackSymmetry,
+    horizontalMatches,
+    verticalMatches,
+    total,
+  );
 }
 
 const metricsHistory = {
@@ -166,19 +187,12 @@ const metricsHistory = {
   maxHistoryLength: 60,
 
   record(grid) {
-    const entropy = calculateEntropy(grid);
-    const compactness = calculateCompactness(grid);
-    const fragmentation = calculateFragmentation(grid);
-    const symmetry = calculateSymmetry(grid);
-    const growthRate = calculateGrowthRate(this.previousGrid, grid);
-
-    this.entropy.push(entropy);
-    this.compactness.push(compactness);
-    this.fragmentation.push(fragmentation);
-    this.symmetry.push(symmetry);
-    this.growthRate.push(growthRate);
-
-    this.previousGrid = grid.map(row => [...row]);
+    this.entropy.push(calculateEntropy(grid));
+    this.compactness.push(calculateCompactness(grid));
+    this.fragmentation.push(calculateFragmentation(grid));
+    this.symmetry.push(calculateSymmetry(grid));
+    this.growthRate.push(calculateGrowthRate(this.previousGrid, grid));
+    this.previousGrid = grid.map((row) => [...row]);
 
     if (this.entropy.length > this.maxHistoryLength) {
       this.entropy.shift();
@@ -190,8 +204,7 @@ const metricsHistory = {
   },
 
   getAverages() {
-    const avg = (arr) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
-
+    const avg = (arr) => (arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0);
     return {
       entropy: avg(this.entropy),
       compactness: avg(this.compactness),
@@ -208,32 +221,54 @@ const metricsHistory = {
     this.symmetry = [];
     this.growthRate = [];
     this.previousGrid = null;
-  }
+  },
 };
 
-function classifyDynamics(metrics) {
+function fallbackDynamicClass(metrics) {
   const { entropy, compactness, fragmentation, symmetry, growthRate } = metrics;
-
   const score = {
     stability: (1 - entropy) * (1 - Math.abs(growthRate)) * 0.5 + compactness * 0.5,
     chaos: entropy * (1 - compactness),
     organization: compactness * symmetry * (1 - fragmentation),
     dispersion: fragmentation * entropy,
-    growth: Math.abs(growthRate)
+    growth: Math.abs(growthRate),
   };
-
   const maxScore = Math.max(...Object.values(score));
-  const classification = Object.keys(score).find(k => score[k] === maxScore);
+  return Object.keys(score).find((key) => score[key] === maxScore) || "complex";
+}
 
+function classifyDynamics(metrics) {
   const classNames = {
+    1: "Stable",
+    2: "Chaotique",
+    3: "Organis\u00e9",
+    4: "Dispers\u00e9",
+    5: "Croissance",
+    stable: "Stable",
     stability: "Stable",
     chaos: "Chaotique",
-    organization: "Organisé",
-    dispersion: "Dispersé",
-    growth: "Croissance"
+    organization: "Organis\u00e9",
+    dispersion: "Dispers\u00e9",
+    growth: "Croissance",
   };
 
-  return classNames[classification] || "Complexe";
+  const exports = metricsWasm();
+  if (exports && typeof exports.metrique_classe_dynamique === "function") {
+    try {
+      const id = Number(exports.metrique_classe_dynamique(
+        metrics.entropy,
+        metrics.compactness,
+        metrics.fragmentation,
+        metrics.symmetry,
+        metrics.growthRate,
+      ));
+      return classNames[id] || "Complexe";
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  return classNames[fallbackDynamicClass(metrics)] || "Complexe";
 }
 
 function getMetricsColor(value, type = "neutral") {

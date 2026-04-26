@@ -197,6 +197,7 @@ Sous-ensemble compilé en WebAssembly, exposant:
 - Microscope cellulaire pour analyse détaillée
 
 **Métriques et analytique** (`public/metrics.js`):
+- Parcours des grilles dans le navigateur, avec formules canoniques déléguées au WASM quand disponible
 - Calcul d'entropie (désordre binaire)
 - Analyse de compacité (densité et cohésion)
 - Détection de fragmentation (nombre de clusters)
@@ -277,6 +278,14 @@ La validation des exports (dans `ui.js:validateWasmExports`) teste:
 - `octave_depuis_course(course_max, colonnes)` → 3–5
 - `note_depuis_colonne(col, largeur, gamme_len)` → indice gamme
 - `duree_note_depuis_densite(densite_sur_1000)` → ms
+
+**Life Signatures**:
+- `metrique_entropie_depuis_comptage(total, vivantes)` → 0.0-1.0
+- `metrique_compacite_depuis_mesures(vivantes, perimetre)` → 0.0-1.0
+- `metrique_fragmentation_depuis_mesures(groupes, vivantes)` → 0.0-1.0
+- `metrique_croissance_depuis_comptages(precedentes, courantes)` → -1.0-1.0
+- `metrique_symetrie_depuis_correspondances(horizontales, verticales, total)` → score de symetrie
+- `metrique_classe_dynamique(entropie, compacite, fragmentation, symetrie, croissance)` → 1-5
 
 ### Utilisation
 

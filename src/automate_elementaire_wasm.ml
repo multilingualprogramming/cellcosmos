@@ -476,3 +476,103 @@ déf laboratoire_cellule_evenement(etat_initial, code_evenement, intensite_sur_1
 
     retour etat_initial
 
+
+# Metriques Life Signatures : le parcours de grille reste cote navigateur,
+# mais les formules canoniques viennent du module multilingual/WASM.
+
+déf metrique_entropie_depuis_comptage(total_cellules, cellules_vivantes):
+    si total_cellules <= 0:
+        retour 0
+
+    soit p = cellules_vivantes / total_cellules
+    soit q = 1 - p
+
+    si p <= 0 ou p >= 1:
+        retour 0
+
+    retour 0 - (p * (math.log(p) / math.log(2)) + q * (math.log(q) / math.log(2)))
+
+
+déf metrique_compacite_depuis_mesures(cellules_vivantes, perimetre):
+    si cellules_vivantes <= 0:
+        retour 0
+
+    soit perimetre_minimum = 2 * math.sqrt(math.pi * cellules_vivantes)
+    soit perimetre_reel = perimetre
+    si perimetre_reel < 1:
+        perimetre_reel = 1
+
+    soit compacite = perimetre_minimum / perimetre_reel
+    si compacite > 1:
+        retour 1
+    retour compacite
+
+
+déf metrique_fragmentation_depuis_mesures(nombre_groupes, cellules_vivantes):
+    si cellules_vivantes <= 0:
+        retour 0
+
+    soit fragmentation = (nombre_groupes / math.sqrt(cellules_vivantes)) / 5
+    si fragmentation > 1:
+        retour 1
+    retour fragmentation
+
+
+déf metrique_croissance_depuis_comptages(cellules_precedentes, cellules_courantes):
+    si cellules_precedentes <= 0:
+        retour 1 si cellules_courantes > 0 sinon 0
+
+    soit taux = (cellules_courantes - cellules_precedentes) / cellules_precedentes
+    si taux < -1:
+        retour -1
+    si taux > 1:
+        retour 1
+    retour taux
+
+
+déf metrique_symetrie_depuis_correspondances(correspondances_horizontales, correspondances_verticales, total_comparaisons):
+    si total_comparaisons <= 0:
+        retour 0
+    retour (correspondances_horizontales + correspondances_verticales) / (2 * total_comparaisons)
+
+
+déf metrique_score_stabilite(entropie, compacite, taux_croissance):
+    retour (1 - entropie) * (1 - abs(taux_croissance)) * 0.5 + compacite * 0.5
+
+
+déf metrique_score_chaos(entropie, compacite):
+    retour entropie * (1 - compacite)
+
+
+déf metrique_score_organisation(compacite, symetrie, fragmentation):
+    retour compacite * symetrie * (1 - fragmentation)
+
+
+déf metrique_score_dispersion(entropie, fragmentation):
+    retour fragmentation * entropie
+
+
+déf metrique_classe_dynamique(entropie, compacite, fragmentation, symetrie, taux_croissance):
+    soit stabilite = metrique_score_stabilite(entropie, compacite, taux_croissance)
+    soit chaos = metrique_score_chaos(entropie, compacite)
+    soit organisation = metrique_score_organisation(compacite, symetrie, fragmentation)
+    soit dispersion = metrique_score_dispersion(entropie, fragmentation)
+    soit croissance = abs(taux_croissance)
+
+    soit meilleur = stabilite
+    soit categorie = 1
+
+    si chaos > meilleur:
+        meilleur = chaos
+        categorie = 2
+    si organisation > meilleur:
+        meilleur = organisation
+        categorie = 3
+    si dispersion > meilleur:
+        meilleur = dispersion
+        categorie = 4
+    si croissance > meilleur:
+        categorie = 5
+
+    retour categorie
+

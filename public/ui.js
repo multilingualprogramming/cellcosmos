@@ -417,6 +417,7 @@ async function loadWasm() {
     const importObject = buildWasmImportObject(module);
     const instance = await WebAssembly.instantiate(module, importObject);
     wasm = instance.exports;
+    window.cellcosmosWasm = instance.exports;
     wasmAvailable = true;
     if (validateWasmExports(instance.exports)) {
       status.textContent = "Moteur WASM charg\u00e9 depuis les sources Multilingual.";
@@ -426,6 +427,7 @@ async function loadWasm() {
     }
   } catch (error) {
     wasm = null;
+    window.cellcosmosWasm = null;
     wasmAvailable = false;
     status.textContent = "WASM incompatible ici, repli sur le moteur JavaScript.";
     console.error(error);
@@ -578,6 +580,20 @@ function validateWasmExports(exports) {
 
     if (typeof exports.miroir_horizontal_colonne === "function") {
       if (Number(exports.miroir_horizontal_colonne(3, 10)) !== 6) {
+        return false;
+      }
+    }
+
+    if (typeof exports.metrique_entropie_depuis_comptage === "function") {
+      const entropy = Number(exports.metrique_entropie_depuis_comptage(4, 2));
+      if (entropy < 0.99 || entropy > 1.01) {
+        return false;
+      }
+    }
+
+    if (typeof exports.metrique_classe_dynamique === "function") {
+      const dynamicClass = Number(exports.metrique_classe_dynamique(0.1, 0.8, 0.1, 0.8, 0.0));
+      if (dynamicClass < 1 || dynamicClass > 5) {
         return false;
       }
     }
@@ -816,6 +832,7 @@ function callWasmString(fn, ...args) {
 
 function disableWasmRuntime(error) {
   wasm = null;
+  window.cellcosmosWasm = null;
   wasmAvailable = false;
   const status = document.getElementById("wasm-status");
   if (status) {

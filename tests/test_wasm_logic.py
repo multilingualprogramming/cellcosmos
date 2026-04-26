@@ -8,6 +8,7 @@ def _load_namespace():
     translated = (
         source.replace("déf", "def")
         .replace("dÃ©f", "def")
+        .replace("déf", "def")
         .replace("Vrai", "True")
         .replace("Faux", "False")
         .replace("sinonsi", "elif")
@@ -131,3 +132,26 @@ def test_cellule_morphosee_uses_morphed_rule():
 
     assert cellule_morphosee(0, 255, 0, 1, 0, 1) == 0
     assert cellule_morphosee(0, 255, 1000, 1, 0, 1) == 1
+
+
+def test_life_signature_metric_formulas_are_exported_from_multilingual():
+    ns = _load_namespace()
+
+    assert ns["metrique_entropie_depuis_comptage"](4, 2) == 1
+    assert ns["metrique_entropie_depuis_comptage"](4, 0) == 0
+    assert round(ns["metrique_compacite_depuis_mesures"](4, 8), 3) == 0.886
+    assert ns["metrique_fragmentation_depuis_mesures"](2, 4) == 0.2
+    assert ns["metrique_croissance_depuis_comptages"](10, 15) == 0.5
+    assert ns["metrique_croissance_depuis_comptages"](0, 2) == 1
+    assert ns["metrique_symetrie_depuis_correspondances"](4, 4, 8) == 0.5
+
+
+def test_life_signature_dynamic_classification_returns_stable_ids():
+    ns = _load_namespace()
+    classify = ns["metrique_classe_dynamique"]
+
+    assert classify(0.1, 0.8, 0.1, 0.8, 0.0) == 1
+    assert classify(0.9, 0.1, 0.2, 0.2, 0.0) == 2
+    assert classify(0.9, 0.9, 0.0, 1.0, 0.0) == 3
+    assert classify(0.8, 0.8, 0.9, 0.1, 0.0) == 4
+    assert classify(0.2, 0.2, 0.1, 0.2, 1.0) == 5
