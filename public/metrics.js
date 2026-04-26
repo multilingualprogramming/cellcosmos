@@ -10,7 +10,9 @@ function callMetricExport(name, fallback, ...args) {
   const exports = metricsWasm();
   if (exports && typeof exports[name] === "function") {
     try {
-      return Number(exports[name](...args));
+      const value = Number(exports[name](...args));
+      if (Number.isFinite(value)) return value;
+      console.warn(`Export WASM ${name} a retourne une valeur invalide; repli JavaScript.`, value);
     } catch (error) {
       console.error(error);
     }
@@ -204,7 +206,10 @@ const metricsHistory = {
   },
 
   getAverages() {
-    const avg = (arr) => (arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0);
+    const avg = (arr) => {
+      const values = arr.filter(Number.isFinite);
+      return values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+    };
     return {
       entropy: avg(this.entropy),
       compactness: avg(this.compactness),

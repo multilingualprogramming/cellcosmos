@@ -124,6 +124,13 @@ jobs:
                 process.exit(1);
               }
             }
+            if (typeof exports.metrique_entropie_depuis_comptage === 'function') {
+              const entropy = Number(exports.metrique_entropie_depuis_comptage(4, 2));
+              if (!Number.isFinite(entropy) || entropy < 0.99 || entropy > 1.01) {
+                console.error('Metrique entropie WASM invalide:', JSON.stringify({ expected: 1, actual: entropy }));
+                process.exit(1);
+              }
+            }
             console.log('WASM smoke test OK');
           }).catch((err) => {
             console.error(err && err.stack ? err.stack : String(err));

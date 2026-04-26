@@ -437,8 +437,11 @@ async function loadWasm() {
     if (validateWasmExports(instance.exports)) {
       status.textContent = "Moteur WASM charg\u00e9 depuis les sources Multilingual.";
     } else {
-      status.textContent = "Moteur WASM charge partiellement, avec repli JavaScript selon les fonctions disponibles.";
-      console.warn("Exports WASM partiellement compatibles avec l'interface Cellcosmos.");
+      wasm = null;
+      window.cellcosmosWasm = null;
+      wasmAvailable = false;
+      status.textContent = "Moteur WASM invalide, repli sur le moteur JavaScript.";
+      console.warn("Exports WASM incompatibles avec l'interface Cellcosmos; repli JavaScript actif.");
     }
   } catch (error) {
     wasm = null;
@@ -541,14 +544,14 @@ function validateWasmExports(exports) {
 
     if (typeof exports.frequence_fondamentale === "function") {
       const freq = Number(exports.frequence_fondamentale(90));
-      if (freq < 100 || freq > 2000) {
+      if (!Number.isFinite(freq) || freq < 100 || freq > 2000) {
         return false;
       }
     }
 
     if (typeof exports.forme_onde_synthese === "function") {
       const waveform = Number(exports.forme_onde_synthese(30));
-      if (waveform < 1 || waveform > 4) {
+      if (!Number.isFinite(waveform) || waveform < 1 || waveform > 4) {
         return false;
       }
     }
@@ -561,28 +564,28 @@ function validateWasmExports(exports) {
 
     if (typeof exports.tempo_depuis_vitesse === "function") {
       const tempo = Number(exports.tempo_depuis_vitesse(500));
-      if (tempo < 60 || tempo > 180) {
+      if (!Number.isFinite(tempo) || tempo < 60 || tempo > 180) {
         return false;
       }
     }
 
     if (typeof exports.gamme_depuis_classe === "function") {
       const gamme = Number(exports.gamme_depuis_classe(2));
-      if (gamme < 0 || gamme > 3) {
+      if (!Number.isFinite(gamme) || gamme < 0 || gamme > 3) {
         return false;
       }
     }
 
     if (typeof exports.octave_depuis_course === "function") {
       const octave = Number(exports.octave_depuis_course(10, 100));
-      if (octave < 3 || octave > 5) {
+      if (!Number.isFinite(octave) || octave < 3 || octave > 5) {
         return false;
       }
     }
 
     if (typeof exports.probabilite_ligne === "function") {
       const probabilite = Number(exports.probabilite_ligne(1000, 1, 1000, 500, 10, 100));
-      if (probabilite < 0 || probabilite > 1000) {
+      if (!Number.isFinite(probabilite) || probabilite < 0 || probabilite > 1000) {
         return false;
       }
     }
@@ -601,14 +604,14 @@ function validateWasmExports(exports) {
 
     if (typeof exports.metrique_entropie_depuis_comptage === "function") {
       const entropy = Number(exports.metrique_entropie_depuis_comptage(4, 2));
-      if (entropy < 0.99 || entropy > 1.01) {
+      if (!Number.isFinite(entropy) || entropy < 0.99 || entropy > 1.01) {
         return false;
       }
     }
 
     if (typeof exports.metrique_classe_dynamique === "function") {
       const dynamicClass = Number(exports.metrique_classe_dynamique(0.1, 0.8, 0.1, 0.8, 0.0));
-      if (dynamicClass < 1 || dynamicClass > 5) {
+      if (!Number.isFinite(dynamicClass) || dynamicClass < 1 || dynamicClass > 5) {
         return false;
       }
     }

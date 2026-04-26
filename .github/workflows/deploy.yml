@@ -120,6 +120,12 @@ jobs:
                 fallback('Classification WASM invalide.', JSON.stringify({ rule, expected, actual }));
               }
             }
+            if (typeof exports.metrique_entropie_depuis_comptage === 'function') {
+              const entropy = Number(exports.metrique_entropie_depuis_comptage(4, 2));
+              if (!Number.isFinite(entropy) || entropy < 0.99 || entropy > 1.01) {
+                fallback('Metrique entropie WASM invalide.', JSON.stringify({ expected: 1, actual: entropy }));
+              }
+            }
             console.log('WASM smoke test OK');
           }).catch((err) => {
             fallback('Instantiation WASM impossible.', err && err.stack ? err.stack : String(err));
