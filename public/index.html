@@ -433,9 +433,26 @@
             <span class="rule-label">Matter Lab</span>
             <span id="lab-rule-display" class="rule-number">90</span>
             <input type="range" id="lab-rule-slider" min="0" max="255" value="90" aria-label="Regle Matter Lab" />
+            <input type="number" id="lab-rule-number" min="0" max="255" value="90" aria-label="Numero de regle Matter Lab" />
+            <button type="button" class="ghost-btn" id="lab-btn-prev">&lsaquo;</button>
+            <button type="button" class="ghost-btn" id="lab-btn-next">&rsaquo;</button>
             <button type="button" class="ghost-btn" id="lab-btn-random">Aleatoire</button>
+            <select id="lab-presets" aria-label="Presets Matter Lab">
+              <option value="">Presets...</option>
+              <option value="30">Regle 30 - Chaos</option>
+              <option value="57">Regle 57 - Asymetrie</option>
+              <option value="90">Regle 90 - Sierpinski</option>
+              <option value="110">Regle 110 - Universalite</option>
+              <option value="150">Regle 150 - XOR</option>
+              <option value="184">Regle 184 - Trafic</option>
+              <option value="225">Regle 225 - Bandes</option>
+              <option value="254">Regle 254 - Bordures</option>
+            </select>
+            <span id="lab-rule-class" class="rule-class"></span>
             <span id="lab-geometry-status" class="rule-class">Aucune geometrie</span>
           </div>
+
+          <div id="lab-rule-diagram" class="rule-diagram"></div>
 
           <div class="canvas-card">
             <div class="canvas-frame">

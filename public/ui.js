@@ -1517,6 +1517,8 @@ function updateRuleInfo() {
   const noteLabel = ruleNoteLabel(state.rule);
   const note = noteLabel ? ` - ${noteLabel}` : "";
   document.getElementById("rule-class").textContent = `Classe ${cls}${note}`;
+  const labRuleClass = document.getElementById("lab-rule-class");
+  if (labRuleClass) labRuleClass.textContent = `Classe ${cls}${note}`;
 }
 
 function syncRuleControls() {
@@ -1525,8 +1527,10 @@ function syncRuleControls() {
   document.getElementById("rule-display").textContent = String(state.rule);
   const labSlider = document.getElementById("lab-rule-slider");
   const labDisplay = document.getElementById("lab-rule-display");
+  const labNumber = document.getElementById("lab-rule-number");
   if (labSlider) labSlider.value = String(state.rule);
   if (labDisplay) labDisplay.textContent = String(state.rule);
+  if (labNumber) labNumber.value = String(state.rule);
   updateRuleInfo();
 }
 
@@ -1605,28 +1609,29 @@ function updateAnalyticsPanel(grid) {
 }
 
 function renderRuleDiagram() {
-  const container = document.getElementById("rule-diagram");
-  container.innerHTML = "";
-  for (let i = 7; i >= 0; i -= 1) {
-    const pattern = `${(i >> 2) & 1}${(i >> 1) & 1}${i & 1}`;
-    const output = patternOutput(state.rule, i);
-    const block = document.createElement("div");
-    block.className = "pattern-block";
-    block.innerHTML = `<div class="pattern-label">${pattern}</div><div class="neighborhood"></div><div class="diagram-cell output-cell ${output === 1 ? "alive" : "dead"}"></div>`;
-    const neighborhood = block.querySelector(".neighborhood");
-    [...pattern].forEach((bit) => {
-      const cell = document.createElement("div");
-      cell.className = `diagram-cell ${bit === "1" ? "alive" : "dead"}`;
-      neighborhood.appendChild(cell);
-    });
-    block.querySelector(".output-cell").addEventListener("click", () => {
-      state.rule = clamp(state.rule ^ (1 << i), 0, 255);
-      syncRuleControls();
-      renderRuleDiagram();
-      scheduleRender();
-    });
-    container.appendChild(block);
-  }
+  document.querySelectorAll(".rule-diagram").forEach((container) => {
+    container.innerHTML = "";
+    for (let i = 7; i >= 0; i -= 1) {
+      const pattern = `${(i >> 2) & 1}${(i >> 1) & 1}${i & 1}`;
+      const output = patternOutput(state.rule, i);
+      const block = document.createElement("div");
+      block.className = "pattern-block";
+      block.innerHTML = `<div class="pattern-label">${pattern}</div><div class="neighborhood"></div><div class="diagram-cell output-cell ${output === 1 ? "alive" : "dead"}"></div>`;
+      const neighborhood = block.querySelector(".neighborhood");
+      [...pattern].forEach((bit) => {
+        const cell = document.createElement("div");
+        cell.className = `diagram-cell ${bit === "1" ? "alive" : "dead"}`;
+        neighborhood.appendChild(cell);
+      });
+      block.querySelector(".output-cell").addEventListener("click", () => {
+        state.rule = clamp(state.rule ^ (1 << i), 0, 255);
+        syncRuleControls();
+        renderRuleDiagram();
+        scheduleRender();
+      });
+      container.appendChild(block);
+    }
+  });
 }
 
 function buildShareURL() {
@@ -3601,6 +3606,24 @@ function bindControls() {
       scheduleRender();
     });
   }
+  document.getElementById("lab-rule-number")?.addEventListener("change", (event) => {
+    state.rule = clamp(Number.parseInt(event.target.value, 10) || 0, 0, 255);
+    syncRuleControls();
+    renderRuleDiagram();
+    scheduleRender();
+  });
+  document.getElementById("lab-btn-prev")?.addEventListener("click", () => {
+    state.rule = (state.rule - 1 + 256) % 256;
+    syncRuleControls();
+    renderRuleDiagram();
+    scheduleRender();
+  });
+  document.getElementById("lab-btn-next")?.addEventListener("click", () => {
+    state.rule = (state.rule + 1) % 256;
+    syncRuleControls();
+    renderRuleDiagram();
+    scheduleRender();
+  });
 
   const bindLabRange = (inputId, displayId, stateKey, parser = Number.parseInt, formatter = (value) => value) => {
     const input = document.getElementById(inputId);
@@ -3677,6 +3700,14 @@ function bindControls() {
 
   document.getElementById("lab-btn-random")?.addEventListener("click", () => {
     state.rule = Math.floor(Math.random() * 256);
+    syncRuleControls();
+    renderRuleDiagram();
+    scheduleRender();
+  });
+  document.getElementById("lab-presets")?.addEventListener("change", (event) => {
+    if (!event.target.value) return;
+    state.rule = Number.parseInt(event.target.value, 10);
+    event.target.value = "";
     syncRuleControls();
     renderRuleDiagram();
     scheduleRender();

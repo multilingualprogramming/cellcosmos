@@ -485,13 +485,15 @@ main {
   text-shadow: 0 0 22px var(--warm-glow);
 }
 
-#rule-slider {
+#rule-slider,
+#lab-rule-slider {
   flex: 1;
   min-width: 140px;
   accent-color: var(--accent);
 }
 
-#rule-number {
+#rule-number,
+#lab-rule-number {
   width: 74px;
   padding: 10px 12px;
 }
