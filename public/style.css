@@ -1131,7 +1131,7 @@ input[type="text"] {
   top: 0;
   z-index: 10;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
   padding: 12px 8px;
   background: linear-gradient(180deg,
@@ -1145,11 +1145,13 @@ input[type="text"] {
 
 .sidebar-tab-btn {
   position: relative;
-  padding: 11px 14px;
-  font-size: 0.75rem;
+  min-width: 0;
+  padding: 11px 8px;
+  font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
   color: var(--muted);
   background: rgba(19, 39, 57, 0.4);
   border: 1px solid rgba(129, 170, 199, 0.12);
@@ -1282,7 +1284,7 @@ input[type="text"] {
   }
 
   .sidebar-tab-btn {
-    padding: 9px 12px;
+    padding: 9px 8px;
     font-size: 0.7rem;
   }
 

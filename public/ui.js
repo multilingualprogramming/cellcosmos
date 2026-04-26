@@ -40,6 +40,8 @@ const DEFAULTS = {
   labShowEvents: true,
 };
 
+const DEFAULT_MATTER_LAB_RULE = 30;
+
 const fallbackDomain = {
   transition(ruleNumber, left, center, right) {
     const index = left * 4 + center * 2 + right;
@@ -163,6 +165,7 @@ const matterLab = {
   lastRender: null,
   activeTab: "geometry",
   painting: false,
+  defaultRuleApplied: false,
 };
 
 function createDotsPattern(size, color, ctx) {
@@ -1231,6 +1234,7 @@ function reinitialiserMatterLab() {
   matterLab.events = [];
   matterLab.geometryPlaced = false;
   matterLab.lastRender = null;
+  matterLab.defaultRuleApplied = false;
 }
 
 function obtenirChampMatterLab(x, y, cols) {
@@ -2014,6 +2018,14 @@ function switchTab(tab) {
   const matterLabTab = tab === "lab";
   const gallery = tab === "gallery";
   const source = tab === "source";
+  const urlHasRule = new URLSearchParams(location.search).has("rule");
+  const shouldUseLabDefaultRule = matterLabTab && !matterLab.defaultRuleApplied && state.rule === DEFAULTS.rule && !urlHasRule;
+  if (shouldUseLabDefaultRule) {
+    state.rule = DEFAULT_MATTER_LAB_RULE;
+    matterLab.defaultRuleApplied = true;
+    syncRuleControls();
+    renderRuleDiagram();
+  }
   document.getElementById("explorer-panel").hidden = !explorer;
   document.getElementById("matterlab-panel").hidden = !matterLabTab;
   document.getElementById("gallery-panel").hidden = !gallery;
