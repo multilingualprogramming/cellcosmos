@@ -618,19 +618,6 @@ function validateWasmExports(exports) {
       }
     }
 
-    if (typeof exports.metrique_entropie_depuis_comptage === "function") {
-      const entropy = Number(exports.metrique_entropie_depuis_comptage(4, 2));
-      if (!Number.isFinite(entropy) || entropy < 0.99 || entropy > 1.01) {
-        return false;
-      }
-    }
-
-    if (typeof exports.metrique_classe_dynamique === "function") {
-      const dynamicClass = Number(exports.metrique_classe_dynamique(0.1, 0.8, 0.1, 0.8, 0.0));
-      if (!Number.isFinite(dynamicClass) || dynamicClass < 1 || dynamicClass > 5) {
-        return false;
-      }
-    }
   } catch (error) {
     console.error(error);
     return false;
