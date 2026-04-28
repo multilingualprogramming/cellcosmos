@@ -40,11 +40,13 @@ Le projet démontre qu'un programme scientifique et visuel complexe peut être:
 - **Semis initiaux**: Haut, centre, bas, aléatoire, points personnalisés
   - Édition interactive des points sur le canevas (clic, glisser, clic-droit pour supprimer)
   - Opérations de symétrie (miroir horizontal, vertical, radial, tuile 2×2)
-  - Support de couches multiples avec règles et dégradés associés par point
+  - Support de couches multiples avec règles, dégradés et paramètres avancés associés par point
+  - Configuration par point: probabilité, champ stochastique, frontière circulaire, direction de lecture, morphose et propagation
   - Configuration aléatoire avec contrôle du nombre et de la graine
 - **Probabilité**: Transitions avec chance configurable (0.0–1.0)
 - **Probabilité modulée**: Variation de la probabilité du haut vers le bas selon la ligne
-- **Direction**: Évolution LTR (gauche→droite) ou RTL (droite→gauche)
+- **Direction de lecture**: Interprétation du voisinage Wolfram en LTR (gauche→droite) ou RTL (droite→gauche)
+- **Propagation**: Croissance depuis chaque origine vers le haut, le bas, les deux directions, la gauche, la droite ou un angle précis
 - **Frontière**: Bord circulaire ou tronqué
 - **Visibilité progressive**: Expansion contrôlée du domaine vivant depuis un point d'origine
 - **Timeline temporelle**: Sélection de la génération à afficher (0–100% de l'évolution)
@@ -181,6 +183,7 @@ Sous-ensemble compilé en WebAssembly, exposant:
 - **Primitives de transition**: `cellule_suivante`, `classe_wolfram`, `sortie_motif`
 - **Données**: `note_regle`, `etiquette_note_regle`
 - **Codes énumérés**: Formes, textures, modes de fusion
+- **Propagation et options de point**: codes de propagation, normalisation d'angle et repli de probabilité par point
 - **Audio (drone)**: Paramètres dérivés du numéro de règle seul
 - **Musique générative**: Mappages de statistiques de grille vers paramètres musicaux
 
@@ -194,6 +197,7 @@ Sous-ensemble compilé en WebAssembly, exposant:
 - Sérialisation d'état via URL (query parameters)
 - Gestion de thème via CSS custom properties et localStorage
 - Modes d'interaction: inspection, édition de points, perturbation
+- Édition fine des points: règle, palette, probabilité, stochasticité, morphose et propagation par origine
 - Microscope cellulaire pour analyse détaillée
 
 **Métriques et analytique** (`public/metrics.js`):
@@ -261,6 +265,9 @@ La validation des exports (dans `ui.js:validateWasmExports`) teste:
 - `forme_code_*()` → 0–3 (rect, circle, ellipse, triangle)
 - `texture_code_*()` → 0–4 (solide, points, hachures, dégradé, bruit)
 - `fusion_code_*()` → 0–7 (8 modes de fusion)
+- `propagation_code(mode)` → 0–5 (both, down, up, right, left, angle)
+- `propagation_angle_normalise(angle)` → angle normalisé dans 0–359
+- `option_probabilite_point(globale, point)` → probabilité effective avec repli global
 
 **Audio (drone)**:
 - `frequence_fondamentale(rule)` → Hz
@@ -291,9 +298,11 @@ La validation des exports (dans `ui.js:validateWasmExports`) teste:
 
 1. Ouvrir `public/index.html` via un serveur HTTP local (`python -m http.server`, `npx serve`, etc.)
 2. Ajuster la règle, les paramètres de rendu, et l'état initial
-3. Cliquer sur « ▶ Son » pour activer le drone ambiant
-4. Cliquer sur « ▶ Séquenceur » pour activer la musique générative
-5. Partager un lien encodant tous les paramètres via « Copier le lien »
+3. Dans l'onglet Points, activer les points personnalisés pour régler chaque origine indépendamment
+4. Dans l'onglet Avancé, choisir la direction de lecture et la propagation globale
+5. Cliquer sur « ▶ Son » pour activer le drone ambiant
+6. Cliquer sur « ▶ Séquenceur » pour activer la musique générative
+7. Partager un lien encodant tous les paramètres via « Copier le lien »
 
 ### Ressources
 
