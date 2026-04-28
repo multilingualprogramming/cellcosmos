@@ -332,6 +332,37 @@ déf get_next_generation(current, rule_dict, circular=Faux, probability=1.0, dir
     retour next_gen si direction == "ltr" sinon next_gen[::-1]
 
 
+déf propagation_code(mode):
+    si mode == "both":
+        retour 0
+    si mode == "down":
+        retour 1
+    si mode == "up":
+        retour 2
+    si mode == "right":
+        retour 3
+    si mode == "left":
+        retour 4
+    si mode == "angle":
+        retour 5
+    retour 0
+
+
+déf propagation_angle_normalise(angle_degres):
+    soit angle = angle_degres % 360
+    si angle < 0:
+        angle = angle + 360
+    retour angle
+
+
+déf option_probabilite_point(probabilite_globale_sur_1000, probabilite_point_sur_1000):
+    si probabilite_point_sur_1000 < 0:
+        retour probabilite_globale_sur_1000
+    si probabilite_point_sur_1000 > 1000:
+        retour 1000
+    retour probabilite_point_sur_1000
+
+
 déf interpolate_color(c1, c2, t):
     retour tuple(int(c1[i] + (c2[i] - c1[i]) * t) pour i dans range(3))
 

@@ -56,6 +56,7 @@ const DEFAULTS = {
   gradientColors: [[255, 157, 77], [255, 209, 102], [83, 176, 255]],
   palettesPoints: {},
   reglesPoints: {},
+  optionsPoints: {},
   shape: "rect",
   initialMode: "top",
   pointsInitiaux: "",
@@ -67,6 +68,8 @@ const DEFAULTS = {
   probabiliteHaut: 1,
   probabiliteBas: 1,
   direction: "ltr",
+  propagationMode: "both",
+  propagationAngle: 90,
   blendMode: "source-over",
   layerOpacity: 1.0,
   texture: "solid",
@@ -940,11 +943,15 @@ function obtenirGraineLigne(baseSeed, ligneSource, ligneCible) {
 }
 
 function obtenirProbabiliteLigne(ligne, totalLignes) {
+  return obtenirProbabiliteLigneAvecOptions(ligne, totalLignes, state);
+}
+
+function obtenirProbabiliteLigneAvecOptions(ligne, totalLignes, options) {
   const probabiliteSur1000 = probabiliteLigne(
-    Math.round(state.probability * 1000),
-    state.champProbabiliteActif ? 1 : 0,
-    Math.round(state.probabiliteHaut * 1000),
-    Math.round(state.probabiliteBas * 1000),
+    Math.round((options.probability ?? state.probability) * 1000),
+    options.champProbabiliteActif ? 1 : 0,
+    Math.round((options.probabiliteHaut ?? state.probabiliteHaut) * 1000),
+    Math.round((options.probabiliteBas ?? state.probabiliteBas) * 1000),
     ligne,
     totalLignes,
   );
@@ -952,7 +959,7 @@ function obtenirProbabiliteLigne(ligne, totalLignes) {
 }
 
 function obtenirProgressionMorphosee(rowIndex, originRow, totalRows, intensite = state.morphIntensity) {
-  if (!state.morphingActive || intensite <= 0) return 0;
+  if (intensite <= 0) return 0;
   return progressionMorphosee(
     Math.abs(rowIndex - originRow),
     Math.max(1, totalRows - 1),
@@ -960,10 +967,11 @@ function obtenirProgressionMorphosee(rowIndex, originRow, totalRows, intensite =
   );
 }
 
-function obtenirRegleEffective(ruleNumber, rowIndex, originRow, totalRows, intensite = state.morphIntensity) {
-  const progression = obtenirProgressionMorphosee(rowIndex, originRow, totalRows, intensite);
+function obtenirRegleEffective(ruleNumber, rowIndex, originRow, totalRows, options = state) {
+  if (!options.morphingActive) return ruleNumber;
+  const progression = obtenirProgressionMorphosee(rowIndex, originRow, totalRows, options.morphIntensity ?? state.morphIntensity);
   if (progression <= 0) return ruleNumber;
-  return ruleMorphee(ruleNumber, state.morphTargetRule, progression);
+  return ruleMorphee(ruleNumber, options.morphTargetRule ?? state.morphTargetRule, progression);
 }
 
 function extraireVoisinage(row, index) {
@@ -974,17 +982,122 @@ function extraireVoisinage(row, index) {
   return { left, center, right };
 }
 
-function evoluerDepuisPosition(ruleNumber, rows, cols, position, baseSeed) {
+function optionsGlobalesEvolution() {
+  return {
+    circular: state.circular,
+    probability: state.probability,
+    champProbabiliteActif: state.champProbabiliteActif,
+    probabiliteHaut: state.probabiliteHaut,
+    probabiliteBas: state.probabiliteBas,
+    direction: state.direction,
+    propagationMode: state.propagationMode,
+    propagationAngle: state.propagationAngle,
+    morphingActive: state.morphingActive,
+    morphTargetRule: state.morphTargetRule,
+    morphIntensity: state.morphIntensity,
+  };
+}
+
+function normaliserOptionsEvolution(options = {}) {
+  const globales = optionsGlobalesEvolution();
+  return {
+    ...globales,
+    ...options,
+    circular: Boolean(options.circular ?? globales.circular),
+    probability: clamp(Number.parseFloat(options.probability ?? globales.probability) || 0, 0, 1),
+    champProbabiliteActif: Boolean(options.champProbabiliteActif ?? globales.champProbabiliteActif),
+    probabiliteHaut: clamp(Number.parseFloat(options.probabiliteHaut ?? globales.probabiliteHaut) || 0, 0, 1),
+    probabiliteBas: clamp(Number.parseFloat(options.probabiliteBas ?? globales.probabiliteBas) || 0, 0, 1),
+    direction: options.direction === "rtl" ? "rtl" : "ltr",
+    propagationMode: ["both", "down", "up", "right", "left", "angle"].includes(options.propagationMode) ? options.propagationMode : globales.propagationMode,
+    propagationAngle: clamp(Number.parseFloat(options.propagationAngle ?? globales.propagationAngle) || 0, 0, 359),
+    morphingActive: Boolean(options.morphingActive ?? globales.morphingActive),
+    morphTargetRule: clamp(Number.parseInt(options.morphTargetRule ?? globales.morphTargetRule, 10) || 0, 0, 255),
+    morphIntensity: clamp(Number.parseFloat(options.morphIntensity ?? globales.morphIntensity) || 0, 0, 1),
+  };
+}
+
+function getNextGenerationAvecOptions(current, ruleNumber, rowSeed, rowIndex, totalRows, originRow, options) {
+  const nextGen = [];
+  const random = mulberry32(rowSeed);
+  const size = current.length;
+  const direction = options.direction === "rtl" ? "rtl" : "ltr";
+  const indices = direction === "ltr" ? [...Array(size).keys()] : [...Array(size).keys()].reverse();
+  const probabiliteCourante = obtenirProbabiliteLigneAvecOptions(rowIndex, totalRows, options);
+  const regleEffective = obtenirRegleEffective(ruleNumber, rowIndex, originRow, totalRows, options);
+
+  for (const i of indices) {
+    if (random() > probabiliteCourante) {
+      nextGen.push(0);
+      continue;
+    }
+    let left;
+    let center;
+    let right;
+    if (direction === "ltr") {
+      left = i > 0 ? current[i - 1] : options.circular ? current[size - 1] : 0;
+      center = current[i];
+      right = i < size - 1 ? current[i + 1] : options.circular ? current[0] : 0;
+    } else {
+      right = i > 0 ? current[i - 1] : options.circular ? current[size - 1] : 0;
+      center = current[i];
+      left = i < size - 1 ? current[i + 1] : options.circular ? current[0] : 0;
+    }
+    nextGen.push(transition(regleEffective, left, center, right));
+  }
+  return direction === "ltr" ? nextGen : nextGen.reverse();
+}
+
+function projeterEvolutionAngle(ruleNumber, rows, cols, x, y, baseSeed, options) {
+  const grid = Array.from({ length: rows }, () => Array(cols).fill(0));
+  const largeurLocale = Math.max(cols, rows) * 2 + 1;
+  const centreLocal = Math.floor(largeurLocale / 2);
+  let courant = Array(largeurLocale).fill(0);
+  courant[centreLocal] = 1;
+  const radians = (options.propagationAngle * Math.PI) / 180;
+  const axeX = Math.cos(radians);
+  const axeY = Math.sin(radians);
+  const perpendiculaireX = -axeY;
+  const perpendiculaireY = axeX;
+  const pasMax = Math.ceil(Math.sqrt(cols * cols + rows * rows)) + largeurLocale;
+
+  for (let pas = 0; pas <= pasMax; pas += 1) {
+    courant.forEach((value, index) => {
+      if (value !== 1) return;
+      const lateral = index - centreLocal;
+      const cibleX = Math.round(x + axeX * pas + perpendiculaireX * lateral);
+      const cibleY = Math.round(y + axeY * pas + perpendiculaireY * lateral);
+      if (cibleX >= 0 && cibleX < cols && cibleY >= 0 && cibleY < rows) {
+        grid[cibleY][cibleX] = 1;
+      }
+    });
+    courant = getNextGenerationAvecOptions(courant, ruleNumber, obtenirGraineLigne(baseSeed, pas, pas + 1), pas + 1, pasMax + 1, 0, options);
+  }
+
+  return grid;
+}
+
+function evoluerDepuisPosition(ruleNumber, rows, cols, position, baseSeed, options = optionsGlobalesEvolution()) {
+  const optionsEvolution = normaliserOptionsEvolution(options);
   const grid = Array.from({ length: rows }, () => Array(cols).fill(0));
   const x = clamp(position.x ?? Math.floor(cols / 2), 0, cols - 1);
   const origine = clamp(position.y ?? obtenirOrigineYParDefaut(rows), 0, rows - 1);
   grid[origine][x] = 1;
 
-  for (let row = origine + 1; row < rows; row += 1) {
-    grid[row] = getNextGeneration(grid[row - 1], ruleNumber, obtenirGraineLigne(baseSeed, row - 1, row), row, rows, origine);
+  if (optionsEvolution.propagationMode === "right" || optionsEvolution.propagationMode === "left" || optionsEvolution.propagationMode === "angle") {
+    const angle = optionsEvolution.propagationMode === "right" ? 0 : optionsEvolution.propagationMode === "left" ? 180 : optionsEvolution.propagationAngle;
+    return projeterEvolutionAngle(ruleNumber, rows, cols, x, origine, baseSeed, { ...optionsEvolution, propagationAngle: angle });
   }
-  for (let row = origine - 1; row >= 0; row -= 1) {
-    grid[row] = getNextGeneration(grid[row + 1], ruleNumber, obtenirGraineLigne(baseSeed, row + 1, row), row, rows, origine);
+
+  if (optionsEvolution.propagationMode === "both" || optionsEvolution.propagationMode === "down") {
+    for (let row = origine + 1; row < rows; row += 1) {
+      grid[row] = getNextGenerationAvecOptions(grid[row - 1], ruleNumber, obtenirGraineLigne(baseSeed, row - 1, row), row, rows, origine, optionsEvolution);
+    }
+  }
+  if (optionsEvolution.propagationMode === "both" || optionsEvolution.propagationMode === "up") {
+    for (let row = origine - 1; row >= 0; row -= 1) {
+      grid[row] = getNextGenerationAvecOptions(grid[row + 1], ruleNumber, obtenirGraineLigne(baseSeed, row + 1, row), row, rows, origine, optionsEvolution);
+    }
   }
 
   return grid;
@@ -1010,13 +1123,16 @@ function synchroniserPalettesPoints() {
   const points = obtenirPointsActifsPersonnalises();
   const palettes = {};
   const regles = {};
+  const options = {};
   points.forEach((point) => {
     const cle = obtenirClePoint(point);
     palettes[cle] = state.palettesPoints[cle] ? clonerCouleurs(state.palettesPoints[cle]) : clonerCouleurs(state.gradientColors);
     regles[cle] = clamp(Number.parseInt(state.reglesPoints[cle] ?? state.rule, 10) || state.rule, 0, 255);
+    options[cle] = normaliserOptionsEvolution(state.optionsPoints[cle] || {});
   });
   state.palettesPoints = palettes;
   state.reglesPoints = regles;
+  state.optionsPoints = options;
   if (pointActif && !palettes[pointActif]) pointActif = "";
 }
 
@@ -1029,10 +1145,15 @@ function obtenirReglePoint(point) {
   return clamp(Number.parseInt(state.reglesPoints[obtenirClePoint(point)] ?? state.rule, 10) || state.rule, 0, 255);
 }
 
-function appliquerPointsPersonnalises(points, paletteMap = state.palettesPoints, ruleMap = state.reglesPoints, pointSelection = pointActif) {
+function obtenirOptionsPoint(point) {
+  return normaliserOptionsEvolution(state.optionsPoints[obtenirClePoint(point)] || {});
+}
+
+function appliquerPointsPersonnalises(points, paletteMap = state.palettesPoints, ruleMap = state.reglesPoints, pointSelection = pointActif, optionsMap = state.optionsPoints) {
   state.pointsInitiaux = serialiserPoints(points);
   state.palettesPoints = { ...paletteMap };
   state.reglesPoints = { ...ruleMap };
+  state.optionsPoints = { ...optionsMap };
   pointActif = pointSelection;
   synchroniserPalettesPoints();
   const initPoints = document.getElementById("init-points");
@@ -1045,6 +1166,7 @@ function transformerPointsPersonnalises(transformer) {
   const nouveauPoints = [];
   const nouvellesPalettes = {};
   const nouvellesRegles = {};
+  const nouvellesOptions = {};
   const vus = new Set();
 
   const ajouterPoint = (ancienPoint, nouveauPoint) => {
@@ -1055,13 +1177,14 @@ function transformerPointsPersonnalises(transformer) {
     const ancienneCle = obtenirClePoint(ancienPoint);
     nouvellesPalettes[cleNouvelle] = clonerCouleurs(state.palettesPoints[ancienneCle] || state.gradientColors);
     nouvellesRegles[cleNouvelle] = obtenirReglePoint(ancienPoint);
+    nouvellesOptions[cleNouvelle] = { ...obtenirOptionsPoint(ancienPoint) };
   };
 
   points.forEach((point) => {
     transformer(point).forEach((resultat) => ajouterPoint(point, resultat));
   });
 
-  appliquerPointsPersonnalises(nouveauPoints, nouvellesPalettes, nouvellesRegles, pointActif);
+  appliquerPointsPersonnalises(nouveauPoints, nouvellesPalettes, nouvellesRegles, pointActif, nouvellesOptions);
 }
 
 function appliquerSymetrie(type) {
@@ -1097,14 +1220,21 @@ function construireCouchesAutomate(ruleNumber, rows, cols) {
     return [{
       position,
       regle: ruleNumber,
-      automate: evoluerDepuisPosition(ruleNumber, rows, cols, position, baseSeed),
+      automate: evoluerDepuisPosition(ruleNumber, rows, cols, position, baseSeed, optionsGlobalesEvolution()),
       couleurs: state.gradientColors,
     }];
   }
   return positions.map((position, index) => ({
     position,
     regle: state.initialMode === "custom" ? obtenirReglePoint(position) : ruleNumber,
-    automate: evoluerDepuisPosition(state.initialMode === "custom" ? obtenirReglePoint(position) : ruleNumber, rows, cols, position, baseSeed + index),
+    automate: evoluerDepuisPosition(
+      state.initialMode === "custom" ? obtenirReglePoint(position) : ruleNumber,
+      rows,
+      cols,
+      position,
+      baseSeed + index,
+      state.initialMode === "custom" ? obtenirOptionsPoint(position) : optionsGlobalesEvolution(),
+    ),
     couleurs: state.initialMode === "custom" ? obtenirCouleursPoint(position) : state.gradientColors,
   }));
 }
@@ -1362,33 +1492,7 @@ function declencherPerturbationExplorer(x, y, rows, cols) {
 }
 
 function getNextGeneration(current, ruleNumber, rowSeed, rowIndex = 0, totalRows = 1, originRow = rowIndex) {
-  const nextGen = [];
-  const random = mulberry32(rowSeed);
-  const size = current.length;
-  const indices = state.direction === "ltr" ? [...Array(size).keys()] : [...Array(size).keys()].reverse();
-  const probabiliteCourante = obtenirProbabiliteLigne(rowIndex, totalRows);
-  const regleEffective = obtenirRegleEffective(ruleNumber, rowIndex, originRow, totalRows);
-
-  for (const i of indices) {
-    if (random() > probabiliteCourante) {
-      nextGen.push(0);
-      continue;
-    }
-    let left;
-    let center;
-    let right;
-    if (state.direction === "ltr") {
-      left = i > 0 ? current[i - 1] : state.circular ? current[size - 1] : 0;
-      center = current[i];
-      right = i < size - 1 ? current[i + 1] : state.circular ? current[0] : 0;
-    } else {
-      right = i > 0 ? current[i - 1] : state.circular ? current[size - 1] : 0;
-      center = current[i];
-      left = i < size - 1 ? current[i + 1] : state.circular ? current[0] : 0;
-    }
-    nextGen.push(transition(regleEffective, left, center, right));
-  }
-  return state.direction === "ltr" ? nextGen : nextGen.reverse();
+  return getNextGenerationAvecOptions(current, ruleNumber, rowSeed, rowIndex, totalRows, originRow, normaliserOptionsEvolution());
 }
 
 function drawCell(ctx, x, y, size, color) {
@@ -1632,6 +1736,7 @@ function buildShareURL() {
     pts: state.pointsInitiaux,
     pp: JSON.stringify(state.palettesPoints),
     pr: JSON.stringify(state.reglesPoints),
+    po: JSON.stringify(state.optionsPoints),
     count: state.initialCount,
     seed: state.seed,
     circ: state.circular ? "1" : "0",
@@ -1640,6 +1745,8 @@ function buildShareURL() {
     pht: state.probabiliteHaut.toFixed(2),
     pbs: state.probabiliteBas.toFixed(2),
     dir: state.direction,
+    prop: state.propagationMode,
+    ang: Math.round(state.propagationAngle),
     bm: state.blendMode,
     lo: state.layerOpacity.toFixed(2),
     tx: state.texture,
@@ -1682,6 +1789,14 @@ function loadFromURL() {
       console.error(error);
     }
   }
+  if (params.has("po")) {
+    try {
+      state.optionsPoints = JSON.parse(params.get("po"));
+    } catch (error) {
+      state.optionsPoints = {};
+      console.error(error);
+    }
+  }
   if (params.has("count")) state.initialCount = Number.parseInt(params.get("count"), 10);
   if (params.has("seed")) state.seed = Number.parseInt(params.get("seed"), 10);
   if (params.has("circ")) state.circular = params.get("circ") === "1";
@@ -1690,6 +1805,8 @@ function loadFromURL() {
   if (params.has("pht")) state.probabiliteHaut = clamp(Number.parseFloat(params.get("pht")) || 0, 0, 1);
   if (params.has("pbs")) state.probabiliteBas = clamp(Number.parseFloat(params.get("pbs")) || 0, 0, 1);
   if (params.has("dir")) state.direction = params.get("dir");
+  if (params.has("prop")) state.propagationMode = params.get("prop");
+  if (params.has("ang")) state.propagationAngle = clamp(Number.parseFloat(params.get("ang")) || 0, 0, 359);
   if (params.has("bm")) state.blendMode = params.get("bm");
   if (params.has("lo")) state.layerOpacity = clamp(Number.parseFloat(params.get("lo")), 0, 1);
   if (params.has("tx")) state.texture = params.get("tx");
@@ -2391,6 +2508,7 @@ function renderPalettesPoints() {
   points.forEach((point) => {
     const cle = obtenirClePoint(point);
     const couleurs = state.palettesPoints[cle] || clonerCouleurs(state.gradientColors);
+    const options = obtenirOptionsPoint(point);
     const card = document.createElement("div");
     card.className = "point-gradient-card";
     if (cle === pointActif) card.classList.add("active");
@@ -2417,6 +2535,79 @@ function renderPalettesPoints() {
     meta.appendChild(inputRule);
     card.appendChild(meta);
 
+    const opts = document.createElement("div");
+    opts.className = "point-options-grid";
+
+    const mettreAJourOption = (nom, valeur) => {
+      state.optionsPoints[cle] = normaliserOptionsEvolution({ ...obtenirOptionsPoint(point), [nom]: valeur });
+      scheduleRender();
+      renderPalettesPoints();
+    };
+
+    const ajouterNombre = (label, nom, valeur, min, max, step = "0.01") => {
+      const row = document.createElement("label");
+      row.className = "point-option";
+      row.innerHTML = `<span class="muted">${label}</span>`;
+      const input = document.createElement("input");
+      input.type = "number";
+      input.min = String(min);
+      input.max = String(max);
+      input.step = step;
+      input.value = String(valeur);
+      input.addEventListener("change", (event) => mettreAJourOption(nom, Number.parseFloat(event.target.value)));
+      row.appendChild(input);
+      opts.appendChild(row);
+    };
+
+    const ajouterSelect = (label, nom, valeur, choix) => {
+      const row = document.createElement("label");
+      row.className = "point-option";
+      row.innerHTML = `<span class="muted">${label}</span>`;
+      const select = document.createElement("select");
+      choix.forEach(([value, text]) => {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = text;
+        if (value === valeur) option.selected = true;
+        select.appendChild(option);
+      });
+      select.addEventListener("change", (event) => mettreAJourOption(nom, event.target.value));
+      row.appendChild(select);
+      opts.appendChild(row);
+    };
+
+    const ajouterCheckbox = (label, nom, valeur) => {
+      const row = document.createElement("label");
+      row.className = "checkbox-row point-option-check";
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.checked = Boolean(valeur);
+      input.addEventListener("change", () => mettreAJourOption(nom, input.checked));
+      row.appendChild(input);
+      row.append(label);
+      opts.appendChild(row);
+    };
+
+    ajouterNombre("Prob.", "probability", options.probability, 0, 1);
+    ajouterCheckbox("Champ stochastique", "champProbabiliteActif", options.champProbabiliteActif);
+    ajouterNombre("Prob. haut", "probabiliteHaut", options.probabiliteHaut, 0, 1);
+    ajouterNombre("Prob. bas", "probabiliteBas", options.probabiliteBas, 0, 1);
+    ajouterSelect("Lecture", "direction", options.direction, [["ltr", "LTR"], ["rtl", "RTL"]]);
+    ajouterSelect("Propagation", "propagationMode", options.propagationMode, [
+      ["both", "Haut + bas"],
+      ["down", "Bas"],
+      ["up", "Haut"],
+      ["right", "Droite"],
+      ["left", "Gauche"],
+      ["angle", "Angle"],
+    ]);
+    ajouterNombre("Angle", "propagationAngle", Math.round(options.propagationAngle), 0, 359, "1");
+    ajouterCheckbox("Frontiere circulaire", "circular", options.circular);
+    ajouterCheckbox("Morphose", "morphingActive", options.morphingActive);
+    ajouterNombre("Regle cible", "morphTargetRule", options.morphTargetRule, 0, 255, "1");
+    ajouterNombre("Intensite morph.", "morphIntensity", options.morphIntensity, 0, 1);
+    card.appendChild(opts);
+
     const colors = document.createElement("div");
     colors.className = "stack compact";
     renderColorStops(colors, couleurs, (index, color) => {
@@ -2442,9 +2633,10 @@ function renderPalettesPoints() {
     const syncButton = document.createElement("button");
     syncButton.type = "button";
     syncButton.className = "ghost-btn";
-    syncButton.textContent = "Règle globale";
+    syncButton.textContent = "Globaux";
     syncButton.addEventListener("click", () => {
       state.reglesPoints[cle] = state.rule;
+      state.optionsPoints[cle] = normaliserOptionsEvolution(optionsGlobalesEvolution());
       renderPalettesPoints();
       scheduleRender();
     });
@@ -2491,9 +2683,9 @@ function dupliquerCouleursPoint(point) {
   return clonerCouleurs(state.palettesPoints[obtenirClePoint(point)] || state.gradientColors);
 }
 
-function appliquerEditionPoints(points, palettes, regles, selection = pointActif) {
+function appliquerEditionPoints(points, palettes, regles, selection = pointActif, options = state.optionsPoints) {
   activerModePoints();
-  appliquerPointsPersonnalises(points, palettes, regles, selection);
+  appliquerPointsPersonnalises(points, palettes, regles, selection, options);
   renderPalettesPoints();
   scheduleRender();
 }
@@ -2511,11 +2703,13 @@ function bindCanvasEditor() {
     if (!proche) return;
     const palettes = { ...state.palettesPoints };
     const regles = { ...state.reglesPoints };
+    const options = { ...state.optionsPoints };
     const cle = obtenirClePoint(proche.point);
     delete palettes[cle];
     delete regles[cle];
+    delete options[cle];
     points.splice(proche.index, 1);
-    appliquerEditionPoints(points, palettes, regles, "");
+    appliquerEditionPoints(points, palettes, regles, "", options);
   });
 
   canvas.addEventListener("pointerdown", (event) => {
@@ -2540,6 +2734,7 @@ function bindCanvasEditor() {
     let points = obtenirPointsActifsPersonnalises();
     let palettes = { ...state.palettesPoints };
     let regles = { ...state.reglesPoints };
+    let options = { ...state.optionsPoints };
     let proche = trouverPointLePlusProche(points, cible);
     activerModePoints();
     synchroniserCanvasEdition();
@@ -2551,8 +2746,9 @@ function bindCanvasEditor() {
       points = [...points, copie];
       palettes[cleCopie] = dupliquerCouleursPoint(proche.point);
       regles[cleCopie] = state.reglesPoints[cleSource] ?? state.rule;
+      options[cleCopie] = { ...obtenirOptionsPoint(proche.point) };
       pointActif = cleCopie;
-      appliquerEditionPoints(points, palettes, regles, cleCopie);
+      appliquerEditionPoints(points, palettes, regles, cleCopie, options);
       return;
     }
 
@@ -2562,8 +2758,9 @@ function bindCanvasEditor() {
       points = [...points, nouveauPoint];
       palettes[cle] = clonerCouleurs(state.gradientColors);
       regles[cle] = state.rule;
+      options[cle] = normaliserOptionsEvolution();
       pointActif = cle;
-      appliquerEditionPoints(points, palettes, regles, cle);
+      appliquerEditionPoints(points, palettes, regles, cle, options);
       proche = { point: nouveauPoint, index: points.length - 1 };
     } else {
       pointActif = obtenirClePoint(proche.point);
@@ -2606,14 +2803,17 @@ function bindCanvasEditor() {
     if (cleAncienne === cleNouvelle) return;
     const palettes = { ...state.palettesPoints };
     const regles = { ...state.reglesPoints };
+    const options = { ...state.optionsPoints };
     palettes[cleNouvelle] = palettes[cleAncienne] ? clonerCouleurs(palettes[cleAncienne]) : clonerCouleurs(state.gradientColors);
     regles[cleNouvelle] = regles[cleAncienne] ?? state.rule;
+    options[cleNouvelle] = options[cleAncienne] || normaliserOptionsEvolution();
     delete palettes[cleAncienne];
     delete regles[cleAncienne];
+    delete options[cleAncienne];
     points[index] = nouveauPoint;
     editeurPoints.cle = cleNouvelle;
     pointActif = cleNouvelle;
-    appliquerEditionPoints(points, palettes, regles, cleNouvelle);
+    appliquerEditionPoints(points, palettes, regles, cleNouvelle, options);
   });
 
   const terminerEdition = (event) => {
@@ -3428,6 +3628,23 @@ function bindControls() {
       scheduleRender();
     });
   });
+
+  document.querySelectorAll('input[name="propagation"]').forEach((input) => {
+    if (input.value === state.propagationMode) input.checked = true;
+    input.addEventListener("change", () => {
+      state.propagationMode = input.value;
+      scheduleRender();
+    });
+  });
+  const propagationAngle = document.getElementById("propagation-angle");
+  if (propagationAngle) {
+    propagationAngle.value = String(Math.round(state.propagationAngle));
+    propagationAngle.addEventListener("change", (event) => {
+      state.propagationAngle = clamp(Number.parseFloat(event.target.value) || 0, 0, 359);
+      event.target.value = String(Math.round(state.propagationAngle));
+      scheduleRender();
+    });
+  }
 
   const morphEnabled = document.getElementById("morph-enabled");
   const morphTargetSlider = document.getElementById("morph-target-slider");

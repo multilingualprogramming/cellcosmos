@@ -339,6 +339,37 @@ déf coordonnee_tuilee(coordonnee, decalage, maximum):
     retour resultat
 
 
+déf propagation_code(mode):
+    si mode == "both":
+        retour 0
+    si mode == "down":
+        retour 1
+    si mode == "up":
+        retour 2
+    si mode == "right":
+        retour 3
+    si mode == "left":
+        retour 4
+    si mode == "angle":
+        retour 5
+    retour 0
+
+
+déf propagation_angle_normalise(angle_degres):
+    soit angle = angle_degres % 360
+    si angle < 0:
+        angle = angle + 360
+    retour angle
+
+
+déf option_probabilite_point(probabilite_globale_sur_1000, probabilite_point_sur_1000):
+    si probabilite_point_sur_1000 < 0:
+        retour probabilite_globale_sur_1000
+    si probabilite_point_sur_1000 > 1000:
+        retour 1000
+    retour probabilite_point_sur_1000
+
+
 # Outils Matter Lab : geometrie, champ local de probabilite
 # et evenements reactifs compacts pour le frontend.
 

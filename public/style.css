@@ -967,6 +967,29 @@ input[type="text"] {
   width: 90px;
 }
 
+.point-options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.point-option {
+  display: grid;
+  gap: 4px;
+}
+
+.point-option input,
+.point-option select {
+  width: 100%;
+}
+
+.point-option-check {
+  align-items: center;
+  min-height: 32px;
+  margin: 0;
+}
+
 .point-card-actions {
   display: flex;
   gap: 8px;

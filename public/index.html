@@ -307,9 +307,27 @@
 
                 <div class="ctrl-section">
                   <p class="ctrl-title">Direction</p>
+                  <span class="muted">Lecture du voisinage Wolfram</span>
                   <div class="pill-group">
                     <label><input type="radio" name="direction" value="ltr" checked /> LTR</label>
                     <label><input type="radio" name="direction" value="rtl" /> RTL</label>
+                  </div>
+                </div>
+
+                <div class="ctrl-section">
+                  <p class="ctrl-title">Propagation</p>
+                  <div class="pill-group">
+                    <label><input type="radio" name="propagation" value="both" checked /> Haut + bas</label>
+                    <label><input type="radio" name="propagation" value="down" /> Bas</label>
+                    <label><input type="radio" name="propagation" value="up" /> Haut</label>
+                    <label><input type="radio" name="propagation" value="right" /> Droite</label>
+                    <label><input type="radio" name="propagation" value="left" /> Gauche</label>
+                    <label><input type="radio" name="propagation" value="angle" /> Angle</label>
+                  </div>
+                  <div class="ctrl-row">
+                    <label for="propagation-angle" class="muted">Angle</label>
+                    <input type="number" id="propagation-angle" min="0" max="359" value="90" />
+                    <span class="value-badge">deg</span>
                   </div>
                 </div>
 

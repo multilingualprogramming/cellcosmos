@@ -169,3 +169,17 @@ def test_life_signature_dynamic_classification_returns_stable_ids():
     assert classify(0.9, 0.9, 0.0, 1.0, 0.0) == 3
     assert classify(0.8, 0.8, 0.9, 0.1, 0.0) == 4
     assert classify(0.2, 0.2, 0.1, 0.2, 1.0) == 5
+
+
+def test_propagation_and_point_option_primitives_are_exported():
+    ns = _load_namespace()
+
+    assert ns["propagation_code"]("both") == 0
+    assert ns["propagation_code"]("right") == 3
+    assert ns["propagation_code"]("angle") == 5
+    assert ns["propagation_code"]("unknown") == 0
+    assert ns["propagation_angle_normalise"](450) == 90
+    assert ns["propagation_angle_normalise"](-90) == 270
+    assert ns["option_probabilite_point"](700, -1) == 700
+    assert ns["option_probabilite_point"](700, 1200) == 1000
+    assert ns["option_probabilite_point"](700, 250) == 250
