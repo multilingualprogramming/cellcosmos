@@ -1392,6 +1392,7 @@ function construireCouchesAutomate(ruleNumber, rows, cols) {
       regle: finalRule,
       automate: evoluerDepuisPosition(finalRule, rows, cols, position, baseSeed, finalOptions),
       couleurs: state.gradientColors,
+      options: finalOptions,
       decalageTemporal: 0,
     }];
   }
@@ -1409,6 +1410,7 @@ function construireCouchesAutomate(ruleNumber, rows, cols) {
       regle: finalRule,
       automate: evoluerDepuisPosition(finalRule, rows, cols, position, baseSeed + index, finalOptions),
       couleurs: state.initialMode === "custom" ? obtenirCouleursPoint(position) : state.gradientColors,
+      options: finalOptions,
       decalageTemporal: decalage,
     };
   });
@@ -1719,6 +1721,60 @@ function estLigneVisiblePourCouche(couche, rowIndex, rows) {
   return ligneVisible(progression, couche.position.y, rowIndex, rows) === 1;
 }
 
+function distanceMaxDirectionnelle(position, rows, cols, axisX, axisY) {
+  const coins = [
+    [0, 0],
+    [cols - 1, 0],
+    [0, rows - 1],
+    [cols - 1, rows - 1],
+  ];
+  return Math.max(
+    1,
+    ...coins.map(([x, y]) => ((x - position.x) * axisX) + ((y - position.y) * axisY)),
+  );
+}
+
+function progressionCouleurPourCellule(couche, rowIndex, colIndex, rows, cols) {
+  const mode = couche.options?.propagationMode || state.propagationMode;
+  const position = couche.position || { x: Math.floor(cols / 2), y: obtenirOrigineYParDefaut(rows) };
+
+  if (mode === "up") {
+    return clamp((position.y - rowIndex) / Math.max(1, position.y), 0, 1);
+  }
+  if (mode === "down") {
+    return clamp((rowIndex - position.y) / Math.max(1, rows - 1 - position.y), 0, 1);
+  }
+  if (mode === "left") {
+    return clamp((position.x - colIndex) / Math.max(1, position.x), 0, 1);
+  }
+  if (mode === "right") {
+    return clamp((colIndex - position.x) / Math.max(1, cols - 1 - position.x), 0, 1);
+  }
+  if (mode === "angle") {
+    const radians = ((couche.options?.propagationAngle ?? state.propagationAngle) * Math.PI) / 180;
+    const axisX = Math.cos(radians);
+    const axisY = Math.sin(radians);
+    const distance = ((colIndex - position.x) * axisX) + ((rowIndex - position.y) * axisY);
+    return clamp(distance / distanceMaxDirectionnelle(position, rows, cols, axisX, axisY), 0, 1);
+  }
+
+  const distance = Math.abs(rowIndex - position.y);
+  const maxDistance = Math.max(position.y, rows - 1 - position.y, 1);
+  return clamp(distance / maxDistance, 0, 1);
+}
+
+function obtenirGradientCouche(couche) {
+  if (!couche.gradientCouleurs) couche.gradientCouleurs = generateGradient(couche.couleurs, 256);
+  return couche.gradientCouleurs;
+}
+
+function couleurCellulePourCouche(couche, rowIndex, colIndex, rows, cols) {
+  const gradient = obtenirGradientCouche(couche);
+  const progression = progressionCouleurPourCellule(couche, rowIndex, colIndex, rows, cols);
+  const index = clamp(Math.round(progression * (gradient.length - 1)), 0, gradient.length - 1);
+  return `rgb(${gradient[index].join(",")})`;
+}
+
 function renderToCanvas(canvas, ruleNumber, rows, cols, cellSize) {
   const ctx = canvas.getContext("2d");
   canvas.width = cols * cellSize;
@@ -1795,8 +1851,7 @@ function renderToCanvas(canvas, ruleNumber, rows, cols, cellSize) {
           const matchingLayer = layerStates[rowIndex][colIndex][0];
           if (matchingLayer) {
             const couche = couches[matchingLayer.layerIndex];
-            const gradient = generateGradient(couche.couleurs, rows);
-            const color = `rgb(${gradient[rowIndex].join(",")})`;
+            const color = couleurCellulePourCouche(couche, rowIndex, colIndex, rows, cols);
             drawCell(ctx, colIndex * cellSize, rowIndex * cellSize, cellSize, color);
           }
         }
@@ -1808,13 +1863,12 @@ function renderToCanvas(canvas, ruleNumber, rows, cols, cellSize) {
       const offscreen = createScratchCanvas(canvasWidth, canvasHeight);
       const offscreenCtx = offscreen.getContext("2d");
 
-      const gradient = generateGradient(couche.couleurs, rows);
       couche.automate.forEach((row, rowIndex) => {
         if (!estLigneVisiblePourCouche(couche, rowIndex, rows)) return;
-        const color = `rgb(${gradient[rowIndex].join(",")})`;
         row.forEach((value, colIndex) => {
           if (value !== 1) return;
           if (counts[rowIndex][colIndex] > 1) collisions.add(`${colIndex}:${rowIndex}`);
+          const color = couleurCellulePourCouche(couche, rowIndex, colIndex, rows, cols);
           drawCell(offscreenCtx, colIndex * cellSize, rowIndex * cellSize, cellSize, color);
         });
       });
@@ -2867,11 +2921,13 @@ function renderPalettesPoints() {
     meta.appendChild(posRow);
 
     // Rule input
+    const ruleRow = document.createElement("div");
+    ruleRow.className = "ctrl-row point-rule-row";
     const ruleLabel = document.createElement("label");
     ruleLabel.className = "muted";
     ruleLabel.htmlFor = `rule-point-${cle.replace(":", "-")}`;
     ruleLabel.textContent = "Règle";
-    meta.appendChild(ruleLabel);
+    ruleRow.appendChild(ruleLabel);
     const inputRule = document.createElement("input");
     inputRule.type = "number";
     inputRule.min = "0";
@@ -2883,7 +2939,8 @@ function renderPalettesPoints() {
       scheduleRender();
       renderPalettesPoints();
     });
-    meta.appendChild(inputRule);
+    ruleRow.appendChild(inputRule);
+    meta.appendChild(ruleRow);
     card.appendChild(meta);
 
     const opts = document.createElement("div");

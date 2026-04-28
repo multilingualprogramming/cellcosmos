@@ -960,11 +960,25 @@ input[type="text"] {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
   margin-bottom: 10px;
 }
 
 .point-meta input[type="number"] {
   width: 90px;
+}
+
+.point-meta > .ctrl-row {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+.point-rule-row {
+  justify-content: space-between;
+}
+
+.point-rule-row input[type="number"] {
+  flex: 0 0 90px;
 }
 
 .point-options-grid {
