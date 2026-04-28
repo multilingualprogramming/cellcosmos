@@ -3051,6 +3051,17 @@ function renderPalettesPoints() {
     });
     actions.appendChild(syncButton);
 
+    const duplicateButton = document.createElement("button");
+    duplicateButton.type = "button";
+    duplicateButton.className = "ghost-btn";
+    duplicateButton.textContent = "Dupliquer";
+    duplicateButton.title = "Copier ce point avec ses reglages";
+    duplicateButton.addEventListener("click", () => {
+      const { rows, cols } = obtenirDimensionsRendu();
+      dupliquerPointPersonnalise(point, cols, rows);
+    });
+    actions.appendChild(duplicateButton);
+
     const addButton = document.createElement("button");
     addButton.type = "button";
     addButton.className = "ghost-btn";
@@ -3092,11 +3103,54 @@ function dupliquerCouleursPoint(point) {
   return clonerCouleurs(state.palettesPoints[obtenirClePoint(point)] || state.gradientColors);
 }
 
+function trouverPositionLibrePourCopie(pointSource, points, cols, rows) {
+  const occupees = new Set(points.map(obtenirClePoint));
+  for (let rayon = 2; rayon < Math.max(cols, rows); rayon += 1) {
+    const candidats = [
+      { x: pointSource.x + rayon, y: pointSource.y + rayon },
+      { x: pointSource.x + rayon, y: pointSource.y },
+      { x: pointSource.x, y: pointSource.y + rayon },
+      { x: pointSource.x - rayon, y: pointSource.y + rayon },
+      { x: pointSource.x + rayon, y: pointSource.y - rayon },
+      { x: pointSource.x - rayon, y: pointSource.y },
+      { x: pointSource.x, y: pointSource.y - rayon },
+      { x: pointSource.x - rayon, y: pointSource.y - rayon },
+    ];
+    for (const candidat of candidats) {
+      const copie = {
+        x: clamp(candidat.x, 0, cols - 1),
+        y: clamp(candidat.y, 0, rows - 1),
+      };
+      if (!occupees.has(obtenirClePoint(copie))) return copie;
+    }
+  }
+  return null;
+}
+
 function appliquerEditionPoints(points, palettes, regles, selection = pointActif, options = state.optionsPoints) {
   activerModePoints();
   appliquerPointsPersonnalises(points, palettes, regles, selection, options);
   renderPalettesPoints();
   scheduleRender();
+}
+
+function dupliquerPointPersonnalise(pointSource, cols, rows) {
+  const points = obtenirPointsActifsPersonnalises();
+  const copie = trouverPositionLibrePourCopie(pointSource, points, cols, rows);
+  if (!copie) return false;
+
+  const palettes = { ...state.palettesPoints };
+  const regles = { ...state.reglesPoints };
+  const options = { ...state.optionsPoints };
+  const cleSource = obtenirClePoint(pointSource);
+  const cleCopie = obtenirClePoint(copie);
+
+  palettes[cleCopie] = dupliquerCouleursPoint(pointSource);
+  regles[cleCopie] = state.reglesPoints[cleSource] ?? state.rule;
+  options[cleCopie] = { ...obtenirOptionsPoint(pointSource) };
+
+  appliquerEditionPoints([...points, copie], palettes, regles, cleCopie, options);
+  return true;
 }
 
 function bindCanvasEditor() {
@@ -3149,15 +3203,7 @@ function bindCanvasEditor() {
     synchroniserCanvasEdition();
 
     if (event.shiftKey && proche) {
-      const copie = { x: clamp(proche.point.x + 2, 0, cible.cols - 1), y: clamp(proche.point.y + 2, 0, cible.rows - 1) };
-      const cleSource = obtenirClePoint(proche.point);
-      const cleCopie = obtenirClePoint(copie);
-      points = [...points, copie];
-      palettes[cleCopie] = dupliquerCouleursPoint(proche.point);
-      regles[cleCopie] = state.reglesPoints[cleSource] ?? state.rule;
-      options[cleCopie] = { ...obtenirOptionsPoint(proche.point) };
-      pointActif = cleCopie;
-      appliquerEditionPoints(points, palettes, regles, cleCopie, options);
+      dupliquerPointPersonnalise(proche.point, cible.cols, cible.rows);
       return;
     }
 

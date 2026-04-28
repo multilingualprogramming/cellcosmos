@@ -639,6 +639,32 @@ main {
   top: 92px;
 }
 
+@media (min-width: 941px) {
+  .viewer-shell {
+    position: sticky;
+    top: 92px;
+    max-height: calc(100vh - 110px);
+    overflow-y: auto;
+  }
+
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 110px);
+    overflow: hidden;
+  }
+
+  .sidebar-tabs-container,
+  .lab-tabs-content {
+    min-height: 0;
+  }
+
+  .matterlab-sidebar {
+    display: flex;
+    flex-direction: column;
+  }
+}
+
 .matterlab-shell,
 .matterlab-sidebar {
   min-height: 100%;
@@ -1200,12 +1226,25 @@ input[type="text"] {
     grid-template-columns: 1fr;
   }
 
+  .viewer-shell {
+    position: static;
+    max-height: none;
+    overflow: hidden;
+  }
+
   .hero {
     grid-template-columns: 1fr;
   }
 
   .sidebar {
     position: static;
+    display: block;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .sidebar-tabs-container {
+    height: auto;
   }
 }
 
@@ -1805,6 +1844,15 @@ select:focus {
   border-radius: inherit;
 }
 
+@media (min-width: 941px) {
+  .viewer-shell {
+    position: sticky;
+    top: 92px;
+    max-height: calc(100vh - 110px);
+    overflow-y: auto;
+  }
+}
+
 /* Enhanced glassmorphism */
 .viewer-shell,
 .sidebar {
@@ -1974,6 +2022,12 @@ body.fullscreen-mode .panel-grid {
 
 body.fullscreen-mode .canvas-card {
   padding: 0;
+}
+
+body.fullscreen-mode .viewer-shell {
+  position: static;
+  max-height: none;
+  overflow: hidden;
 }
 
 body.fullscreen-mode #main-canvas {
