@@ -99,6 +99,11 @@ const DEFAULTS = {
   labShowMask: true,
   labShowField: true,
   labShowEvents: true,
+  choreographieActive: false,
+  choreographieKeyframes: [],
+  choreographieInterpolation: "lisse",
+  ecosystemeMode: false,
+  ecosystemeInteraction: "superposition",
 };
 
 const DEFAULT_MATTER_LAB_RULE = 30;
@@ -621,6 +626,30 @@ function validateWasmExports(exports) {
       }
     }
 
+    if (typeof exports.interpoler_lineaire === "function") {
+      if (Number(exports.interpoler_lineaire(100, 200, 500)) !== 150) {
+        return false;
+      }
+    }
+
+    if (typeof exports.progression_entre_keyframes === "function") {
+      if (Number(exports.progression_entre_keyframes(500, 0, 1000)) !== 500) {
+        return false;
+      }
+    }
+
+    if (typeof exports.ecosysteme_progression_decalee === "function") {
+      if (Number(exports.ecosysteme_progression_decalee(700, 200)) !== 500) {
+        return false;
+      }
+    }
+
+    if (typeof exports.ecosysteme_mode_superposition === "function") {
+      if (Number(exports.ecosysteme_mode_superposition()) !== 0) {
+        return false;
+      }
+    }
+
   } catch (error) {
     console.error(error);
     return false;
@@ -843,6 +872,93 @@ function laboratoireCelluleEvenement(initialValue, eventCode, intensity, thresho
     }
   }
   return fallbackDomain.laboratoireCelluleEvenement(initialValue, eventCode, intensity, threshold);
+}
+
+function interpolerLineaire(debut, fin, progression) {
+  if (wasmAvailable && wasm && typeof wasm.interpoler_lineaire === "function") {
+    try {
+      return Number(wasm.interpoler_lineaire(debut, fin, progression));
+    } catch (error) {
+      disableWasmRuntime(error);
+    }
+  }
+  return Math.round(debut + (fin - debut) * progression / 1000);
+}
+
+function interpolerLisse(debut, fin, progression) {
+  if (wasmAvailable && wasm && typeof wasm.interpoler_lisse === "function") {
+    try {
+      return Number(wasm.interpoler_lisse(debut, fin, progression));
+    } catch (error) {
+      disableWasmRuntime(error);
+    }
+  }
+  const t = progression / 1000;
+  const s = t * t * (3 - 2 * t);
+  return Math.round(debut + (fin - debut) * s);
+}
+
+function progressionEntreKeyframes(pos, debut, fin) {
+  if (wasmAvailable && wasm && typeof wasm.progression_entre_keyframes === "function") {
+    try {
+      return Number(wasm.progression_entre_keyframes(pos, debut, fin));
+    } catch (error) {
+      disableWasmRuntime(error);
+    }
+  }
+  if (fin <= debut) return 1000;
+  return Math.max(0, Math.min(1000, Math.floor((pos - debut) * 1000 / (fin - debut))));
+}
+
+function angleInterpoleKeyframe(a, b, prog) {
+  if (wasmAvailable && wasm && typeof wasm.angle_interpolee_keyframe === "function") {
+    try {
+      return Number(wasm.angle_interpolee_keyframe(a, b, prog));
+    } catch (error) {
+      disableWasmRuntime(error);
+    }
+  }
+  let delta = b - a;
+  if (delta > 180) delta -= 360;
+  if (delta < -180) delta += 360;
+  return ((a + Math.round((delta * prog) / 1000)) % 360 + 360) % 360;
+}
+
+function ecosystemeProgressionDecalee(global, offset) {
+  if (wasmAvailable && wasm && typeof wasm.ecosysteme_progression_decalee === "function") {
+    try {
+      return Number(wasm.ecosysteme_progression_decalee(global, offset));
+    } catch (error) {
+      disableWasmRuntime(error);
+    }
+  }
+  return Math.max(0, Math.min(1000, global - offset));
+}
+
+function ecosystemeInteraction(ea, eb, ra, rb, mode) {
+  if (wasmAvailable && wasm && typeof wasm.ecosysteme_interaction === "function") {
+    try {
+      return Number(wasm.ecosysteme_interaction(ea, eb, ra, rb, mode));
+    } catch (error) {
+      disableWasmRuntime(error);
+    }
+  }
+  if (mode === 0) return (ea || eb) ? 1 : 0;
+  if (mode === 1) return (ea && eb) ? 0 : ((ea || eb) ? 1 : 0);
+  if (mode === 2) return ea;
+  if (mode === 3) return ea;
+  return (ea || eb) ? 1 : 0;
+}
+
+function ecosystemeRegleHybride(ra, rb) {
+  if (wasmAvailable && wasm && typeof wasm.ecosysteme_regle_hybride === "function") {
+    try {
+      return Number(wasm.ecosysteme_regle_hybride(ra, rb));
+    } catch (error) {
+      disableWasmRuntime(error);
+    }
+  }
+  return ruleMorphee(ra, rb, 500);
 }
 
 function callWasmString(fn, ...args) {
@@ -1211,32 +1327,91 @@ function appliquerSymetrie(type) {
   scheduleRender();
 }
 
+function obtenirParametresKeyframe(progressionSur1000) {
+  if (!state.choreographieActive || state.choreographieKeyframes.length < 2) {
+    return null;
+  }
+  const sorted = state.choreographieKeyframes.slice().sort((a, b) => a.position - b.position);
+  let kf1 = sorted[0];
+  let kf2 = sorted[sorted.length - 1];
+  for (let i = 0; i < sorted.length - 1; i += 1) {
+    if (progressionSur1000 >= sorted[i].position && progressionSur1000 <= sorted[i + 1].position) {
+      kf1 = sorted[i];
+      kf2 = sorted[i + 1];
+      break;
+    }
+  }
+  const localProg = progressionEntreKeyframes(progressionSur1000, kf1.position, kf2.position);
+  return {
+    regle: ruleMorphee(kf1.regle || 30, kf2.regle || 30, localProg),
+    angle: angleInterpoleKeyframe(kf1.angle || 90, kf2.angle || 90, localProg),
+    propagationMode: Math.abs(progressionSur1000 - kf1.position) < Math.abs(progressionSur1000 - kf2.position)
+      ? kf1.propagationMode : kf2.propagationMode,
+    morphTargetRule: interpolerLisse(kf1.morphTargetRule || 110, kf2.morphTargetRule || 110, localProg),
+    morphIntensity: interpolerLisse(kf1.morphIntensity || 0, kf2.morphIntensity || 0, localProg),
+  };
+}
+
 function construireCouchesAutomate(ruleNumber, rows, cols) {
   const positions = normaliserPositionsInitiales(cols, rows);
   const baseSeed = Number.parseInt(state.seed || 0, 10);
   if (state.initialMode === "custom") synchroniserPalettesPoints();
+
+  // Apply choreography if active
+  let choreographieParams = null;
+  if (state.choreographieActive && state.choreographieKeyframes.length >= 2) {
+    choreographieParams = obtenirParametresKeyframe(state.progressionTemporelle * 1000);
+  }
+
+  const buildLayerOptions = (position, globalOptions) => {
+    const options = structuredClone(globalOptions);
+    if (choreographieParams) {
+      if (choreographieParams.angle !== undefined) {
+        options.propagationAngle = choreographieParams.angle;
+      }
+      if (choreographieParams.propagationMode !== undefined) {
+        options.propagationMode = choreographieParams.propagationMode;
+      }
+      if (choreographieParams.morphTargetRule !== undefined) {
+        options.morphTargetRule = choreographieParams.morphTargetRule;
+      }
+      if (choreographieParams.morphIntensity !== undefined) {
+        options.morphIntensity = choreographieParams.morphIntensity;
+      }
+    }
+    return options;
+  };
+
   if (positions.length === 0) {
     const position = { x: Math.floor(cols / 2), y: obtenirOrigineYParDefaut(rows) };
+    const globalOptions = optionsGlobalesEvolution();
+    const finalRule = choreographieParams ? choreographieParams.regle : ruleNumber;
+    const finalOptions = buildLayerOptions(position, globalOptions);
     return [{
       position,
-      regle: ruleNumber,
-      automate: evoluerDepuisPosition(ruleNumber, rows, cols, position, baseSeed, optionsGlobalesEvolution()),
+      regle: finalRule,
+      automate: evoluerDepuisPosition(finalRule, rows, cols, position, baseSeed, finalOptions),
       couleurs: state.gradientColors,
+      decalageTemporal: 0,
     }];
   }
-  return positions.map((position, index) => ({
-    position,
-    regle: state.initialMode === "custom" ? obtenirReglePoint(position) : ruleNumber,
-    automate: evoluerDepuisPosition(
-      state.initialMode === "custom" ? obtenirReglePoint(position) : ruleNumber,
-      rows,
-      cols,
+  return positions.map((position, index) => {
+    const globalOptions = state.initialMode === "custom" ? obtenirOptionsPoint(position) : optionsGlobalesEvolution();
+    const finalOptions = buildLayerOptions(position, globalOptions);
+    const finalRule = choreographieParams
+      ? choreographieParams.regle
+      : (state.initialMode === "custom" ? obtenirReglePoint(position) : ruleNumber);
+    const decalage = state.initialMode === "custom" && state.optionsPoints[obtenirClePoint(position)]?.decalageTemporal !== undefined
+      ? state.optionsPoints[obtenirClePoint(position)].decalageTemporal
+      : 0;
+    return {
       position,
-      baseSeed + index,
-      state.initialMode === "custom" ? obtenirOptionsPoint(position) : optionsGlobalesEvolution(),
-    ),
-    couleurs: state.initialMode === "custom" ? obtenirCouleursPoint(position) : state.gradientColors,
-  }));
+      regle: finalRule,
+      automate: evoluerDepuisPosition(finalRule, rows, cols, position, baseSeed + index, finalOptions),
+      couleurs: state.initialMode === "custom" ? obtenirCouleursPoint(position) : state.gradientColors,
+      decalageTemporal: decalage,
+    };
+  });
 }
 
 const EXPLORER_EVENT_CODES = { none: 0, pulse: 1, erase: 2, invert: 3, freeze: 4, mutate: 5 };
@@ -1537,7 +1712,11 @@ function drawCell(ctx, x, y, size, color) {
 }
 
 function estLigneVisiblePourCouche(couche, rowIndex, rows) {
-  return ligneVisible(Math.round(state.progressionTemporelle * 1000), couche.position.y, rowIndex, rows) === 1;
+  let progression = Math.round(state.progressionTemporelle * 1000);
+  if (state.ecosystemeMode && couche.decalageTemporal !== undefined) {
+    progression = ecosystemeProgressionDecalee(progression, couche.decalageTemporal);
+  }
+  return ligneVisible(progression, couche.position.y, rowIndex, rows) === 1;
 }
 
 function renderToCanvas(canvas, ruleNumber, rows, cols, cellSize) {
@@ -1558,27 +1737,93 @@ function renderToCanvas(canvas, ruleNumber, rows, cols, cellSize) {
   const collisions = new Set();
   const origines = couches.map((couche) => couche.position.y);
 
-  couches.forEach((couche) => {
-    // Create offscreen canvas for this layer
-    const offscreen = createScratchCanvas(canvasWidth, canvasHeight);
-    const offscreenCtx = offscreen.getContext("2d");
+  if (state.ecosystemeMode) {
+    // Ecosystem mode: build a final grid with interaction logic
+    const finalEcoGrid = Array.from({ length: rows }, () => Array(cols).fill(0));
+    const layerStates = Array.from({ length: rows }, () =>
+      Array.from({ length: cols }, () => []),
+    );
 
-    const gradient = generateGradient(couche.couleurs, rows);
-    couche.automate.forEach((row, rowIndex) => {
-      if (!estLigneVisiblePourCouche(couche, rowIndex, rows)) return;
-      const color = `rgb(${gradient[rowIndex].join(",")})`;
-      row.forEach((value, colIndex) => {
-        if (value !== 1) return;
-        if (counts[rowIndex][colIndex] > 1) collisions.add(`${colIndex}:${rowIndex}`);
-        drawCell(offscreenCtx, colIndex * cellSize, rowIndex * cellSize, cellSize, color);
+    // Track cell states per layer per position
+    couches.forEach((couche, layerIndex) => {
+      couche.automate.forEach((row, rowIndex) => {
+        if (!estLigneVisiblePourCouche(couche, rowIndex, rows)) return;
+        row.forEach((value, colIndex) => {
+          if (value === 1) {
+            layerStates[rowIndex][colIndex].push({
+              state: 1,
+              layerIndex,
+              regle: couche.regle,
+            });
+          }
+        });
       });
     });
 
-    // Composite layer onto main canvas with blend mode and opacity
-    ctx.globalCompositeOperation = state.blendMode;
-    ctx.globalAlpha = state.layerOpacity;
-    ctx.drawImage(offscreen, 0, 0);
-  });
+    // Apply ecosystem interaction logic
+    const interactionModes = {
+      superposition: 0,
+      collision: 1,
+      absorption: 2,
+      hybridation: 3,
+    };
+    const modeCode = interactionModes[state.ecosystemeInteraction] || 0;
+
+    for (let rowIndex = 0; rowIndex < rows; rowIndex++) {
+      for (let colIndex = 0; colIndex < cols; colIndex++) {
+        if (layerStates[rowIndex][colIndex].length === 0) {
+          finalEcoGrid[rowIndex][colIndex] = 0;
+        } else if (layerStates[rowIndex][colIndex].length === 1) {
+          finalEcoGrid[rowIndex][colIndex] = 1;
+        } else {
+          // Multiple layers at this position - apply interaction
+          const [layer1, layer2, ...rest] = layerStates[rowIndex][colIndex];
+          let result = ecosystemeInteraction(layer1.state, layer2.state, layer1.regle, layer2.regle, modeCode);
+          for (const layer of rest) {
+            result = ecosystemeInteraction(result, layer.state, result, layer.regle, modeCode);
+          }
+          finalEcoGrid[rowIndex][colIndex] = result;
+          if (result === 1) collisions.add(`${colIndex}:${rowIndex}`);
+        }
+      }
+    }
+
+    // Render final ecosystem grid
+    for (let rowIndex = 0; rowIndex < rows; rowIndex++) {
+      for (let colIndex = 0; colIndex < cols; colIndex++) {
+        if (finalEcoGrid[rowIndex][colIndex] === 1) {
+          const matchingLayer = layerStates[rowIndex][colIndex][0];
+          if (matchingLayer) {
+            const couche = couches[matchingLayer.layerIndex];
+            const gradient = generateGradient(couche.couleurs, rows);
+            const color = `rgb(${gradient[rowIndex].join(",")})`;
+            drawCell(ctx, colIndex * cellSize, rowIndex * cellSize, cellSize, color);
+          }
+        }
+      }
+    }
+  } else {
+    // Normal mode: render layers separately with blending
+    couches.forEach((couche) => {
+      const offscreen = createScratchCanvas(canvasWidth, canvasHeight);
+      const offscreenCtx = offscreen.getContext("2d");
+
+      const gradient = generateGradient(couche.couleurs, rows);
+      couche.automate.forEach((row, rowIndex) => {
+        if (!estLigneVisiblePourCouche(couche, rowIndex, rows)) return;
+        const color = `rgb(${gradient[rowIndex].join(",")})`;
+        row.forEach((value, colIndex) => {
+          if (value !== 1) return;
+          if (counts[rowIndex][colIndex] > 1) collisions.add(`${colIndex}:${rowIndex}`);
+          drawCell(offscreenCtx, colIndex * cellSize, rowIndex * cellSize, cellSize, color);
+        });
+      });
+
+      ctx.globalCompositeOperation = state.blendMode;
+      ctx.globalAlpha = state.layerOpacity;
+      ctx.drawImage(offscreen, 0, 0);
+    });
+  }
 
   // Reset to default state
   ctx.globalCompositeOperation = "source-over";
@@ -1760,6 +2005,11 @@ function buildShareURL() {
     ee: state.explorerEventType,
     er: state.explorerEventRadius,
     es: state.explorerEventStrength.toFixed(2),
+    cho: state.choreographieActive ? "1" : "0",
+    chk: JSON.stringify(state.choreographieKeyframes),
+    chi: state.choreographieInterpolation,
+    eco: state.ecosystemeMode ? "1" : "0",
+    ecoi: state.ecosystemeInteraction,
   });
   return `${location.origin}${location.pathname}?${params}`;
 }
@@ -1820,6 +2070,18 @@ function loadFromURL() {
   if (params.has("ee")) state.explorerEventType = params.get("ee");
   if (params.has("er")) state.explorerEventRadius = clamp(Number.parseInt(params.get("er"), 10) || state.explorerEventRadius, 1, 40);
   if (params.has("es")) state.explorerEventStrength = clamp(Number.parseFloat(params.get("es")) || state.explorerEventStrength, 0.1, 1);
+  if (params.has("cho")) state.choreographieActive = params.get("cho") === "1";
+  if (params.has("chk")) {
+    try {
+      state.choreographieKeyframes = JSON.parse(params.get("chk"));
+    } catch (error) {
+      state.choreographieKeyframes = [];
+      console.error(error);
+    }
+  }
+  if (params.has("chi")) state.choreographieInterpolation = params.get("chi");
+  if (params.has("eco")) state.ecosystemeMode = params.get("eco") === "1";
+  if (params.has("ecoi")) state.ecosystemeInteraction = params.get("ecoi");
 }
 
 function renderMainView() {
@@ -2520,7 +2782,96 @@ function renderPalettesPoints() {
 
     const meta = document.createElement("div");
     meta.className = "point-meta";
-    meta.innerHTML = `<label class="muted" for="rule-point-${cle.replace(":", "-")}">Règle</label>`;
+
+    // Position X:Y inputs
+    const posRow = document.createElement("div");
+    posRow.className = "ctrl-row";
+    posRow.style.gap = "4px";
+
+    const posLbl = document.createElement("label");
+    posLbl.className = "muted";
+    posLbl.textContent = "Position";
+    posRow.appendChild(posLbl);
+
+    const inputX = document.createElement("input");
+    inputX.type = "number";
+    inputX.min = "0";
+    inputX.max = "9999";
+    inputX.value = String(point.x);
+    inputX.placeholder = "X";
+    inputX.title = "Coordonnée X";
+    inputX.style.flex = "1";
+    inputX.addEventListener("change", (event) => {
+      const newX = clamp(Number.parseInt(event.target.value, 10) || 0, 0, 9999);
+      const newPoint = { x: newX, y: point.y };
+      const newCle = obtenirClePoint(newPoint);
+      if (newCle !== cle) {
+        state.palettesPoints[newCle] = state.palettesPoints[cle];
+        state.reglesPoints[newCle] = state.reglesPoints[cle];
+        state.optionsPoints[newCle] = state.optionsPoints[cle];
+        delete state.palettesPoints[cle];
+        delete state.reglesPoints[cle];
+        delete state.optionsPoints[cle];
+        const { rows, cols } = obtenirDimensionsRendu();
+        state.pointsInitiaux = serialiserPoints(analyserPointsInitiaux(state.pointsInitiaux, cols, rows, obtenirOrigineYParDefaut(rows)).map((p) => (p.x === point.x && p.y === point.y ? newPoint : p)));
+        renderPalettesPoints();
+        scheduleRender();
+      }
+    });
+    posRow.appendChild(inputX);
+
+    const inputY = document.createElement("input");
+    inputY.type = "number";
+    inputY.min = "0";
+    inputY.max = "9999";
+    inputY.value = String(point.y);
+    inputY.placeholder = "Y";
+    inputY.title = "Coordonnée Y";
+    inputY.style.flex = "1";
+    inputY.addEventListener("change", (event) => {
+      const newY = clamp(Number.parseInt(event.target.value, 10) || 0, 0, 9999);
+      const newPoint = { x: point.x, y: newY };
+      const newCle = obtenirClePoint(newPoint);
+      if (newCle !== cle) {
+        state.palettesPoints[newCle] = state.palettesPoints[cle];
+        state.reglesPoints[newCle] = state.reglesPoints[cle];
+        state.optionsPoints[newCle] = state.optionsPoints[cle];
+        delete state.palettesPoints[cle];
+        delete state.reglesPoints[cle];
+        delete state.optionsPoints[cle];
+        const { rows, cols } = obtenirDimensionsRendu();
+        state.pointsInitiaux = serialiserPoints(analyserPointsInitiaux(state.pointsInitiaux, cols, rows, obtenirOrigineYParDefaut(rows)).map((p) => (p.x === point.x && p.y === point.y ? newPoint : p)));
+        renderPalettesPoints();
+        scheduleRender();
+      }
+    });
+    posRow.appendChild(inputY);
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "ghost-btn";
+    deleteBtn.textContent = "✕";
+    deleteBtn.title = "Supprimer ce point";
+    deleteBtn.style.padding = "4px 8px";
+    deleteBtn.addEventListener("click", () => {
+      delete state.palettesPoints[cle];
+      delete state.reglesPoints[cle];
+      delete state.optionsPoints[cle];
+      const { rows, cols } = obtenirDimensionsRendu();
+      state.pointsInitiaux = serialiserPoints(analyserPointsInitiaux(state.pointsInitiaux, cols, rows, obtenirOrigineYParDefaut(rows)).filter((p) => !(p.x === point.x && p.y === point.y)));
+      renderPalettesPoints();
+      scheduleRender();
+    });
+    posRow.appendChild(deleteBtn);
+
+    meta.appendChild(posRow);
+
+    // Rule input
+    const ruleLabel = document.createElement("label");
+    ruleLabel.className = "muted";
+    ruleLabel.htmlFor = `rule-point-${cle.replace(":", "-")}`;
+    ruleLabel.textContent = "Règle";
+    meta.appendChild(ruleLabel);
     const inputRule = document.createElement("input");
     inputRule.type = "number";
     inputRule.min = "0";
@@ -2606,6 +2957,7 @@ function renderPalettesPoints() {
     ajouterCheckbox("Morphose", "morphingActive", options.morphingActive);
     ajouterNombre("Regle cible", "morphTargetRule", options.morphTargetRule, 0, 255, "1");
     ajouterNombre("Intensite morph.", "morphIntensity", options.morphIntensity, 0, 1);
+    ajouterNombre("Décalage temporel", "decalageTemporal", options.decalageTemporal || 0, 0, 1000, "10");
     card.appendChild(opts);
 
     const colors = document.createElement("div");
@@ -3443,6 +3795,100 @@ const sequenceur = {
   },
 };
 
+function renderChoreographieKeyframes() {
+  const container = document.getElementById("choreo-keyframes");
+  if (!container) return;
+  container.innerHTML = "";
+
+  if (state.choreographieKeyframes.length === 0) {
+    return;
+  }
+
+  state.choreographieKeyframes.forEach((kf, index) => {
+    const row = document.createElement("div");
+    row.className = "stack compact";
+
+    const posLabel = document.createElement("label");
+    posLabel.className = "muted";
+    posLabel.textContent = `Étape ${index + 1}`;
+    row.appendChild(posLabel);
+
+    const posRow = document.createElement("div");
+    posRow.className = "ctrl-row";
+    const posLbl = document.createElement("label");
+    posLbl.textContent = "Position";
+    posLbl.className = "muted";
+    const posInput = document.createElement("input");
+    posInput.type = "range";
+    posInput.min = "0";
+    posInput.max = "1000";
+    posInput.value = String(kf.position || 0);
+    const posDisplay = document.createElement("span");
+    posDisplay.className = "value-badge";
+    posDisplay.textContent = `${Math.round(kf.position || 0) / 10}%`;
+    posInput.addEventListener("input", () => {
+      kf.position = Number.parseInt(posInput.value, 10);
+      posDisplay.textContent = `${Math.round(kf.position) / 10}%`;
+      scheduleRender();
+    });
+    posRow.appendChild(posLbl);
+    posRow.appendChild(posInput);
+    posRow.appendChild(posDisplay);
+    row.appendChild(posRow);
+
+    const ruleRow = document.createElement("div");
+    ruleRow.className = "ctrl-row";
+    const ruleLbl = document.createElement("label");
+    ruleLbl.textContent = "Règle";
+    ruleLbl.className = "muted";
+    const ruleInput = document.createElement("input");
+    ruleInput.type = "number";
+    ruleInput.min = "0";
+    ruleInput.max = "255";
+    ruleInput.value = String(kf.regle || 30);
+    ruleInput.addEventListener("change", () => {
+      kf.regle = clamp(Number.parseInt(ruleInput.value, 10) || 0, 0, 255);
+      ruleInput.value = String(kf.regle);
+      scheduleRender();
+    });
+    ruleRow.appendChild(ruleLbl);
+    ruleRow.appendChild(ruleInput);
+    row.appendChild(ruleRow);
+
+    const angleRow = document.createElement("div");
+    angleRow.className = "ctrl-row";
+    const angleLbl = document.createElement("label");
+    angleLbl.textContent = "Angle";
+    angleLbl.className = "muted";
+    const angleInput = document.createElement("input");
+    angleInput.type = "number";
+    angleInput.min = "0";
+    angleInput.max = "359";
+    angleInput.value = String(kf.angle || 90);
+    angleInput.addEventListener("change", () => {
+      kf.angle = clamp(Number.parseInt(angleInput.value, 10) || 0, 0, 359);
+      angleInput.value = String(kf.angle);
+      scheduleRender();
+    });
+    angleRow.appendChild(angleLbl);
+    angleRow.appendChild(angleInput);
+    row.appendChild(angleRow);
+
+    const delBtn = document.createElement("button");
+    delBtn.type = "button";
+    delBtn.className = "ghost-btn";
+    delBtn.textContent = "Supprimer";
+    delBtn.addEventListener("click", () => {
+      state.choreographieKeyframes.splice(index, 1);
+      renderChoreographieKeyframes();
+      scheduleRender();
+    });
+    row.appendChild(delBtn);
+
+    container.appendChild(row);
+  });
+}
+
 function bindControls() {
   const presets = document.getElementById("presets");
 
@@ -3954,6 +4400,61 @@ function bindControls() {
   });
 
   window.addEventListener("resize", scheduleRender);
+
+  // Choreography controls
+  const choreoActive = document.getElementById("choreo-active");
+  const choreoOpts = document.getElementById("choreo-opts");
+  const choreoInterp = document.getElementById("choreo-interp");
+  const choreoAdd = document.getElementById("choreo-add");
+
+  choreoActive.checked = state.choreographieActive;
+  choreoInterp.value = state.choreographieInterpolation;
+
+  choreoActive.addEventListener("change", () => {
+    state.choreographieActive = choreoActive.checked;
+    if (choreoOpts) choreoOpts.hidden = !state.choreographieActive;
+    scheduleRender();
+  });
+  choreoInterp.addEventListener("change", (event) => {
+    state.choreographieInterpolation = event.target.value;
+    scheduleRender();
+  });
+  choreoAdd.addEventListener("click", () => {
+    const newKeyframe = {
+      position: state.choreographieKeyframes.length === 0 ? 0 : 1000,
+      regle: state.rule,
+      angle: state.propagationAngle,
+      propagationMode: state.propagationMode,
+      morphTargetRule: state.morphTargetRule,
+      morphIntensity: state.morphIntensity,
+    };
+    state.choreographieKeyframes.push(newKeyframe);
+    renderChoreographieKeyframes();
+    scheduleRender();
+  });
+
+  if (choreoOpts) choreoOpts.hidden = !state.choreographieActive;
+  renderChoreographieKeyframes();
+
+  // Ecosystem controls
+  const ecoActive = document.getElementById("eco-active");
+  const ecoOpts = document.getElementById("eco-opts");
+  const ecoInteraction = document.getElementById("eco-interaction");
+
+  ecoActive.checked = state.ecosystemeMode;
+  ecoInteraction.value = state.ecosystemeInteraction;
+
+  ecoActive.addEventListener("change", () => {
+    state.ecosystemeMode = ecoActive.checked;
+    if (ecoOpts) ecoOpts.hidden = !state.ecosystemeMode;
+    scheduleRender();
+  });
+  ecoInteraction.addEventListener("change", (event) => {
+    state.ecosystemeInteraction = event.target.value;
+    scheduleRender();
+  });
+
+  if (ecoOpts) ecoOpts.hidden = !state.ecosystemeMode;
 }
 
 function initSidebarTabs() {

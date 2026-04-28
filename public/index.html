@@ -377,6 +377,34 @@
                       perturbations</button>
                   </div>
                 </div>
+
+                <div class="ctrl-section">
+                  <p class="ctrl-title">Chorégraphie</p>
+                  <label class="checkbox-row"><input type="checkbox" id="choreo-active" /> Activer</label>
+                  <div id="choreo-opts" class="stack compact" hidden>
+                    <label for="choreo-interp" class="muted">Interpolation</label>
+                    <select id="choreo-interp">
+                      <option value="lisse">Lisse</option>
+                      <option value="lineaire">Linéaire</option>
+                    </select>
+                    <div id="choreo-keyframes" class="stack compact"></div>
+                    <button type="button" id="choreo-add" class="ghost-btn">+ Ajouter une étape</button>
+                  </div>
+                </div>
+
+                <div class="ctrl-section">
+                  <p class="ctrl-title">Écosystème</p>
+                  <label class="checkbox-row"><input type="checkbox" id="eco-active" /> Activer</label>
+                  <div id="eco-opts" class="stack compact" hidden>
+                    <label for="eco-interaction" class="muted">Mode d'interaction</label>
+                    <select id="eco-interaction">
+                      <option value="superposition">Superposition (OR)</option>
+                      <option value="collision">Collision (XOR)</option>
+                      <option value="absorption">Absorption</option>
+                      <option value="hybridation">Hybridation</option>
+                    </select>
+                  </div>
+                </div>
               </div>
 
               <!-- Analytique Tab -->

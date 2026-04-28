@@ -614,3 +614,86 @@ déf metrique_classe_dynamique(entropie, compacite, fragmentation, symetrie, tau
 
     retour categorie
 
+
+# Choreographie : interpolation de parametres d'automates entre keyframes
+
+déf interpoler_lineaire(valeur_debut, valeur_fin, progression_sur_1000):
+    soit progression = progression_sur_1000
+    si progression < 0:
+        progression = 0
+    si progression > 1000:
+        progression = 1000
+    retour valeur_debut + ((valeur_fin - valeur_debut) * progression) // 1000
+
+
+déf interpoler_lisse(valeur_debut, valeur_fin, progression_sur_1000):
+    soit t = progression_sur_1000 / 1000.0
+    soit lisse = t * t * (3 - 2 * t)
+    soit resultat = valeur_debut + (valeur_fin - valeur_debut) * lisse
+    retour math.floor(resultat + 0.5)
+
+
+déf progression_entre_keyframes(position_sur_1000, debut_sur_1000, fin_sur_1000):
+    si fin_sur_1000 <= debut_sur_1000:
+        retour 1000
+    soit duree = fin_sur_1000 - debut_sur_1000
+    soit avancement = position_sur_1000 - debut_sur_1000
+    si avancement <= 0:
+        retour 0
+    si avancement >= duree:
+        retour 1000
+    retour (avancement * 1000) // duree
+
+
+déf angle_interpolee_keyframe(angle_debut, angle_fin, progression_sur_1000):
+    soit delta = angle_fin - angle_debut
+    si delta > 180:
+        delta = delta - 360
+    si delta < -180:
+        delta = delta + 360
+    soit angle = angle_debut + (delta * progression_sur_1000) // 1000
+    retour propagation_angle_normalise(angle)
+
+
+# Ecosysteme : modes d'interaction multi-automates
+
+déf ecosysteme_mode_superposition():
+    retour 0
+
+
+déf ecosysteme_mode_collision():
+    retour 1
+
+
+déf ecosysteme_mode_absorption():
+    retour 2
+
+
+déf ecosysteme_mode_hybridation():
+    retour 3
+
+
+déf ecosysteme_progression_decalee(progression_globale_sur_1000, decalage_sur_1000):
+    soit progression = progression_globale_sur_1000 - decalage_sur_1000
+    si progression < 0:
+        retour 0
+    si progression > 1000:
+        retour 1000
+    retour progression
+
+
+déf ecosysteme_interaction(etat_a, etat_b, regle_a, regle_b, code_mode):
+    si code_mode == ecosysteme_mode_superposition():
+        retour 1 si etat_a == 1 ou etat_b == 1 sinon 0
+    si code_mode == ecosysteme_mode_collision():
+        retour 0 si etat_a == 1 et etat_b == 1 sinon (1 si etat_a == 1 ou etat_b == 1 sinon 0)
+    si code_mode == ecosysteme_mode_absorption():
+        retour etat_a
+    si code_mode == ecosysteme_mode_hybridation():
+        retour etat_a
+    retour 1 si etat_a == 1 ou etat_b == 1 sinon 0
+
+
+déf ecosysteme_regle_hybride(regle_a, regle_b):
+    retour regle_morphee(regle_a, regle_b, 500)
+
