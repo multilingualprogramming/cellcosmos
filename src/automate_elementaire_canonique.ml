@@ -657,3 +657,144 @@ déf descriptions_gammes():
         "ton_entier": "Six notes equidistantes, ambiance suspendue",
     }
 
+
+# Moteur de generation avec options completes
+
+déf graine_ligne(graine_base, ligne_source, ligne_cible):
+    retour graine_base + (ligne_source + 1) * 1009 + (ligne_cible + 1) * 9176
+
+
+déf obtenir_probabilite_ligne_avec_options(ligne, total_lignes, options):
+    soit prob_de_base = (options.get("probability", 1.0) * 1000) ou 1000
+    soit champ_actif = 1 si options.get("champProbabiliteActif", Faux) sinon 0
+    soit prob_haut = (options.get("probabiliteHaut", 1.0) * 1000) ou 1000
+    soit prob_bas = (options.get("probabiliteBas", 0.0) * 1000) ou 0
+
+    soit probabilite_sur_mille = probabilite_ligne(int(prob_de_base), champ_actif, int(prob_haut), int(prob_bas), ligne, total_lignes)
+    retour max(0, min(1000, probabilite_sur_mille)) / 1000.0
+
+
+déf generer_prochaine_generation_avec_options(courante, numero_regle, graine, row_index, total_lignes, ligne_origine, options):
+    soit generateur = random.Random(graine)
+    soit resultat = []
+    soit taille = len(courante)
+    soit direction = options.get("direction", "ltr")
+    soit indices = range(taille) si direction == "ltr" sinon reversed(range(taille))
+    soit prob_courante = obtenir_probabilite_ligne_avec_options(row_index, total_lignes, options)
+    soit morphing_actif = options.get("morphingActive", Faux)
+    soit regle_cible = options.get("morphTargetRule", numero_regle) si morphing_actif sinon numero_regle
+    soit intensite_morph = (options.get("morphIntensity", 0) * 1000) ou 0
+    soit progression_morph = progression_morphosee(abs(row_index - ligne_origine), max(1, total_lignes - 1), int(intensite_morph))
+    soit regle_effective = regle_morphee(numero_regle, regle_cible, progression_morph) si morphing_actif sinon numero_regle
+    soit circulaire = options.get("circular", Faux)
+
+    pour i dans indices:
+        si generateur.random() > prob_courante:
+            resultat.append(0)
+            continuer
+        soit gauche = 0
+        soit centre = courante[i]
+        soit droite = 0
+
+        si direction == "ltr":
+            si i > 0:
+                gauche = courante[i - 1]
+            sinonsi circulaire:
+                gauche = courante[taille - 1]
+            si i < taille - 1:
+                droite = courante[i + 1]
+            sinonsi circulaire:
+                droite = courante[0]
+        sinon:
+            si i > 0:
+                droite = courante[i - 1]
+            sinonsi circulaire:
+                droite = courante[taille - 1]
+            si i < taille - 1:
+                gauche = courante[i + 1]
+            sinonsi circulaire:
+                gauche = courante[0]
+
+        soit nouvelle_cellule = cellule_suivante(regle_effective, gauche, centre, droite)
+        resultat.append(nouvelle_cellule)
+
+    retour resultat si direction == "ltr" sinon list(reversed(resultat))
+
+
+déf evoluer_depuis_position(numero_regle, lignes, colonnes, position, graine_base, options):
+    soit grille = [[0] * colonnes pour _ dans range(lignes)]
+    soit x = max(0, min(colonnes - 1, position.get("x", colonnes // 2)))
+    soit y = max(0, min(lignes - 1, position.get("y", obtenir_origine_y_par_defaut("top", lignes))))
+
+    grille[y][x] = 1
+    soit mode_propagation = options.get("propagationMode", "both")
+
+    si mode_propagation dans ["down", "both"]:
+        pour row dans range(y + 1, lignes):
+            soit graine_ligne_val = graine_ligne(graine_base, row - 1, row)
+            grille[row] = generer_prochaine_generation_avec_options(grille[row - 1], numero_regle, graine_ligne_val, row, lignes, y, options)
+
+    si mode_propagation dans ["up", "both"]:
+        pour row dans range(y - 1, -1, -1):
+            soit graine_ligne_val = graine_ligne(graine_base, row + 1, row)
+            grille[row] = generer_prochaine_generation_avec_options(grille[row + 1], numero_regle, graine_ligne_val, row, lignes, y, options)
+
+    retour grille
+
+
+déf analyser_motif_musical(grille):
+    soit transitions = 0
+    soit correspondances_horizontales = 0
+    soit correspondances_verticales = 0
+    soit total_comparaisons = 0
+    soit centre_x_somme = 0
+    soit centre_y_somme = 0
+    soit cellules_vivantes = 0
+    soit course_max = 0
+
+    pour y, ligne dans enumerate(grille):
+        pour x, valeur dans enumerate(ligne):
+            si valeur == 1:
+                cellules_vivantes = cellules_vivantes + 1
+                centre_x_somme = centre_x_somme + x
+                centre_y_somme = centre_y_somme + y
+
+                si x < len(ligne) - 1:
+                    transitions = transitions + (1 si ligne[x + 1] != valeur sinon 0)
+
+                si y < len(grille) - 1:
+                    transitions = transitions + (1 si grille[y + 1][x] != valeur sinon 0)
+
+        pour x dans range(1, len(ligne)):
+            total_comparaisons = total_comparaisons + 1
+            si ligne[x] == ligne[x - 1]:
+                correspondances_horizontales = correspondances_horizontales + 1
+
+    pour y dans range(1, len(grille)):
+        pour x dans range(len(grille[0])):
+            total_comparaisons = total_comparaisons + 1
+            si grille[y][x] == grille[y - 1][x]:
+                correspondances_verticales = correspondances_verticales + 1
+
+    soit centre_x = (centre_x_somme / cellules_vivantes) si cellules_vivantes > 0 sinon (len(grille[0]) // 2)
+    soit centre_y = (centre_y_somme / cellules_vivantes) si cellules_vivantes > 0 sinon (len(grille) // 2)
+
+    retour {
+        "transitions": transitions,
+        "symmetrie": (correspondances_horizontales + correspondances_verticales) / (2 * total_comparaisons) si total_comparaisons > 0 sinon 0,
+        "centre_x": centre_x,
+        "centre_y": centre_y,
+        "densite": cellules_vivantes / (len(grille) * len(grille[0])) si len(grille) > 0 et len(grille[0]) > 0 sinon 0,
+    }
+
+
+déf calculer_densite_grille(grille):
+    soit total = 0
+    soit vivantes = 0
+    pour ligne dans grille:
+        pour cellule dans ligne:
+            total = total + 1
+            si cellule == 1:
+                vivantes = vivantes + 1
+    retour vivantes / total si total > 0 sinon 0
+

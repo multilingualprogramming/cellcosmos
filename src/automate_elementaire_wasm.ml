@@ -705,3 +705,7 @@ déf espace_indice_couleur(numero_regle):
 
 déf espace_identifiant(numero_regle, index):
     retour numero_regle * 1000 + index
+
+
+déf graine_ligne(graine_base, ligne_source, ligne_cible):
+    retour graine_base + (ligne_source + 1) * 1009 + (ligne_cible + 1) * 9176

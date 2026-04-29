@@ -969,6 +969,13 @@ function ruleNoteLabel(ruleNumber) {
 }
 
 function interpolateComponent(start, end, progressScaled) {
+  if (wasmAvailable && wasm && typeof wasm.composante_interpolee === "function") {
+    try {
+      return Number(wasm.composante_interpolee(start, end, progressScaled));
+    } catch (error) {
+      disableWasmRuntime(error);
+    }
+  }
   return fallbackDomain.interpolateComponent(start, end, progressScaled);
 }
 
@@ -1222,6 +1229,17 @@ function disableWasmRuntime(error) {
   console.error(error);
 }
 
+function obtenirGraineLigne(baseSeed, ligneSource, ligneCible) {
+  if (wasmAvailable && wasm && typeof wasm.graine_ligne === "function") {
+    try {
+      return Number(wasm.graine_ligne(baseSeed, ligneSource, ligneCible));
+    } catch (error) {
+      disableWasmRuntime(error);
+    }
+  }
+  return baseSeed + (ligneSource + 1) * 1009 + (ligneCible + 1) * 9176;
+}
+
 function obtenirOrigineYParDefaut(rows) {
   if (state.initialMode === "top") return 0;
   if (state.initialMode === "bottom") return rows - 1;
@@ -1293,10 +1311,6 @@ function applyInitialState(grid, cols, rows) {
     lignesOrigine.add(y);
   });
   return [...lignesOrigine].sort((a, b) => a - b);
-}
-
-function obtenirGraineLigne(baseSeed, ligneSource, ligneCible) {
-  return baseSeed + (ligneSource + 1) * 1009 + (ligneCible + 1) * 9176;
 }
 
 function obtenirProbabiliteLigne(ligne, totalLignes) {
