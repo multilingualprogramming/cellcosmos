@@ -1845,7 +1845,7 @@ input[type="text"] {
 }
 
 .sidebar-tab-panel.active {
-  display: block;
+  display: block !important;
   opacity: 1;
 }
 
@@ -2590,4 +2590,146 @@ body.fullscreen-mode main {
   .sidebar-tab-panel.active .ctrl-section {
     animation: none;
   }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Rule Space Visualization
+   ─────────────────────────────────────────────────────────────────────── */
+
+#rule-space-canvas {
+  cursor: pointer;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  width: 100%;
+  max-width: 368px;
+  height: auto;
+  display: block;
+  margin: 8px 0;
+}
+
+.rs-filter-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.rs-filter-row label {
+  font-size: 0.8rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.rs-info {
+  font-size: 0.8rem;
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+.rs-legend {
+  font-size: 0.75rem !important;
+  margin: 4px 0 !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Genetic Algorithm Panel
+   ─────────────────────────────────────────────────────────────────────── */
+
+.ga-config-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.ga-config-col {
+  flex: 1;
+}
+
+.ga-config-col label {
+  display: block;
+  font-size: 0.75rem;
+  margin-bottom: 4px;
+}
+
+.ga-config-col input[type="number"] {
+  width: 100%;
+}
+
+.ga-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.ga-slider-row label {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ga-weight-label {
+  font-size: 0.75rem;
+  flex: 0 0 60px;
+}
+
+.ga-slider-row input[type="range"] {
+  flex: 1;
+}
+
+.ga-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.ga-button-row button {
+  flex: 1;
+  min-width: 70px;
+  font-size: 0.8rem;
+}
+
+.ga-apply-btn {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.ga-status {
+  font-size: 0.8rem !important;
+  margin-bottom: 6px !important;
+}
+
+.ga-population-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.ga-rule-chip {
+  cursor: pointer;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 0.75rem;
+  transition: border-color 100ms ease, background 100ms ease;
+  white-space: nowrap;
+}
+
+.ga-rule-chip:hover {
+  border-color: var(--accent);
+  background: rgba(139, 210, 255, 0.1);
+}
+
+.ga-rule-chip.best {
+  border-color: var(--accent);
+  color: var(--warm-glow);
+  font-weight: 600;
 }

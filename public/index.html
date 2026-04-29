@@ -167,6 +167,8 @@
               <button type="button" class="sidebar-tab-btn" data-tab="avance">Avancé</button>
               <button type="button" class="sidebar-tab-btn" data-tab="analytique">Analytique</button>
               <button type="button" class="sidebar-tab-btn" data-tab="espaces">Espaces</button>
+              <button type="button" class="sidebar-tab-btn" data-tab="espace">Espace</button>
+              <button type="button" class="sidebar-tab-btn" data-tab="genetique">Génétique</button>
             </div>
 
             <div class="sidebar-tabs-content">
@@ -499,6 +501,79 @@
                     Les métriques suivent le comportement biologique de l'automate : entropie (ordre/chaos), compacité
                     (structure), fragmentation (dispersion), symétrie (régularité) et croissance (dynamique).
                   </p>
+                </div>
+              </div>
+
+              <!-- Espace Tab -->
+              <div class="sidebar-tab-panel" data-tab="espace" hidden>
+                <div class="ctrl-section">
+                  <p class="ctrl-title">Espace des 256 règles</p>
+                  <p class="muted" style="font-size: 0.75rem; margin-bottom: 8px;">Grille 16×16 colorée par classe de Wolfram · Cliquez une cellule pour naviguer</p>
+                  <div class="rs-filter-row">
+                    <label><input type="radio" name="rs-filtre" value="tous" checked /> Tous</label>
+                    <label><input type="radio" name="rs-filtre" value="1" /> I</label>
+                    <label><input type="radio" name="rs-filtre" value="2" /> II</label>
+                    <label><input type="radio" name="rs-filtre" value="3" /> III</label>
+                    <label><input type="radio" name="rs-filtre" value="4" /> IV</label>
+                  </div>
+                  <canvas id="rule-space-canvas" width="368" height="368" aria-label="Espace des règles"></canvas>
+                  <p class="muted rs-legend">Cliquer une cellule pour naviguer · Voisins Hamming-1 en or</p>
+                  <div class="rs-info">
+                    <span class="muted">Règle </span><strong id="rs-rule">—</strong>
+                    <span class="muted"> · Classe </span><span id="rs-classe">—</span>
+                  </div>
+                  <p class="muted" style="font-size: 0.75rem; margin-top: 6px;" id="rs-neighbors">Voisins: —</p>
+                </div>
+              </div>
+
+              <!-- Génétique Tab -->
+              <div class="sidebar-tab-panel" data-tab="genetique" hidden>
+                <div class="ctrl-section">
+                  <p class="ctrl-title">Algorithme génétique</p>
+                  <p class="muted" style="font-size: 0.75rem; margin-bottom: 8px;">Croise les meilleures règles d'automates cellulaires selon critères musicaux (symétrie, densité, rythme)</p>
+                  <div class="ga-config-row">
+                    <div class="ga-config-col">
+                      <label class="muted">Population</label>
+                      <input type="number" id="ga-taille" value="16" min="4" max="64" step="4" />
+                    </div>
+                    <div class="ga-config-col">
+                      <label class="muted">Générations</label>
+                      <input type="number" id="ga-generations" value="20" min="1" max="100" />
+                    </div>
+                  </div>
+                </div>
+                <div class="ctrl-section">
+                  <p class="ctrl-title">Poids de fitness</p>
+                  <div class="ga-slider-row">
+                    <label>
+                      <span class="ga-weight-label">Symétrie</span>
+                      <input type="range" id="ga-w-symetrie" min="0" max="10" value="5" />
+                    </label>
+                  </div>
+                  <div class="ga-slider-row">
+                    <label>
+                      <span class="ga-weight-label">Densité</span>
+                      <input type="range" id="ga-w-densite" min="0" max="10" value="5" />
+                    </label>
+                  </div>
+                  <div class="ga-slider-row">
+                    <label>
+                      <span class="ga-weight-label">Rythme</span>
+                      <input type="range" id="ga-w-rythme" min="0" max="10" value="5" />
+                    </label>
+                  </div>
+                </div>
+                <div class="ctrl-section">
+                  <div class="ga-button-row">
+                    <button type="button" id="btn-ga-init" class="ghost-btn">Initialiser</button>
+                    <button type="button" id="btn-ga-step" class="ghost-btn">→ Étape</button>
+                    <button type="button" id="btn-ga-run" class="ghost-btn">▶ Évoluer</button>
+                  </div>
+                  <button type="button" id="btn-ga-apply" class="accent-btn ga-apply-btn">Appliquer meilleure</button>
+                </div>
+                <div class="ctrl-section">
+                  <div id="ga-status" class="muted ga-status">—</div>
+                  <div id="ga-population-list" class="ga-population-list"></div>
                 </div>
               </div>
             </div>

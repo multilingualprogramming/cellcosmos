@@ -1240,6 +1240,92 @@ function obtenirGraineLigne(baseSeed, ligneSource, ligneCible) {
   return baseSeed + (ligneSource + 1) * 1009 + (ligneCible + 1) * 9176;
 }
 
+function hammingDistance(regleA, regleB) {
+  if (wasmAvailable && wasm && typeof wasm.hamming_distance === "function") {
+    try { return Number(wasm.hamming_distance(regleA, regleB)); }
+    catch (e) { disableWasmRuntime(e); }
+  }
+  let count = 0, a = regleA & 0xFF, b = regleB & 0xFF;
+  for (let i = 0; i < 8; i++) { if ((a & 1) !== (b & 1)) count++; a >>= 1; b >>= 1; }
+  return count;
+}
+
+function fitnessSymetrie(symetrieSur1000) {
+  if (wasmAvailable && wasm && typeof wasm.fitness_symetrie === "function") {
+    try { return Number(wasm.fitness_symetrie(symetrieSur1000)); }
+    catch (e) { disableWasmRuntime(e); }
+  }
+  const cible = 700, ecart = Math.abs(symetrieSur1000 - cible);
+  return ecart <= 1000 ? 1000 - ecart : 0;
+}
+
+function fitnessDensite(densiteSur1000) {
+  if (wasmAvailable && wasm && typeof wasm.fitness_densite === "function") {
+    try { return Number(wasm.fitness_densite(densiteSur1000)); }
+    catch (e) { disableWasmRuntime(e); }
+  }
+  const cible = 400, ecart = Math.abs(densiteSur1000 - cible);
+  return ecart <= 500 ? 1000 - ecart * 2 : 0;
+}
+
+function fitnessRythmique(transitionsSur1000) {
+  if (wasmAvailable && wasm && typeof wasm.fitness_rythmique === "function") {
+    try { return Number(wasm.fitness_rythmique(transitionsSur1000)); }
+    catch (e) { disableWasmRuntime(e); }
+  }
+  const cible = 350, ecart = Math.abs(transitionsSur1000 - cible);
+  return ecart <= 500 ? 1000 - ecart * 2 : 0;
+}
+
+function fitnessTotale(symetrie, densite, transitions, wSym, wDen, wRyt) {
+  if (wasmAvailable && wasm && typeof wasm.fitness_totale === "function") {
+    try { return Number(wasm.fitness_totale(symetrie, densite, transitions, wSym, wDen, wRyt)); }
+    catch (e) { disableWasmRuntime(e); }
+  }
+  const s = fitnessSymetrie(symetrie) * wSym;
+  const d = fitnessDensite(densite) * wDen;
+  const r = fitnessRythmique(transitions) * wRyt;
+  const tw = wSym + wDen + wRyt;
+  return tw > 0 ? Math.floor((s + d + r) / tw) : 0;
+}
+
+function croisement1pt(regleA, regleB, point) {
+  if (wasmAvailable && wasm && typeof wasm.croisement_1pt === "function") {
+    try { return Number(wasm.croisement_1pt(regleA, regleB, point)); }
+    catch (e) { disableWasmRuntime(e); }
+  }
+  const diviseur = Math.pow(2, point % 8);
+  return Math.floor(regleA % 256 / diviseur) * diviseur + (regleB % 256 % diviseur);
+}
+
+function mutationBit(regle, indiceBit) {
+  if (wasmAvailable && wasm && typeof wasm.mutation_bit === "function") {
+    try { return Number(wasm.mutation_bit(regle, indiceBit)); }
+    catch (e) { disableWasmRuntime(e); }
+  }
+  const bit = Math.pow(2, indiceBit % 8);
+  return (Math.floor(regle % 256 / bit) % 2 === 1) ? regle - bit : regle + bit;
+}
+
+function parametresSonificationDynamique(symetrieSur1000, transitionsSur1000) {
+  if (wasmAvailable && wasm && typeof wasm.parametres_sonification_dynamique === "function") {
+    try { return Number(wasm.parametres_sonification_dynamique(symetrieSur1000, transitionsSur1000)); }
+    catch (e) { disableWasmRuntime(e); }
+  }
+  if (symetrieSur1000 > 700) return 1;
+  if (symetrieSur1000 > 400) return 2;
+  if (transitionsSur1000 > 600) return 4;
+  return 3;
+}
+
+function gainHarmoniqueDepuisSymetrie(symetrieSur1000) {
+  if (wasmAvailable && wasm && typeof wasm.gain_harmonique_depuis_symetrie === "function") {
+    try { return Number(wasm.gain_harmonique_depuis_symetrie(symetrieSur1000)); }
+    catch (e) { disableWasmRuntime(e); }
+  }
+  return 1000 - symetrieSur1000;
+}
+
 function obtenirOrigineYParDefaut(rows) {
   if (state.initialMode === "top") return 0;
   if (state.initialMode === "bottom") return rows - 1;
@@ -2440,7 +2526,11 @@ function renderMainView() {
 
     if (audioEngine.active) {
       const cls = wolframClass(state.rule);
-      audioEngine.update(state.rule, cls, density);
+      let gridStats = null;
+      if (explorerLab.lastRender && explorerLab.lastRender.finalGrid) {
+        gridStats = analyserMotifMusical([{ automate: explorerLab.lastRender.finalGrid }]);
+      }
+      audioEngine.update(state.rule, cls, density, gridStats);
     }
 
     if (sequenceur.active && dernieresCouches) {
@@ -4143,7 +4233,7 @@ const audioEngine = {
     this.active = false;
   },
 
-  update(ruleNumber, wolframCls, density) {
+  update(ruleNumber, wolframCls, density, gridStats) {
     if (!this.active || !this.ctx) return;
 
     const baseFreq = wasmAvailable && wasm && wasm.frequence_fondamentale
@@ -4159,6 +4249,25 @@ const audioEngine = {
     if (this.filter) {
       const cutoff = 200 + density * 3000;
       this.filter.frequency.setTargetAtTime(cutoff, this.ctx.currentTime, 0.1);
+    }
+
+    if (gridStats) {
+      const symetrieSur1000 = Math.round(gridStats.symetrie * 1000);
+      const transitionsSur1000 = Math.min(1000, Math.round(gridStats.vitesse * 1000));
+
+      const waveformCode = parametresSonificationDynamique(symetrieSur1000, transitionsSur1000);
+      const waveforms = ["", "sine", "triangle", "sawtooth", "square"];
+      if (this.osc && this.osc.type !== waveforms[waveformCode]) {
+        try {
+          this.osc.type = waveforms[waveformCode];
+        } catch (e) {
+        }
+      }
+
+      const gainHarmo = gainHarmoniqueDepuisSymetrie(symetrieSur1000) / 1000 * 0.5;
+      if (this.osc2 && this.osc2.gain) {
+        this.osc2.gain.setTargetAtTime(gainHarmo, this.ctx.currentTime, 0.2);
+      }
     }
   },
 };
@@ -5194,6 +5303,279 @@ function initFullscreenToggle() {
   });
 }
 
+// ============================================================
+// Rule Space visualization
+// ============================================================
+const ruleSpaceState = { selectedRule: 90 };
+
+function renderRuleSpace() {
+  const canvas = document.getElementById("rule-space-canvas");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const cellSize = 23;
+  const COLS = 16;
+  const classColors = ["", "#4a9eff", "#88bb44", "#ff6644", "#ffcc22"];
+
+  ctx.fillStyle = "#08111f";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  for (let rule = 0; rule < 256; rule++) {
+    const col = rule % COLS;
+    const row = Math.floor(rule / COLS);
+    const x = col * cellSize + 1;
+    const y = row * cellSize + 1;
+
+    const cls = wolframClass(rule);
+    const isCurrentRule = rule === state.rule;
+    const isNeighbor = hammingDistance(rule, state.rule) === 1;
+    const filterValue = document.querySelector('input[name="rs-filtre"]:checked')?.value || "tous";
+    const visible = filterValue === "tous" || String(cls) === filterValue;
+
+    ctx.fillStyle = visible ? classColors[cls] : "#1a1a2e";
+    ctx.globalAlpha = visible ? (isNeighbor ? 1.0 : 0.6) : 0.15;
+    ctx.fillRect(x, y, cellSize - 2, cellSize - 2);
+    ctx.globalAlpha = 1;
+
+    if (isCurrentRule) {
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, cellSize - 2, cellSize - 2);
+    } else if (isNeighbor && visible) {
+      ctx.strokeStyle = "#ffcc00";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x, y, cellSize - 2, cellSize - 2);
+    }
+  }
+
+  document.getElementById("rs-rule").textContent = String(state.rule);
+  const neighbors = [...Array(256).keys()].filter(r => hammingDistance(r, state.rule) === 1).join(", ");
+  document.getElementById("rs-neighbors").textContent = neighbors.length > 100 ? neighbors.substring(0, 100) + "..." : neighbors;
+}
+
+function initRuleSpaceTab() {
+  const canvas = document.getElementById("rule-space-canvas");
+  if (!canvas) return;
+
+  canvas.addEventListener("click", (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = (e.clientX - rect.left) * scaleX;
+    const y = (e.clientY - rect.top) * scaleY;
+    const cellSize = 23;
+    const col = Math.floor(x / cellSize);
+    const row = Math.floor(y / cellSize);
+    const clickedRule = row * 16 + col;
+    if (clickedRule >= 0 && clickedRule < 256) {
+      state.rule = clickedRule;
+      syncRuleControls();
+      renderMainView();
+      renderRuleSpace();
+    }
+  });
+
+  document.querySelectorAll('input[name="rs-filtre"]').forEach(radio => {
+    radio.addEventListener("change", renderRuleSpace);
+  });
+
+  renderRuleSpace();
+}
+
+// ============================================================
+// Genetic Algorithm
+// ============================================================
+const gaState = { population: [], scores: [], generation: 0, running: false, timer: null, wSym: 5, wDen: 5, wRyt: 5 };
+
+function gaEvaluerRegle(ruleNumber) {
+  const { rows, cols } = obtenirDimensionsRendu();
+  const testRows = Math.min(30, rows);
+  const testCols = Math.min(50, cols);
+  const position = { x: Math.floor(testCols / 2), y: Math.floor(testRows / 2), regle: ruleNumber, couleurs: [], options: {} };
+  const options = normaliserOptionsEvolution({ circulaire: false, probabilite: 1000, morph_actif: false });
+  const grid = evoluerDepuisPosition(ruleNumber, testRows, testCols, position, 42, options);
+  return analyserMotifMusical([{ automate: grid }]);
+}
+
+function gaCalcFitness(stats, wSym, wDen, wRyt) {
+  const symetrie = Math.round(stats.symetrie * 1000);
+  const densite = Math.round(stats.densite * 1000);
+  const transitions = Math.min(1000, Math.round(stats.vitesse * 1000));
+  return fitnessTotale(symetrie, densite, transitions, wSym, wDen, wRyt);
+}
+
+function gaInitialiser() {
+  const taille = parseInt(document.getElementById("ga-taille").value) || 16;
+  gaState.wSym = parseInt(document.getElementById("ga-w-symetrie").value) || 5;
+  gaState.wDen = parseInt(document.getElementById("ga-w-densite").value) || 5;
+  gaState.wRyt = parseInt(document.getElementById("ga-w-rythme").value) || 5;
+  gaState.population = Array.from({ length: taille }, () => Math.floor(Math.random() * 256));
+  gaState.generation = 0;
+  gaState.scores = [];
+  gaRenderPanel();
+}
+
+function gaEvaluerPopulation() {
+  gaState.scores = gaState.population.map(rule => {
+    const stats = gaEvaluerRegle(rule);
+    return gaCalcFitness(stats, gaState.wSym, gaState.wDen, gaState.wRyt);
+  });
+}
+
+function gaEvoluerGeneration() {
+  if (gaState.population.length === 0) gaInitialiser();
+  gaEvaluerPopulation();
+
+  const pop = gaState.population;
+  const scores = gaState.scores;
+  const indices = [...Array(pop.length).keys()].sort((a, b) => scores[b] - scores[a]);
+
+  const nouvelle = [pop[indices[0]]];
+  if (indices[1] !== undefined) nouvelle.push(pop[indices[1]]);
+
+  while (nouvelle.length < pop.length) {
+    const tournoi = (k) => {
+      const candidats = Array.from({ length: k }, () => Math.floor(Math.random() * pop.length));
+      return pop[candidats.reduce((best, i) => scores[i] > scores[best] ? i : best, candidats[0])];
+    };
+    const pa = tournoi(3);
+    const pb = tournoi(3);
+    const point = Math.floor(Math.random() * 7) + 1;
+    let enfant = croisement1pt(pa, pb, point);
+    if (Math.random() < 0.1) enfant = mutationBit(enfant, Math.floor(Math.random() * 8));
+    nouvelle.push(enfant);
+  }
+
+  gaState.population = nouvelle;
+  gaState.generation++;
+  gaEvaluerPopulation();
+  gaRenderPanel();
+}
+
+function gaRenderPanel() {
+  const list = document.getElementById("ga-population-list");
+  const status = document.getElementById("ga-status");
+  if (!list) return;
+
+  const pop = gaState.population;
+  const scores = gaState.scores;
+
+  if (pop.length === 0) {
+    status.textContent = "Cliquez 'Initialiser' pour créer une population";
+    list.innerHTML = "";
+  } else if (scores.length === 0) {
+    status.textContent = `Population : ${pop.length} règles`;
+    list.innerHTML = pop.map(r => {
+      const cls = wolframClass(r);
+      return `<span class="ga-rule-chip" data-rule="${r}" title="Règle ${r}, Classe ${cls}" style="border-color: ${['', '#4a9eff', '#88bb44', '#ff6644', '#ffcc22'][cls]}">${r}</span>`;
+    }).join("");
+  } else {
+    const sorted = [...Array(pop.length).keys()].sort((a, b) => scores[b] - scores[a]);
+    const best = Math.floor(scores[sorted[0]]);
+    status.textContent = `Génération ${gaState.generation} · Fitness ${best} · Poids [S${gaState.wSym}:D${gaState.wDen}:R${gaState.wRyt}]`;
+    list.innerHTML = sorted.slice(0, 10).map(i => {
+      const cls = wolframClass(pop[i]);
+      return `<span class="ga-rule-chip ${i === sorted[0] ? 'best' : ''}" data-rule="${pop[i]}" title="Règle ${pop[i]} · Fitness ${Math.floor(scores[i])}" style="border-color: ${['', '#4a9eff', '#88bb44', '#ff6644', '#ffcc22'][cls]}">${pop[i]}</span>`;
+    }).join("");
+  }
+}
+
+function initGATab() {
+  const btnInit = document.getElementById("btn-ga-init");
+  const btnStep = document.getElementById("btn-ga-step");
+  const btnRun = document.getElementById("btn-ga-run");
+  const btnApply = document.getElementById("btn-ga-apply");
+
+  if (!btnInit) return;
+
+  btnInit.addEventListener("click", gaInitialiser);
+  btnStep.addEventListener("click", gaEvoluerGeneration);
+
+  let runInterval = null;
+  btnRun.addEventListener("click", () => {
+    if (runInterval) {
+      clearInterval(runInterval);
+      runInterval = null;
+      btnRun.textContent = "▶ Évoluer";
+    } else {
+      const maxGen = parseInt(document.getElementById("ga-generations").value) || 20;
+      gaInitialiser();
+      runInterval = setInterval(() => {
+        gaEvoluerGeneration();
+        if (gaState.generation >= maxGen) {
+          clearInterval(runInterval);
+          runInterval = null;
+          btnRun.textContent = "▶ Évoluer";
+        }
+      }, 500);
+      btnRun.textContent = "⏸ Arrêter";
+    }
+  });
+
+  btnApply.addEventListener("click", () => {
+    if (gaState.scores.length > 0) {
+      const best = [...Array(gaState.population.length).keys()].reduce((a, b) =>
+        gaState.scores[b] > gaState.scores[a] ? b : a
+      );
+      state.rule = gaState.population[best];
+      syncRuleControls();
+      renderMainView();
+      renderRuleSpace();
+    }
+  });
+
+  gaRenderPanel();
+}
+
+// ============================================================
+// Sequencer temporal structure
+// ============================================================
+Object.assign(sequenceur, {
+  tailleMesure: 16,
+  mesures: [],
+  mesureIndex: 0,
+  _calculerMesures(ruleNumber) {
+    const mesures = [];
+    const taille = this.tailleMesure;
+    for (let i = 0; i < this.grille.length; i += taille) {
+      const section = this.grille.slice(i, i + taille);
+      if (section.length === 0) break;
+      const stats = analyserMotifMusical([{ automate: section }]);
+      mesures.push(paramsMusicauxDepuisMotif(stats, ruleNumber));
+    }
+    return mesures;
+  },
+  startWithTemporal(couches, ruleNumber) {
+    if (!this.ctx) this.init();
+    if (this.ctx.state === "suspended") this.ctx.resume();
+    const stats = analyserMotifMusical(couches);
+    this.params = paramsMusicauxDepuisMotif(stats, ruleNumber);
+    this.grille = couches.flatMap(c => c.automate);
+    this.rowIndex = 0;
+    this.mesureIndex = 0;
+    this.mesures = this._calculerMesures(ruleNumber);
+    this.active = true;
+    this.timer = setInterval(() => this.tick(), 60000 / this.params.bpm);
+    this.updateStatusUI();
+  },
+  tickWithTemporal() {
+    if (!this.grille || this.grille.length === 0) return;
+    const row = this.grille[this.rowIndex % this.grille.length];
+
+    if (this.rowIndex % this.tailleMesure === 0 && this.mesures.length > 0) {
+      this.mesureIndex = Math.floor(this.rowIndex / this.tailleMesure) % this.mesures.length;
+      this.params = this.mesures[this.mesureIndex];
+      clearInterval(this.timer);
+      this.timer = setInterval(() => this.tickWithTemporal(), 60000 / this.params.bpm);
+    }
+
+    this.jouerRang(row, this.params);
+    this.rowIndex = (this.rowIndex + 1) % this.grille.length;
+    document.getElementById("seq-row").textContent = String(this.rowIndex);
+    const mesureNum = document.getElementById("seq-mesure");
+    if (mesureNum) mesureNum.textContent = String(this.mesureIndex + 1);
+  }
+});
+
 async function init() {
   initTheme();
   loadFromURL();
@@ -5213,6 +5595,10 @@ async function init() {
   await loadWasm();
   renderRuleDiagram();
   scheduleRender();
+
+  // Initialize Rule Space, GA, and temporal features
+  initRuleSpaceTab();
+  initGATab();
 
   // Initialize workspaces AFTER first render
   initWorkspaces();

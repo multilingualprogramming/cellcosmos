@@ -798,3 +798,213 @@ déf calculer_densite_grille(grille):
                 vivantes = vivantes + 1
     retour vivantes / total si total > 0 sinon 0
 
+
+# ============================================================
+# Helpers partagés avec le module WASM
+# ============================================================
+déf classe_wolfram(numero_regle):
+    si numero_regle dans [0, 8, 32, 40, 64, 72, 96, 104, 128, 136, 160, 168, 192, 200, 224, 232, 248, 255]:
+        retour 1
+    si numero_regle dans [18, 22, 30, 45, 60, 90, 105, 122, 126, 150]:
+        retour 3
+    si numero_regle dans [54, 106, 110, 137, 193]:
+        retour 4
+    retour 2
+
+
+déf tempo_depuis_vitesse(vitesse_sur_1000):
+    retour 60 + (vitesse_sur_1000 * 120) // 1000
+
+
+déf gamme_depuis_classe(cls):
+    si cls == 1:
+        retour 0
+    si cls == 3:
+        retour 2
+    si cls == 4:
+        retour 3
+    retour 1
+
+
+déf reverb_depuis_symetrie(symetrie_sur_1000):
+    retour symetrie_sur_1000
+
+
+# ============================================================
+# Espace des règles : distance et navigation
+# ============================================================
+déf hamming_distance_regle(regle_a, regle_b):
+    soit count = 0
+    soit a = regle_a % 256
+    soit b = regle_b % 256
+    pour _ dans range(8):
+        si (a % 2) != (b % 2):
+            count = count + 1
+        a = a // 2
+        b = b // 2
+    retour count
+
+
+déf voisins_hamming(numero_regle, distance_max):
+    soit voisins = []
+    pour regle dans range(256):
+        si regle != numero_regle:
+            soit d = hamming_distance_regle(numero_regle, regle)
+            si d <= distance_max:
+                voisins.append([regle, d])
+    retour voisins
+
+
+déf chemin_regles_direct(regle_debut, regle_fin):
+    soit chemin = [regle_debut]
+    soit courant = regle_debut
+    pour exp dans range(7, -1, -1):
+        si courant == regle_fin:
+            continuer
+        soit bit = 1
+        pour _ dans range(exp):
+            bit = bit * 2
+        soit bit_a = (courant // bit) % 2
+        soit bit_b = (regle_fin // bit) % 2
+        si bit_a != bit_b:
+            si bit_a == 1:
+                courant = courant - bit
+            sinon:
+                courant = courant + bit
+            chemin.append(courant)
+    retour chemin
+
+
+déf regles_par_classe(regles):
+    soit groupes = {1: [], 2: [], 3: [], 4: []}
+    pour regle dans regles:
+        soit cls = classe_wolfram(regle)
+        groupes[cls].append(regle)
+    retour groupes
+
+
+# ============================================================
+# Algorithme génétique : opérateurs sur les règles
+# ============================================================
+déf ga_croisement_1pt(regle_a, regle_b, point):
+    soit diviseur = 1
+    pour _ dans range(point % 8):
+        diviseur = diviseur * 2
+    retour ((regle_a % 256 // diviseur) * diviseur) + (regle_b % 256 % diviseur)
+
+
+déf ga_mutation_aleatoire(regle, graine):
+    soit gen = random.Random(graine)
+    soit indice = gen.randint(0, 7)
+    soit bit = 1
+    pour _ dans range(indice):
+        bit = bit * 2
+    soit valeur_bit = (regle % 256 // bit) % 2
+    si valeur_bit == 1:
+        retour regle - bit
+    retour regle + bit
+
+
+déf ga_population_initiale(taille, graine):
+    soit gen = random.Random(graine)
+    soit population = []
+    pour _ dans range(taille):
+        population.append(gen.randint(0, 255))
+    retour population
+
+
+déf ga_evaluer_regle(numero_regle, colonnes, graine):
+    soit rows = 30
+    soit position = {"x": colonnes // 2, "y": rows // 2, "regle": numero_regle, "couleurs": [], "options": {}}
+    soit options = {"circulaire": Faux, "direction": "ltr", "probabilite": 1000, "morph_actif": Faux}
+    soit grille = evoluer_depuis_position(numero_regle, rows, colonnes, position, graine, options)
+    retour analyser_motif_musical(grille)
+
+
+déf ga_fitness_depuis_stats(stats, w_symetrie, w_densite, w_rythme):
+    soit s = stats["symmetrie"] * 1000
+    soit d = stats["densite"] * 1000
+    soit t = min(1000, stats["transitions"] * 1000)
+    soit total_w = w_symetrie + w_densite + w_rythme + 1
+    retour (s * w_symetrie + d * w_densite + t * w_rythme) / total_w
+
+
+déf ga_evaluer_population(population, colonnes, graine, w_symetrie, w_densite, w_rythme):
+    soit scores = []
+    pour i, regle dans enumerate(population):
+        soit stats = ga_evaluer_regle(regle, colonnes, graine + i)
+        scores.append(ga_fitness_depuis_stats(stats, w_symetrie, w_densite, w_rythme))
+    retour scores
+
+
+déf ga_selectionner_parent(population, scores, k, graine):
+    soit gen = random.Random(graine)
+    soit candidats = [gen.randint(0, len(population) - 1) pour _ dans range(k)]
+    soit meilleur = candidats[0]
+    pour idx dans candidats[1:]:
+        si scores[idx] > scores[meilleur]:
+            meilleur = idx
+    retour population[meilleur]
+
+
+déf ga_nouvelle_generation(population, scores, graine, taux_mutation_sur_1000):
+    soit gen = random.Random(graine)
+    soit indices_tries = sorted(range(len(scores)), key=lambda i: scores[i], reverse=Vrai)
+    soit nouvelle = [population[indices_tries[i]] pour i dans range(min(2, len(population)))]
+    pour _ dans range(len(population) - len(nouvelle)):
+        soit pa = ga_selectionner_parent(population, scores, 3, gen.randint(0, 9999))
+        soit pb = ga_selectionner_parent(population, scores, 3, gen.randint(0, 9999))
+        soit enfant = ga_croisement_1pt(pa, pb, gen.randint(1, 7))
+        si gen.randint(0, 999) < taux_mutation_sur_1000:
+            enfant = ga_mutation_aleatoire(enfant, gen.randint(0, 9999))
+        nouvelle.append(enfant)
+    retour nouvelle
+
+
+# ============================================================
+# Structure temporelle musicale : sections et mesures
+# ============================================================
+déf diviser_grille_en_sections(grille, taille_section):
+    soit n_sections = (len(grille) + taille_section - 1) // taille_section
+    retour [grille[i * taille_section : min((i + 1) * taille_section, len(grille))] pour i dans range(n_sections)]
+
+
+déf analyser_section(section):
+    si len(section) == 0:
+        retour {"transitions": 0, "symmetrie": 0, "densite": 0, "centre_x": 0.5, "centre_y": 0.5}
+    retour analyser_motif_musical(section)
+
+
+déf parametres_musicaux_section(stats, numero_regle):
+    soit cls = classe_wolfram(numero_regle)
+    soit vitesse = int(min(1, stats["transitions"]) * 1000)
+    soit symetrie = int(stats["symmetrie"] * 1000)
+    soit forme_onde = 1
+    si symetrie > 700:
+        forme_onde = 1
+    sinonsi symetrie > 400:
+        forme_onde = 2
+    sinonsi vitesse > 600:
+        forme_onde = 4
+    sinon:
+        forme_onde = 3
+    retour {
+        "bpm": tempo_depuis_vitesse(vitesse),
+        "gamme": gamme_depuis_classe(cls),
+        "reverb": reverb_depuis_symetrie(symetrie),
+        "forme_onde": forme_onde,
+        "gain_harmonique": 1000 - symetrie,
+    }
+
+
+déf structure_temporelle(grille, numero_regle, taille_section):
+    soit sections = diviser_grille_en_sections(grille, taille_section)
+    soit structure = []
+    pour i, section dans enumerate(sections):
+        soit stats = analyser_section(section)
+        soit params = parametres_musicaux_section(stats, numero_regle)
+        params["section"] = i
+        params["debut_rang"] = i * taille_section
+        structure.append(params)
+    retour structure
+

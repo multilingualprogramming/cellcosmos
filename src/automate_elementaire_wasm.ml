@@ -709,3 +709,108 @@ déf espace_identifiant(numero_regle, index):
 
 déf graine_ligne(graine_base, ligne_source, ligne_cible):
     retour graine_base + (ligne_source + 1) * 1009 + (ligne_cible + 1) * 9176
+
+
+# ============================================================
+# Espace des règles : distance de Hamming
+# ============================================================
+déf hamming_distance(regle_a, regle_b):
+    soit count = 0
+    soit a = regle_a % 256
+    soit b = regle_b % 256
+    pour _ dans range(8):
+        si (a % 2) != (b % 2):
+            count = count + 1
+        a = a // 2
+        b = b // 2
+    retour count
+
+
+# ============================================================
+# Génétique : fonctions de fitness
+# ============================================================
+déf fitness_symetrie(symetrie_sur_1000):
+    soit cible = 700
+    soit ecart = symetrie_sur_1000 - cible
+    si ecart < 0:
+        ecart = -ecart
+    retour 1000 - ecart si ecart <= 1000 sinon 0
+
+
+déf fitness_densite(densite_sur_1000):
+    soit cible = 400
+    soit ecart = densite_sur_1000 - cible
+    si ecart < 0:
+        ecart = -ecart
+    retour 1000 - ecart * 2 si ecart <= 500 sinon 0
+
+
+déf fitness_rythmique(transitions_sur_1000):
+    soit cible = 350
+    soit ecart = transitions_sur_1000 - cible
+    si ecart < 0:
+        ecart = -ecart
+    retour 1000 - ecart * 2 si ecart <= 500 sinon 0
+
+
+déf fitness_totale(symetrie_sur_1000, densite_sur_1000, transitions_sur_1000, w_symetrie, w_densite, w_rythme):
+    soit s = fitness_symetrie(symetrie_sur_1000) * w_symetrie
+    soit d = fitness_densite(densite_sur_1000) * w_densite
+    soit r = fitness_rythmique(transitions_sur_1000) * w_rythme
+    soit total_w = w_symetrie + w_densite + w_rythme
+    retour (s + d + r) // total_w si total_w > 0 sinon 0
+
+
+# ============================================================
+# Génétique : opérateurs de croisement et mutation
+# ============================================================
+déf croisement_1pt(regle_a, regle_b, point_sur_8):
+    soit diviseur = 1
+    pour _ dans range(point_sur_8 % 8):
+        diviseur = diviseur * 2
+    retour ((regle_a % 256 // diviseur) * diviseur) + (regle_b % 256 % diviseur)
+
+
+déf croisement_uniforme(regle_a, regle_b, masque_sur_255):
+    soit resultat = 0
+    soit puissance = 1
+    soit a = regle_a % 256
+    soit b = regle_b % 256
+    soit m = masque_sur_255 % 256
+    pour _ dans range(8):
+        si (m % 2) == 1:
+            resultat = resultat + (a % 2) * puissance
+        sinon:
+            resultat = resultat + (b % 2) * puissance
+        a = a // 2
+        b = b // 2
+        m = m // 2
+        puissance = puissance * 2
+    retour resultat
+
+
+déf mutation_bit(regle, indice_bit):
+    soit bit = 1
+    pour _ dans range(indice_bit % 8):
+        bit = bit * 2
+    soit valeur_bit = (regle % 256 // bit) % 2
+    si valeur_bit == 1:
+        retour regle - bit
+    retour regle + bit
+
+
+# ============================================================
+# Sonification dynamique depuis l'état de la grille
+# ============================================================
+déf parametres_sonification_dynamique(symetrie_sur_1000, transitions_sur_1000):
+    si symetrie_sur_1000 > 700:
+        retour 1
+    si symetrie_sur_1000 > 400:
+        retour 2
+    si transitions_sur_1000 > 600:
+        retour 4
+    retour 3
+
+
+déf gain_harmonique_depuis_symetrie(symetrie_sur_1000):
+    retour 1000 - symetrie_sur_1000
