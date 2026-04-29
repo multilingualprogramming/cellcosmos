@@ -64,21 +64,42 @@
             <span id="rule-class" class="rule-class"></span>
           </div>
 
-          <div id="rule-diagram" class="rule-diagram"></div>
+          <details class="canvas-drawer rule-drawer">
+            <summary>Rule logic</summary>
+            <div id="rule-diagram" class="rule-diagram"></div>
+          </details>
 
-          <div class="canvas-card">
-            <div class="canvas-frame">
+          <div class="canvas-card workspace-card">
+            <div class="canvas-workbench" id="explorer-workbench">
+            <div class="canvas-frame canvas-viewport" id="main-viewport">
               <div class="canvas-hud" aria-label="Métriques du rendu">
                 <span><strong id="hud-rule">90</strong> règle</span>
                 <span><strong id="hud-class">III</strong> classe</span>
                 <span><strong id="hud-density">0%</strong> densité</span>
                 <span><strong id="hud-grid">0 x 0</strong> grille</span>
               </div>
-              <canvas id="main-canvas" width="1200" height="720" aria-label="Automate cellulaire"></canvas>
+              <div class="workspace-layer" id="main-workspace-layer">
+                <canvas id="main-canvas" width="1200" height="720" aria-label="Automate cellulaire"></canvas>
+                <div class="guide-layer" id="main-guide-layer" aria-hidden="true">
+                  <span class="guide-line guide-horizontal"></span>
+                  <span class="guide-line guide-vertical"></span>
+                  <span class="guide-center"></span>
+                </div>
+              </div>
+            </div>
+            <div class="workspace-controls" aria-label="Outils de vue">
+              <button type="button" id="btn-pan-tool" class="ghost-btn" aria-pressed="false" title="Pan view">Pan</button>
+              <button type="button" id="btn-toggle-guides" class="ghost-btn" aria-pressed="true">Guides</button>
+              <button type="button" id="btn-toggle-grid" class="ghost-btn" aria-pressed="true">Grid</button>
+              <button type="button" id="btn-center-view" class="ghost-btn">Center</button>
+              <button type="button" id="btn-zoom-out" class="ghost-btn" aria-label="Zoom out">-</button>
+              <span id="viewport-status" class="value-badge">100% | x0 y0</span>
+              <button type="button" id="btn-zoom-in" class="ghost-btn" aria-label="Zoom in">+</button>
+            </div>
             </div>
           </div>
 
-          <div class="actions">
+          <div class="actions canvas-actions">
             <button type="button" id="btn-download">T&eacute;l&eacute;charger PNG</button>
             <button type="button" id="btn-sound">▶ Son</button>
             <button type="button" id="btn-sequencer">▶ S&eacute;quenceur</button>
@@ -92,11 +113,11 @@
               Gamme&nbsp;</span><span id="seq-gamme">—</span><span class="muted"> &nbsp;·&nbsp; Rang&nbsp;</span><span
               id="seq-row">—</span>
           </div>
-          <div id="microscope-panel" class="microscope-panel" hidden>
-            <div class="microscope-header">
+          <details id="microscope-panel" class="microscope-panel" hidden>
+            <summary class="microscope-header">
               <span class="microscope-title">Microscope</span>
               <span id="microscope-pos" class="value-badge">x0 y0</span>
-            </div>
+            </summary>
             <div class="microscope-grid">
               <div class="microscope-card">
                 <span class="microscope-label">Etat final</span>
@@ -127,11 +148,11 @@
                 <strong id="microscope-origin">0</strong>
               </div>
               <div class="microscope-card">
-                <span class="microscope-label">Perturbations</span>
+                <span class="microscope-label">Events</span>
                 <strong id="microscope-events">0</strong>
               </div>
             </div>
-          </div>
+          </details>
         </div>
 
         <aside class="sidebar">
@@ -498,9 +519,12 @@
             <span id="lab-geometry-status" class="rule-class">Aucune geometrie</span>
           </div>
 
-          <div id="lab-rule-diagram" class="rule-diagram"></div>
+          <details class="canvas-drawer rule-drawer">
+            <summary>Rule logic</summary>
+            <div id="lab-rule-diagram" class="rule-diagram"></div>
+          </details>
 
-          <div class="canvas-card">
+          <div class="canvas-card workspace-card">
             <div class="canvas-frame">
               <div class="canvas-hud" aria-label="Metriques Matter Lab">
                 <span><strong id="lab-hud-rule">90</strong> regle</span>
@@ -512,7 +536,7 @@
             </div>
           </div>
 
-          <div class="actions">
+          <div class="actions canvas-actions">
             <button type="button" id="lab-btn-download">Telecharger PNG</button>
             <button type="button" id="lab-btn-clear-geometry" class="ghost-btn">Effacer geometries</button>
             <button type="button" id="lab-btn-clear-field" class="ghost-btn">Effacer champ</button>

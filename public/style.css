@@ -562,6 +562,18 @@ main {
   background: var(--canvas-card-bg);
 }
 
+.workspace-card {
+  padding: 0;
+  animation: none;
+}
+
+.canvas-workbench {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-height: min(68vh, 760px);
+  background: var(--canvas-surface-bg);
+}
+
 .canvas-frame {
   position: relative;
   overflow: hidden;
@@ -570,6 +582,36 @@ main {
   border-radius: 24px;
   background: var(--canvas-frame-bg);
   box-shadow: var(--canvas-frame-shadow);
+}
+
+.canvas-viewport {
+  display: grid;
+  place-items: center;
+  min-height: min(62vh, 700px);
+  border-width: 0;
+  border-radius: 0;
+  background: var(--canvas-surface-bg);
+}
+
+.canvas-viewport.guides-hidden .guide-layer {
+  display: none;
+}
+
+.canvas-viewport.is-panning,
+.canvas-viewport.pan-tool {
+  cursor: grab;
+}
+
+.canvas-viewport.is-panning {
+  cursor: grabbing;
+}
+
+.workspace-layer {
+  position: relative;
+  width: min(100%, 1200px);
+  transform-origin: 50% 50%;
+  transition: transform 120ms ease;
+  will-change: transform;
 }
 
 .canvas-frame::before {
@@ -625,6 +667,281 @@ main {
   image-rendering: pixelated;
 }
 
+.guide-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.guide-line {
+  position: absolute;
+  background: rgba(255, 209, 102, 0.72);
+  box-shadow: 0 0 10px rgba(255, 209, 102, 0.25);
+}
+
+.guide-horizontal {
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+}
+
+.guide-vertical {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+}
+
+.guide-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  border: 1px solid rgba(255, 209, 102, 0.9);
+  border-radius: 999px;
+  background: rgba(2, 7, 13, 0.55);
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 3px rgba(255, 209, 102, 0.12);
+}
+
+.workspace-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--toolbar-bg);
+}
+
+.workspace-controls .ghost-btn {
+  min-width: 42px;
+  padding: 8px 11px;
+  border-radius: 10px;
+}
+
+.workspace-controls .value-badge {
+  min-width: 118px;
+  text-align: center;
+  font-family: "IBM Plex Mono", monospace;
+}
+
+:is(#explorer-panel, #matterlab-panel) .viewer-shell {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: calc(100vh - 110px);
+  height: calc(100vh - 110px);
+  overflow: hidden;
+}
+
+:is(#explorer-panel, #matterlab-panel) .viewer-shell>.rule-bar {
+  position: relative;
+  z-index: 9;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: rgba(5, 13, 22, 0.72);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  box-shadow: none;
+}
+
+:is(#explorer-panel, #matterlab-panel) .viewer-shell>.rule-bar .rule-label {
+  display: none;
+}
+
+:is(#explorer-panel, #matterlab-panel) .viewer-shell>.rule-bar .rule-number {
+  min-width: 50px;
+  font-size: 1.35rem;
+}
+
+:is(#explorer-panel, #matterlab-panel) .viewer-shell>.rule-bar button,
+:is(#explorer-panel, #matterlab-panel) .viewer-shell>.rule-bar select,
+:is(#explorer-panel, #matterlab-panel) .viewer-shell>.rule-bar input[type="number"] {
+  padding: 8px 10px;
+  border-radius: 10px;
+}
+
+:is(#explorer-panel, #matterlab-panel) .viewer-shell>.rule-bar :is(#rule-slider, #lab-rule-slider) {
+  min-width: 120px;
+}
+
+:is(#explorer-panel, #matterlab-panel) .viewer-shell>.rule-bar .rule-class {
+  margin-left: 0;
+  font-size: 0.72rem;
+}
+
+.canvas-drawer {
+  position: absolute;
+  right: 12px;
+  top: 72px;
+  z-index: 10;
+  width: min(450px, calc(100% - 24px));
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(5, 13, 22, 0.82);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
+}
+
+.canvas-drawer summary {
+  cursor: pointer;
+  padding: 10px 12px;
+  color: var(--muted);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.canvas-drawer .rule-diagram {
+  max-height: min(42vh, 360px);
+  overflow: auto;
+  border-top: 1px solid var(--border);
+  border-bottom: 0;
+  padding: 12px;
+}
+
+:is(#explorer-panel, #matterlab-panel) .workspace-card {
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+#explorer-panel .canvas-workbench {
+  min-height: 0;
+  height: 100%;
+}
+
+#explorer-panel .canvas-viewport,
+#matterlab-panel .canvas-frame {
+  min-height: 0;
+  height: 100%;
+  padding: 18px;
+}
+
+#explorer-panel .workspace-layer {
+  width: auto;
+  height: 100%;
+  max-width: 100%;
+  aspect-ratio: 5 / 3;
+}
+
+#explorer-panel #main-canvas,
+#matterlab-panel #lab-canvas {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+}
+
+:is(#explorer-panel, #matterlab-panel) .canvas-actions {
+  position: relative;
+  z-index: 9;
+  justify-content: center;
+  padding: 8px 10px;
+  border-top: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 0;
+  background: rgba(5, 13, 22, 0.72);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  box-shadow: none;
+}
+
+:is(#explorer-panel, #matterlab-panel) .canvas-actions button {
+  padding: 8px 10px;
+  border-radius: 10px;
+}
+
+#explorer-panel .seq-status {
+  position: absolute;
+  left: 16px;
+  bottom: 118px;
+  z-index: 10;
+  max-width: min(560px, calc(100% - 32px));
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(5, 13, 22, 0.78);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+
+#explorer-panel .microscope-panel {
+  position: absolute;
+  right: 16px;
+  bottom: 118px;
+  z-index: 10;
+  width: min(420px, calc(100% - 32px));
+  max-height: min(44vh, 420px);
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(5, 13, 22, 0.84);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
+}
+
+@media (max-width: 940px) {
+  :is(#explorer-panel, #matterlab-panel) .viewer-shell {
+    min-height: 78vh;
+    height: 78vh;
+  }
+
+  :is(#explorer-panel, #matterlab-panel) .viewer-shell>.rule-bar {
+    max-height: 132px;
+    overflow: auto;
+  }
+
+  :is(#explorer-panel, #matterlab-panel) .workspace-card,
+  #explorer-panel .canvas-workbench {
+    min-height: 0;
+    height: 100%;
+  }
+
+  #explorer-panel .canvas-viewport,
+  #matterlab-panel .canvas-frame {
+    min-height: 0;
+    height: 100%;
+    padding: 10px;
+  }
+
+  :is(#explorer-panel, #matterlab-panel) .canvas-hud {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    margin: 0;
+  }
+
+  :is(#explorer-panel, #matterlab-panel) .canvas-actions {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+  }
+
+  :is(#explorer-panel, #matterlab-panel) .canvas-drawer {
+    top: 142px;
+    right: 8px;
+    width: min(420px, calc(100% - 16px));
+  }
+
+  #explorer-panel .seq-status,
+  #explorer-panel .microscope-panel {
+    left: 8px;
+    right: 8px;
+    bottom: 112px;
+    width: auto;
+    max-width: none;
+  }
+}
+
 #main-canvas.inspect-mode {
   cursor: crosshair;
 }
@@ -645,6 +962,18 @@ main {
     top: 92px;
     max-height: calc(100vh - 110px);
     overflow-y: auto;
+  }
+
+  #explorer-panel .viewer-shell {
+    position: sticky;
+    top: 92px;
+    overflow: hidden;
+  }
+
+  #matterlab-panel .viewer-shell {
+    position: sticky;
+    top: 92px;
+    overflow: hidden;
   }
 
   .sidebar {
@@ -1311,7 +1640,7 @@ input[type="text"] {
 .microscope-panel {
   display: grid;
   gap: 12px;
-  padding: 14px 18px 18px;
+  padding: 0;
   border-top: 1px solid var(--border);
   background: linear-gradient(180deg, rgba(102, 227, 255, 0.04), rgba(255, 157, 77, 0.03));
 }
@@ -1325,6 +1654,13 @@ input[type="text"] {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  padding: 12px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.microscope-header::-webkit-details-marker {
+  display: none;
 }
 
 .microscope-title,
@@ -1343,6 +1679,11 @@ input[type="text"] {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
+  padding: 0 14px 14px;
+}
+
+.microscope-panel:not([open]) .microscope-grid {
+  display: none;
 }
 
 .microscope-card {
@@ -1358,6 +1699,8 @@ input[type="text"] {
 .microscope-label {
   color: var(--muted);
   font-size: 0.68rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .microscope-card strong {

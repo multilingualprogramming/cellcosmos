@@ -104,6 +104,12 @@ const DEFAULTS = {
   choreographieInterpolation: "lisse",
   ecosystemeMode: false,
   ecosystemeInteraction: "superposition",
+  showGuides: true,
+  showCanvasGrid: true,
+  viewportZoom: 1,
+  viewportPanX: 0,
+  viewportPanY: 0,
+  panToolActive: false,
 };
 
 const DEFAULT_MATTER_LAB_RULE = 30;
@@ -271,6 +277,7 @@ const matterLab = {
   painting: false,
   defaultRuleApplied: false,
 };
+const viewportDrag = { active: false, pointerId: null, startX: 0, startY: 0, panX: 0, panY: 0 };
 
 function createDotsPattern(size, color, ctx) {
   const canvas = createScratchCanvas(size, size);
@@ -427,6 +434,56 @@ function obtenirDimensionsRendu() {
     rows: Math.max(1, Math.floor((width * 0.6) / state.cellSize)),
     cols: Math.max(1, Math.floor(width / state.cellSize)),
   };
+}
+
+function clampViewportZoom(value) {
+  return clamp(value, 0.25, 6);
+}
+
+function getViewportElements() {
+  return {
+    viewport: document.getElementById("main-viewport"),
+    layer: document.getElementById("main-workspace-layer"),
+    status: document.getElementById("viewport-status"),
+    guidesButton: document.getElementById("btn-toggle-guides"),
+    gridButton: document.getElementById("btn-toggle-grid"),
+    panButton: document.getElementById("btn-pan-tool"),
+  };
+}
+
+function updateViewportStatus(coords = null) {
+  const { status } = getViewportElements();
+  if (!status) return;
+  const zoomLabel = `${Math.round(state.viewportZoom * 100)}%`;
+  const coordLabel = coords ? `x${coords.centeredX} y${coords.centeredY}` : "x0 y0";
+  status.textContent = `${zoomLabel} | ${coordLabel}`;
+}
+
+function applyViewportState(coords = null) {
+  const { viewport, layer, guidesButton, gridButton, panButton } = getViewportElements();
+  if (layer) {
+    layer.style.transform = `translate(${state.viewportPanX}px, ${state.viewportPanY}px) scale(${state.viewportZoom})`;
+  }
+  if (viewport) {
+    viewport.classList.toggle("guides-hidden", !state.showGuides);
+    viewport.classList.toggle("grid-hidden", !state.showCanvasGrid);
+    viewport.classList.toggle("pan-tool", state.panToolActive);
+  }
+  if (guidesButton) guidesButton.setAttribute("aria-pressed", String(state.showGuides));
+  if (gridButton) gridButton.setAttribute("aria-pressed", String(state.showCanvasGrid));
+  if (panButton) panButton.setAttribute("aria-pressed", String(state.panToolActive));
+  updateViewportStatus(coords);
+}
+
+function centerViewport() {
+  state.viewportPanX = 0;
+  state.viewportPanY = 0;
+  state.viewportZoom = 1;
+  applyViewportState();
+}
+
+function shouldPanViewport(event) {
+  return state.panToolActive || event.button === 1 || event.altKey;
 }
 
 async function loadWasm() {
@@ -1546,6 +1603,27 @@ function dessinerDifferencesExplorer(ctx, baseGrid, finalGrid, rows, cols, cellS
   }
 }
 
+function dessinerGrilleCellulaire(ctx, rows, cols, cellSize) {
+  if (!state.showCanvasGrid || cellSize < 2) return;
+  ctx.save();
+  ctx.globalCompositeOperation = "source-over";
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.16)";
+  ctx.lineWidth = Math.max(0.35, Math.min(1, cellSize * 0.16));
+  ctx.beginPath();
+  for (let x = 0; x <= cols; x += 1) {
+    const px = x * cellSize;
+    ctx.moveTo(px, 0);
+    ctx.lineTo(px, rows * cellSize);
+  }
+  for (let y = 0; y <= rows; y += 1) {
+    const py = y * cellSize;
+    ctx.moveTo(0, py);
+    ctx.lineTo(cols * cellSize, py);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
 function dessinerPerturbationsExplorer(ctx, cellSize) {
   ctx.save();
   explorerLab.events.forEach((event) => {
@@ -1893,6 +1971,7 @@ function renderToCanvas(canvas, ruleNumber, rows, cols, cellSize) {
     collisions,
   };
   dessinerDifferencesExplorer(ctx, baseGrid, finalGrid, rows, cols, cellSize);
+  dessinerGrilleCellulaire(ctx, rows, cols, cellSize);
   dessinerPerturbationsExplorer(ctx, cellSize);
   dessinerSelectionMicroscope(ctx, cellSize);
   mettreAJourMicroscope();
@@ -2064,6 +2143,11 @@ function buildShareURL() {
     chi: state.choreographieInterpolation,
     eco: state.ecosystemeMode ? "1" : "0",
     ecoi: state.ecosystemeInteraction,
+    vg: state.showGuides ? "1" : "0",
+    vgrid: state.showCanvasGrid ? "1" : "0",
+    vz: state.viewportZoom.toFixed(2),
+    vpx: Math.round(state.viewportPanX),
+    vpy: Math.round(state.viewportPanY),
   });
   return `${location.origin}${location.pathname}?${params}`;
 }
@@ -2136,6 +2220,11 @@ function loadFromURL() {
   if (params.has("chi")) state.choreographieInterpolation = params.get("chi");
   if (params.has("eco")) state.ecosystemeMode = params.get("eco") === "1";
   if (params.has("ecoi")) state.ecosystemeInteraction = params.get("ecoi");
+  if (params.has("vg")) state.showGuides = params.get("vg") === "1";
+  if (params.has("vgrid")) state.showCanvasGrid = params.get("vgrid") === "1";
+  if (params.has("vz")) state.viewportZoom = clampViewportZoom(Number.parseFloat(params.get("vz")) || 1);
+  if (params.has("vpx")) state.viewportPanX = Number.parseInt(params.get("vpx"), 10) || 0;
+  if (params.has("vpy")) state.viewportPanY = Number.parseInt(params.get("vpy"), 10) || 0;
 }
 
 function renderMainView() {
@@ -2618,6 +2707,7 @@ function renderMatterLabView() {
     });
   });
 
+  dessinerGrilleCellulaire(ctx, rows, cols, state.cellSize);
   const geometry = configurationGeometrieMatterLab(rows, cols);
   const barriers = configurationsBarrieresMatterLab(rows, cols);
   dessinerGeometrieMatterLab(ctx, geometry, state.cellSize);
@@ -3083,7 +3173,14 @@ function obtenirCoordonneesCelluleDepuisEvenement(event) {
   const { cols, rows } = obtenirDimensionsRendu();
   const x = clamp(Math.floor(((event.clientX - rect.left) / rect.width) * cols), 0, cols - 1);
   const y = clamp(Math.floor(((event.clientY - rect.top) / rect.height) * rows), 0, rows - 1);
-  return { x, y, cols, rows };
+  return {
+    x,
+    y,
+    cols,
+    rows,
+    centeredX: x - Math.floor(cols / 2),
+    centeredY: y - Math.floor(rows / 2),
+  };
 }
 
 function trouverPointLePlusProche(points, cible, rayon = 3) {
@@ -3153,6 +3250,78 @@ function dupliquerPointPersonnalise(pointSource, cols, rows) {
   return true;
 }
 
+function bindViewportControls() {
+  const { viewport } = getViewportElements();
+  if (!viewport) return;
+
+  document.getElementById("btn-toggle-guides")?.addEventListener("click", () => {
+    state.showGuides = !state.showGuides;
+    applyViewportState();
+  });
+  document.getElementById("btn-toggle-grid")?.addEventListener("click", () => {
+    state.showCanvasGrid = !state.showCanvasGrid;
+    applyViewportState();
+    scheduleRender();
+  });
+  document.getElementById("btn-center-view")?.addEventListener("click", centerViewport);
+  document.getElementById("btn-zoom-in")?.addEventListener("click", () => {
+    state.viewportZoom = clampViewportZoom(state.viewportZoom * 1.2);
+    applyViewportState();
+  });
+  document.getElementById("btn-zoom-out")?.addEventListener("click", () => {
+    state.viewportZoom = clampViewportZoom(state.viewportZoom / 1.2);
+    applyViewportState();
+  });
+  document.getElementById("btn-pan-tool")?.addEventListener("click", () => {
+    state.panToolActive = !state.panToolActive;
+    applyViewportState();
+  });
+
+  viewport.addEventListener("wheel", (event) => {
+    event.preventDefault();
+    const direction = event.deltaY > 0 ? 1 / 1.12 : 1.12;
+    state.viewportZoom = clampViewportZoom(state.viewportZoom * direction);
+    applyViewportState();
+  }, { passive: false });
+
+  viewport.addEventListener("pointerdown", (event) => {
+    if (!shouldPanViewport(event)) return;
+    event.preventDefault();
+    viewportDrag.active = true;
+    viewportDrag.pointerId = event.pointerId;
+    viewportDrag.startX = event.clientX;
+    viewportDrag.startY = event.clientY;
+    viewportDrag.panX = state.viewportPanX;
+    viewportDrag.panY = state.viewportPanY;
+    viewport.classList.add("is-panning");
+    viewport.setPointerCapture(event.pointerId);
+  });
+
+  viewport.addEventListener("pointermove", (event) => {
+    const canvas = document.getElementById("main-canvas");
+    if (canvas && canvas.contains(event.target)) {
+      updateViewportStatus(obtenirCoordonneesCelluleDepuisEvenement(event));
+    }
+    if (!viewportDrag.active) return;
+    state.viewportPanX = viewportDrag.panX + (event.clientX - viewportDrag.startX);
+    state.viewportPanY = viewportDrag.panY + (event.clientY - viewportDrag.startY);
+    applyViewportState();
+  });
+
+  const endPan = (event) => {
+    if (!viewportDrag.active) return;
+    viewportDrag.active = false;
+    viewport.classList.remove("is-panning");
+    if (event?.pointerId != null && viewport.hasPointerCapture(event.pointerId)) {
+      viewport.releasePointerCapture(event.pointerId);
+    }
+  };
+  viewport.addEventListener("pointerup", endPan);
+  viewport.addEventListener("pointercancel", endPan);
+  viewport.addEventListener("pointerleave", endPan);
+  applyViewportState();
+}
+
 function bindCanvasEditor() {
   const canvas = document.getElementById("main-canvas");
   if (!canvas) return;
@@ -3176,6 +3345,7 @@ function bindCanvasEditor() {
   });
 
   canvas.addEventListener("pointerdown", (event) => {
+    if (shouldPanViewport(event)) return;
     const cible = obtenirCoordonneesCelluleDepuisEvenement(event);
     synchroniserCanvasEdition();
 
@@ -3232,6 +3402,7 @@ function bindCanvasEditor() {
 
   canvas.addEventListener("pointermove", (event) => {
     const cible = obtenirCoordonneesCelluleDepuisEvenement(event);
+    updateViewportStatus(cible);
     if (state.explorerTool === "inspect") {
       explorerLab.selection = { x: cible.x, y: cible.y };
       scheduleRender();
@@ -4831,6 +5002,7 @@ async function init() {
   initSidebarTabs();
   initMatterLabTabs();
   bindControls();
+  bindViewportControls();
   bindCanvasEditor();
   bindMatterLabCanvas();
   bindGallery();
