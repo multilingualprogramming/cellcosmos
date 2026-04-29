@@ -279,6 +279,190 @@ const matterLab = {
 };
 const viewportDrag = { active: false, pointerId: null, startX: 0, startY: 0, panX: 0, panY: 0 };
 
+// Workspace management
+const WORKSPACE_FIELDS = [
+  'rule','cellSize','shape','texture','bgColor','gradientColors',
+  'initialMode','pointsInitiaux','initialCount','seed',
+  'blendMode','layerOpacity','progressionTemporelle','vitesseAnimation',
+  'circular','probability','champProbabiliteActif','probabiliteHaut','probabiliteBas',
+  'direction','propagationMode','propagationAngle',
+  'morphingActive','morphTargetRule','morphIntensity',
+  'reglesPoints','palettesPoints','optionsPoints',
+];
+
+let workspaces = [];
+let activeWorkspaceId = null;
+let workspaceGridMode = false;
+
+function snapshotState() {
+  return Object.fromEntries(WORKSPACE_FIELDS.map(k => [k, structuredClone(state[k])]));
+}
+
+function createWorkspace(name) {
+  const id = Date.now();
+  workspaces.push({ id, name, snap: snapshotState(), frozenFrame: null });
+  if (!activeWorkspaceId) activeWorkspaceId = id;
+  return id;
+}
+
+function cloneWorkspace(id) {
+  const src = workspaces.find(w => w.id === id);
+  if (!src) return;
+  const id2 = Date.now() + 1;
+  workspaces.push({ ...structuredClone(src), id: id2, name: src.name + ' (copie)' });
+  renderWorkspaceSidebar();
+}
+
+function deleteWorkspace(id) {
+  if (workspaces.length <= 1) return;
+  workspaces = workspaces.filter(w => w.id !== id);
+  if (activeWorkspaceId === id) focusWorkspace(workspaces[0].id);
+  renderWorkspaceSidebar();
+}
+
+function saveCurrentToWorkspace() {
+  const ws = workspaces.find(w => w.id === activeWorkspaceId);
+  if (!ws) return;
+  ws.snap = snapshotState();
+  const canvas = document.getElementById('main-canvas');
+  if (canvas) ws.frozenFrame = canvas.toDataURL('image/png');
+}
+
+function loadWorkspaceToState(id) {
+  const ws = workspaces.find(w => w.id === id);
+  if (!ws) return;
+  WORKSPACE_FIELDS.forEach(k => { state[k] = structuredClone(ws.snap[k]); });
+}
+
+function focusWorkspace(id) {
+  saveCurrentToWorkspace();
+  activeWorkspaceId = id;
+  loadWorkspaceToState(id);
+  syncRuleControls();
+  renderColorThemes();
+  renderGradientPickers();
+  renderPalettesPoints();
+  renderRuleDiagram();
+  scheduleRender();
+  renderWorkspaceSidebar();
+}
+
+function renderWorkspaceSidebar() {
+  const list = document.getElementById('workspace-list');
+  if (!list) return;
+  list.innerHTML = workspaces.map(ws => `
+    <div class="workspace-card ${ws.id === activeWorkspaceId ? 'active' : ''}" data-ws-id="${ws.id}">
+      <div class="workspace-card-thumb">
+        ${ws.frozenFrame ? `<img src="${ws.frozenFrame}" alt="${ws.name}" />` : '<span class="muted">—</span>'}
+      </div>
+      <div class="workspace-card-body">
+        <input class="workspace-name-input" value="${ws.name}" data-ws-id="${ws.id}" />
+        <span class="value-badge">R${ws.snap.rule}</span>
+      </div>
+      <div class="workspace-card-actions">
+        <button class="ghost-btn ws-focus" data-ws-id="${ws.id}">Focus</button>
+        <button class="ghost-btn ws-clone" data-ws-id="${ws.id}">Clone</button>
+        <button class="ghost-btn ws-delete" data-ws-id="${ws.id}" ${workspaces.length <= 1 ? 'disabled' : ''}>✕</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderWorkspaceGrid() {
+  const grid = document.getElementById('workspace-grid-view');
+  if (!grid) { console.error('workspace-grid-view not found'); return; }
+
+  saveCurrentToWorkspace();
+  console.log('Rendering grid with', workspaces.length, 'workspaces');
+
+  if (workspaces.length === 0) {
+    grid.innerHTML = '<div style="grid-column: 1/-1; padding: 20px; text-align: center; color: var(--muted);">Aucun espace de travail</div>';
+    return;
+  }
+
+  grid.innerHTML = workspaces.map(ws => `
+    <div class="workspace-grid-cell ${ws.id === activeWorkspaceId ? 'active' : ''}" data-ws-id="${ws.id}">
+      <div class="workspace-grid-label">${ws.name} — R${ws.snap.rule}</div>
+      ${ws.frozenFrame
+        ? `<img class="workspace-grid-img" src="${ws.frozenFrame}" alt="${ws.name}" />`
+        : `<div class="workspace-grid-placeholder"><span class="muted">Pas de rendu</span></div>`}
+    </div>
+  `).join('');
+
+  console.log('Grid HTML rendered, cells:', grid.querySelectorAll('.workspace-grid-cell').length);
+
+  // Attach click handlers to grid cells
+  grid.querySelectorAll('.workspace-grid-cell').forEach(cell => {
+    cell.addEventListener('click', () => {
+      const wsId = Number(cell.dataset.wsId);
+      focusWorkspace(wsId);
+      toggleGridView();
+    });
+  });
+}
+
+function toggleGridView() {
+  workspaceGridMode = !workspaceGridMode;
+  const gridView = document.getElementById('workspace-grid-view');
+  const mainViewport = document.getElementById('main-viewport');
+  const btn = document.getElementById('btn-workspace-grid');
+
+  if (workspaceGridMode) {
+    gridView.hidden = false;
+    gridView.style.display = 'grid';
+    mainViewport.style.pointerEvents = 'none';
+    mainViewport.style.opacity = '0.3';
+    renderWorkspaceGrid();
+  } else {
+    gridView.hidden = true;
+    gridView.style.display = 'none';
+    mainViewport.style.pointerEvents = 'auto';
+    mainViewport.style.opacity = '1';
+  }
+
+  btn.setAttribute('aria-pressed', String(workspaceGridMode));
+}
+
+function initWorkspaces() {
+  createWorkspace('Espace 1');
+  renderWorkspaceSidebar();
+
+  const newBtn = document.getElementById('btn-new-workspace');
+  if (newBtn) {
+    newBtn.addEventListener('click', () => {
+      const id = createWorkspace(`Espace ${workspaces.length + 1}`);
+      focusWorkspace(id);
+    });
+  }
+
+  const gridBtn = document.getElementById('btn-workspace-grid');
+  if (gridBtn) {
+    gridBtn.addEventListener('click', toggleGridView);
+  }
+
+  const list = document.getElementById('workspace-list');
+  if (list) {
+    list.addEventListener('click', e => {
+      const wsId = Number(e.target.closest('[data-ws-id]')?.dataset.wsId);
+      if (!wsId || isNaN(wsId)) return;
+      if (e.target.classList.contains('ws-focus')) focusWorkspace(wsId);
+      if (e.target.classList.contains('ws-clone')) cloneWorkspace(wsId);
+      if (e.target.classList.contains('ws-delete')) deleteWorkspace(wsId);
+      if (workspaceGridMode && e.target.classList.contains('ws-focus')) {
+        toggleGridView();
+      }
+    });
+
+    list.addEventListener('change', e => {
+      if (e.target.classList.contains('workspace-name-input')) {
+        const wsId = Number(e.target.dataset.wsId);
+        const ws = workspaces.find(w => w.id === wsId);
+        if (ws) { ws.name = e.target.value; renderWorkspaceSidebar(); }
+      }
+    });
+  }
+}
+
 function createDotsPattern(size, color, ctx) {
   const canvas = createScratchCanvas(size, size);
   const c = canvas.getContext("2d");
@@ -5015,6 +5199,9 @@ async function init() {
   await loadWasm();
   renderRuleDiagram();
   scheduleRender();
+
+  // Initialize workspaces AFTER first render
+  initWorkspaces();
 
   // Futuristic enhancements
   initParticles();

@@ -697,3 +697,11 @@ déf ecosysteme_interaction(etat_a, etat_b, regle_a, regle_b, code_mode):
 déf ecosysteme_regle_hybride(regle_a, regle_b):
     retour regle_morphee(regle_a, regle_b, 500)
 
+
+# Espaces de travail : utilitaires pour l'interface
+déf espace_indice_couleur(numero_regle):
+    retour numero_regle % 8
+
+
+déf espace_identifiant(numero_regle, index):
+    retour numero_regle * 1000 + index

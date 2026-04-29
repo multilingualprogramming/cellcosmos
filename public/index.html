@@ -87,6 +87,9 @@
                 </div>
               </div>
             </div>
+            <div id="workspace-grid-view" class="workspace-grid-view" hidden>
+              <!-- Dynamically populated -->
+            </div>
             <div class="workspace-controls" aria-label="Outils de vue">
               <button type="button" id="btn-pan-tool" class="ghost-btn" aria-pressed="false" title="Pan view">Pan</button>
               <button type="button" id="btn-toggle-guides" class="ghost-btn" aria-pressed="true">Guides</button>
@@ -163,6 +166,7 @@
               <button type="button" class="sidebar-tab-btn" data-tab="rendu">Rendu</button>
               <button type="button" class="sidebar-tab-btn" data-tab="avance">Avancé</button>
               <button type="button" class="sidebar-tab-btn" data-tab="analytique">Analytique</button>
+              <button type="button" class="sidebar-tab-btn" data-tab="espaces">Espaces</button>
             </div>
 
             <div class="sidebar-tabs-content">
@@ -426,6 +430,17 @@
                     </select>
                   </div>
                 </div>
+              </div>
+
+              <!-- Espaces Tab -->
+              <div class="sidebar-tab-panel" data-tab="espaces">
+                <div class="ctrl-section">
+                  <div class="ctrl-row">
+                    <button type="button" id="btn-new-workspace" class="ghost-btn">+ Nouveau</button>
+                    <button type="button" id="btn-workspace-grid" class="ghost-btn" aria-pressed="false">Grille</button>
+                  </div>
+                </div>
+                <div id="workspace-list" class="workspace-list"></div>
               </div>
 
               <!-- Analytique Tab -->
