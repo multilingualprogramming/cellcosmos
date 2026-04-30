@@ -122,6 +122,19 @@ const DEFAULTS = {
   sonReverb: 0.25,
   sonStereoWidth: 0.8,
   sonCollisionAccent: 0.5,
+  sonHarmonie: false,
+  sonQuantification: false,
+  sonDetune: -1,
+  sonFiltreType: "auto",
+  sonSpatial: false,
+  sonPhase: false,
+  sonPolyrhythme: false,
+  sonChroma: false,
+  sonVisuColonnes: false,
+  sonVisuEclairs: false,
+  sonVisuRuban: false,
+  sonVisuSpectre: false,
+  sonVisuEntropie: false,
 };
 
 const DEFAULT_MATTER_LAB_RULE = 30;
@@ -251,6 +264,46 @@ const fallbackDomain = {
     if (eventCode === 2) return 0;
     if (eventCode === 3) return initialValue === 1 ? 0 : 1;
     return initialValue;
+  },
+  // New music enhancement functions
+  frequenceHarmonique(fondamentaleHz100, classeWolfram) {
+    const ratios = [1, 1.5, 1.333, 1.25, 1.75]; // [unused, P5, P4, M3, m7]
+    const ratio = ratios[clamp(classeWolfram, 0, 4)] || 1.5;
+    return Math.round(fondamentaleHz100 * ratio);
+  },
+  desaccordDepuisEntropie(entropieSur1000) {
+    return Math.round((entropieSur1000 * 1200) / 1000);
+  },
+  typeFiltreDePuisClasse(classeWolfram) {
+    if (classeWolfram === 1 || classeWolfram === 2) return 0; // lowpass
+    if (classeWolfram === 3) return 1; // bandpass
+    return 2; // highpass
+  },
+  serieHarmoniqueAmplitude(rangHarmonique, symetrieSur1000, densiteSur1000) {
+    let amplitude = Math.round(1000 / rangHarmonique);
+    const densityMod = Math.round((densiteSur1000 / 100) * 50);
+    amplitude = Math.max(10, Math.min(1000, amplitude - densityMod));
+    return amplitude;
+  },
+  timbreDepuisEntropie(entropieSur1000) {
+    return entropieSur1000;
+  },
+  phaseMotif(vitesseSur1000, deltaDensiteSur1000) {
+    if (deltaDensiteSur1000 > 100) return 1; // croissance
+    if (deltaDensiteSur1000 < -100) return 2; // déclin
+    return 0; // stable
+  },
+  detecterAttracteur(vitesseSur1000, etapeSur1000) {
+    if (vitesseSur1000 < 50) return 1;
+    if (vitesseSur1000 < 150) return 2;
+    return 0;
+  },
+  registerDepuisRegion(colonne, largeur) {
+    if (largeur <= 0) return 1;
+    const proportion = Math.round((colonne * 3000) / largeur);
+    if (proportion < 1000) return 0;
+    if (proportion > 2000) return 2;
+    return 1;
   },
 };
 
@@ -913,6 +966,28 @@ function validateWasmExports(exports) {
 
     if (typeof exports.ecosysteme_mode_superposition === "function") {
       if (Number(exports.ecosysteme_mode_superposition()) !== 0) {
+        return false;
+      }
+    }
+
+    // New music enhancement functions (optional, but validate if present)
+    if (typeof exports.frequence_harmonique === "function") {
+      const harmFreq = Number(exports.frequence_harmonique(220 * 100, 1));
+      if (!Number.isFinite(harmFreq) || harmFreq < 100 || harmFreq > 10000) {
+        return false;
+      }
+    }
+
+    if (typeof exports.desaccord_depuis_entropie === "function") {
+      const detune = Number(exports.desaccord_depuis_entropie(500));
+      if (!Number.isFinite(detune) || detune < 0 || detune > 1200) {
+        return false;
+      }
+    }
+
+    if (typeof exports.type_filtre_depuis_classe === "function") {
+      const filterType = Number(exports.type_filtre_depuis_classe(2));
+      if (!Number.isFinite(filterType) || filterType < 0 || filterType > 2) {
         return false;
       }
     }
@@ -2338,8 +2413,18 @@ function renderToCanvas(canvas, ruleNumber, rows, cols, cellSize) {
   dessinerDifferencesExplorer(ctx, baseGrid, finalGrid, rows, cols, cellSize);
   dessinerGrilleCellulaire(ctx, rows, cols, cellSize);
   dessinerPerturbationsExplorer(ctx, cellSize);
+
+  // Music visualization overlays
+  const gammeCode = state.sonScale === "auto" ? (wolframClass(ruleNumber) - 1) : Number.parseInt(state.sonScale, 10);
+  visualisationSon.drawPitchColumns(ctx, cols, cellSize, gammeCode);
+  visualisationSon.drawNoteFlashes(ctx, cols, rows, cellSize);
+  visualisationSon.drawEntropyAura(ctx, baseGrid, rows, cols, cellSize, analyserMotifMusical(couches));
+
   dessinerSelectionMicroscope(ctx, cellSize);
   mettreAJourMicroscope();
+
+  // Waveform ribbon at bottom (after everything else)
+  visualisationSon.drawWaveformRibbon(ctx, canvas, 20);
 
   if (state.pauseSurCollision && animationEtat.actif && collisions.size > 0) {
     arreterAnimation();
@@ -2605,13 +2690,55 @@ function renderMainView() {
       updateAnalyticsPanel(explorerLab.lastRender.finalGrid);
     }
 
-    if (audioEngine.active) {
+    if (audioEngine.active || audioEngineHarmonique.active || granulaireSynthetiseur.active) {
       const cls = wolframClass(state.rule);
       let gridStats = null;
       if (explorerLab.lastRender && explorerLab.lastRender.finalGrid) {
         gridStats = analyserMotifMusical([{ automate: explorerLab.lastRender.finalGrid }]);
       }
-      audioEngine.update(state.rule, cls, density, gridStats);
+      const baseFreq = wasmAvailable && wasm && wasm.frequence_fondamentale
+        ? wasm.frequence_fondamentale(state.rule)
+        : fallbackDomain.frequenceFondamentale(state.rule);
+
+      // Route to appropriate synthesis mode
+      const mode = state.sonMode === "auto"
+        ? (["drone", "scanline", "poly", "percussion"][cls - 1] || "drone")
+        : state.sonMode;
+
+      const symetrieSur1000 = gridStats ? Math.round(gridStats.symetrie * 1000) : 500;
+      const vitesseSur1000 = gridStats ? Math.min(1000, Math.round(gridStats.vitesse * 1000)) : 500;
+      const densiteSur1000 = Math.round(density * 1000);
+
+      if (mode === "harmonique" && audioEngineHarmonique.active) {
+        audioEngineHarmonique.update(baseFreq, symetrieSur1000, densiteSur1000);
+      } else if (mode === "granulaire" && granulaireSynthetiseur.active) {
+        granulaireSynthetiseur.update(baseFreq, vitesseSur1000, densiteSur1000);
+      } else if (mode === "wolfram_classe" && audioEngine.active) {
+        // Extended drone with timbral variations per Wolfram class
+        audioEngine.update(state.rule, cls, density, gridStats);
+        // Add waveform modulation based on class
+        if (audioEngine.osc && audioEngine.osc2) {
+          const waveforms = ["sine", "triangle", "sawtooth", "square"];
+          const waveIdx = Math.min(3, cls - 1);
+          if (audioEngine.osc.type !== waveforms[waveIdx]) {
+            audioEngine.osc.type = waveforms[waveIdx];
+          }
+        }
+      } else if (mode === "entropique" && audioEngine.active) {
+        // Entropy-driven timbral morphing
+        audioEngine.update(state.rule, cls, density, gridStats);
+        if (audioEngine.osc2Gain && gridStats) {
+          // More harmonic content in high-entropy patterns
+          const entropyFactor = gridStats.entropie || 0.5;
+          audioEngine.osc2Gain.gain.value = (1 - entropyFactor) * 0.5;
+        }
+      } else if (mode === "attracteur" && audioEngine.active) {
+        // Use drone as base, could add cyclic patterns
+        audioEngine.update(state.rule, cls, density, gridStats);
+      } else if (audioEngine.active) {
+        // Default drone mode
+        audioEngine.update(state.rule, cls, density, gridStats);
+      }
     }
 
     if (sequenceur.active && dernieresCouches) {
@@ -4218,6 +4345,146 @@ function midiToHz(midi) {
   return 440 * Math.pow(2, (midi - 69) / 12);
 }
 
+// Harmonic series synthesizer - plays 8 harmonics with amplitude weighted by density/symmetry
+const audioEngineHarmonique = {
+  ctx: null,
+  oscs: [],
+  gains: [],
+  master: null,
+  analyser: null,
+  active: false,
+
+  init() {
+    if (this.ctx) return;
+    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    this.master = this.ctx.createGain();
+    this.master.gain.value = 0.3; // Quieter by default
+    this.master.connect(this.ctx.destination);
+    this.analyser = this.ctx.createAnalyser();
+    this.analyser.fftSize = 2048;
+    this.master.connect(this.analyser);
+  },
+
+  createOscillators(baseFreq, symetrieSur1000, densiteSur1000) {
+    this.oscs.forEach(o => o.stop());
+    this.oscs = [];
+    this.gains = [];
+
+    for (let harmonic = 1; harmonic <= 8; harmonic++) {
+      const osc = this.ctx.createOscillator();
+      osc.type = "sine";
+      osc.frequency.value = baseFreq * harmonic;
+
+      const gain = this.ctx.createGain();
+      // Amplitude based on series envelope and symmetry
+      const amp = (1 / harmonic) * (0.3 + (symetrieSur1000 / 1000) * 0.7);
+      gain.gain.value = amp;
+
+      osc.connect(gain);
+      gain.connect(this.master);
+      osc.start();
+
+      this.oscs.push(osc);
+      this.gains.push(gain);
+    }
+  },
+
+  start() {
+    if (!this.ctx) this.init();
+    if (this.ctx.state === "suspended") this.ctx.resume();
+    this.active = true;
+    updateSonTransportUI();
+  },
+
+  stop() {
+    this.oscs.forEach(o => o.stop());
+    this.oscs = [];
+    this.gains = [];
+    if (this.ctx) this.ctx.suspend();
+    this.active = false;
+    updateSonTransportUI();
+  },
+
+  update(baseFreq, symetrieSur1000, densiteSur1000) {
+    if (!this.active) return;
+    this.createOscillators(baseFreq, symetrieSur1000, densiteSur1000);
+    if (this.master) {
+      this.master.gain.value = 0.3 * state.sonVolume;
+    }
+    updateSonReadout();
+  },
+};
+
+// Granular synthesizer - triggers short enveloped bursts
+const granulaireSynthetiseur = {
+  ctx: null,
+  master: null,
+  analyser: null,
+  active: false,
+  lastGranuleTime: 0,
+  granuleRate: 50, // ms between granules
+
+  init() {
+    if (this.ctx) return;
+    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    this.master = this.ctx.createGain();
+    this.master.gain.value = state.sonVolume;
+    this.master.connect(this.ctx.destination);
+    this.analyser = this.ctx.createAnalyser();
+    this.analyser.fftSize = 2048;
+    this.master.connect(this.analyser);
+  },
+
+  triggerGranule(freq, duration, velocity = 0.3) {
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const env = this.ctx.createGain();
+
+    osc.type = "sine";
+    osc.frequency.value = freq;
+
+    env.gain.setValueAtTime(clamp(velocity, 0.05, 0.5), t);
+    env.gain.exponentialRampToValueAtTime(0.001, t + duration / 1000);
+
+    osc.connect(env);
+    env.connect(this.master);
+    osc.start(t);
+    osc.stop(t + duration / 1000 + 0.01);
+  },
+
+  start() {
+    if (!this.ctx) this.init();
+    if (this.ctx.state === "suspended") this.ctx.resume();
+    this.active = true;
+    this.lastGranuleTime = 0;
+    updateSonTransportUI();
+  },
+
+  stop() {
+    if (this.ctx) this.ctx.suspend();
+    this.active = false;
+    updateSonTransportUI();
+  },
+
+  update(baseFreq, vitesseSur1000, densiteSur1000) {
+    if (!this.active) return;
+    if (this.master) {
+      this.master.gain.value = state.sonVolume;
+    }
+
+    // Vary granule rate by vitesse (faster = more granules)
+    this.granuleRate = Math.max(20, 150 - (vitesseSur1000 / 1000) * 100);
+
+    // Stochastically trigger granules
+    if (Math.random() < 0.3) {
+      const freq = baseFreq * (0.8 + Math.random() * 0.4);
+      const duration = 30 + Math.random() * 50;
+      const vel = 0.1 + (densiteSur1000 / 1000) * 0.4;
+      this.triggerGranule(freq, duration, vel);
+    }
+  },
+};
+
 const audioEngine = {
   ctx: null,
   osc: null,
@@ -4228,6 +4495,7 @@ const audioEngine = {
   delay: null,
   feedback: null,
   osc2Gain: null,
+  analyser: null,
   active: false,
 
   init() {
@@ -4237,9 +4505,13 @@ const audioEngine = {
     this.master.gain.value = state.sonVolume;
     this.master.connect(this.ctx.destination);
 
+    this.analyser = this.ctx.createAnalyser();
+    this.analyser.fftSize = 2048;
+    this.analyser.connect(this.master);
+
     this.gain = this.ctx.createGain();
     this.gain.gain.value = 1;
-    this.gain.connect(this.master);
+    this.gain.connect(this.analyser);
 
     this.filter = this.ctx.createBiquadFilter();
     this.filter.type = "lowpass";
@@ -4331,13 +4603,53 @@ const audioEngine = {
     if (this.osc) {
       this.osc.frequency.setTargetAtTime(baseFreq, this.ctx.currentTime, 0.05);
     }
-    if (this.osc2) {
-      this.osc2.frequency.setTargetAtTime(baseFreq * 1.5, this.ctx.currentTime, 0.05);
+
+    // Compute osc2 frequency based on drone quality options
+    let osc2Freq = baseFreq * 1.5;
+    if (state.sonHarmonie && wolframCls && wasm && wasm.frequence_harmonique) {
+      osc2Freq = wasm.frequence_harmonique(baseFreq, wolframCls);
     }
+    if (this.osc2) {
+      this.osc2.frequency.setTargetAtTime(osc2Freq, this.ctx.currentTime, 0.05);
+    }
+
+    // Compute detuning
+    let detuneAmount = 100; // default cents
+    if (state.sonDetune >= 0) {
+      detuneAmount = state.sonDetune;
+    } else if (state.sonDetune === -1 && gridStats && wasm && wasm.desaccord_depuis_entropie) {
+      const entropieSur1000 = Math.round(gridStats.entropie * 1000 || 500);
+      detuneAmount = wasm.desaccord_depuis_entropie(entropieSur1000);
+    }
+    if (this.osc2) {
+      this.osc2.detune.setTargetAtTime(detuneAmount, this.ctx.currentTime, 0.05);
+    }
+
+    // Filter type selection
+    if (this.filter && wolframCls && state.sonFiltreType === "auto" && wasm && wasm.type_filtre_depuis_classe) {
+      const filterTypeCode = wasm.type_filtre_depuis_classe(wolframCls);
+      const filterTypes = ["lowpass", "bandpass", "highpass"];
+      if (this.filter.type !== filterTypes[filterTypeCode]) {
+        try {
+          this.filter.type = filterTypes[filterTypeCode];
+        } catch (e) {
+        }
+      }
+    } else if (this.filter && state.sonFiltreType !== "auto") {
+      if (this.filter.type !== state.sonFiltreType) {
+        try {
+          this.filter.type = state.sonFiltreType;
+        } catch (e) {
+        }
+      }
+    }
+
+    // Filter cutoff
     if (this.filter) {
       const cutoff = (200 + density * 3000) * state.sonBrightness;
       this.filter.frequency.setTargetAtTime(cutoff, this.ctx.currentTime, 0.1);
     }
+
     if (this.master) {
       this.master.gain.setTargetAtTime(state.sonVolume, this.ctx.currentTime, 0.05);
     }
@@ -4368,18 +4680,25 @@ const sequenceur = {
   ctx: null,
   master: null,
   timer: null,
+  analyser: null,
   active: false,
   rowIndex: 0,
   directionStep: 1,
   params: null,
   grille: null,
+  lastPlayedCells: new Set(),
 
   init() {
     if (this.ctx) return;
     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
     this.master = this.ctx.createGain();
     this.master.gain.value = state.sonVolume;
-    this.master.connect(this.ctx.destination);
+
+    this.analyser = this.ctx.createAnalyser();
+    this.analyser.fftSize = 2048;
+    this.analyser.connect(this.ctx.destination);
+
+    this.master.connect(this.analyser);
   },
 
   jouerNote(freq, dureeMs, pan, velocity = 0.3) {
@@ -4417,6 +4736,8 @@ const sequenceur = {
       const pan = panCellule(col, cols, params.centre1000 || 500, Math.round(state.sonStereoWidth * 1000)) / 1000;
       const velocity = (32 + densityLocal * 76 / 1000) / 127;
       this.jouerNote(freq, params.dureeNote, pan, velocity);
+      // Track for visualization
+      this.lastPlayedCells.add(`${col}:${currentRow}`);
     });
   },
 
@@ -4494,6 +4815,139 @@ const sequenceur = {
   },
 };
 
+const visualisationSon = {
+  // Draw pitch column gradient overlay
+  drawPitchColumns(ctx, cols, cellSize, gammeCode) {
+    if (!state.sonVisuColonnes) return;
+    const gammes = {
+      0: [0, 2, 4, 7, 9],
+      1: [0, 2, 4, 5, 7, 9, 11],
+      2: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+      3: [0, 2, 4, 6, 8, 10],
+    };
+    const gamme = gammes[gammeCode] || gammes[1];
+    // Softer color palette
+    const chromaColors = [
+      'rgb(220, 80, 80)',    // C - red
+      'rgb(240, 100, 60)',   // C#
+      'rgb(240, 140, 60)',   // D - orange
+      'rgb(240, 160, 80)',   // D#
+      'rgb(220, 180, 60)',   // E - yellow
+      'rgb(200, 180, 80)',   // F
+      'rgb(180, 200, 80)',   // F# - yellow-green
+      'rgb(120, 200, 100)',  // G - green
+      'rgb(80, 200, 140)',   // G# - cyan
+      'rgb(80, 180, 200)',   // A - light blue
+      'rgb(100, 140, 220)',  // A# - blue
+      'rgb(160, 100, 200)',  // B - purple
+    ];
+
+    ctx.globalAlpha = 0.08; // Very subtle
+    for (let c = 0; c < cols; c++) {
+      const degree = Math.floor((c * gamme.length) / cols) % gamme.length;
+      const semitone = gamme[degree];
+      const color = chromaColors[semitone % 12];
+      ctx.fillStyle = color;
+      ctx.fillRect(c * cellSize, 0, cellSize, ctx.canvas.height);
+    }
+    ctx.globalAlpha = 1.0;
+  },
+
+  // Flash cells when they sound
+  drawNoteFlashes(ctx, cols, rows, cellSize) {
+    if (!state.sonVisuEclairs || sequenceur.lastPlayedCells.size === 0) return;
+    ctx.globalAlpha = 0.25; // Subtle flash
+    ctx.fillStyle = '#FFD166'; // Golden yellow
+    sequenceur.lastPlayedCells.forEach(key => {
+      const [col, row] = key.split(':').map(Number);
+      if (col >= 0 && col < cols && row >= 0 && row < rows) {
+        ctx.fillRect(col * cellSize, row * cellSize, cellSize, cellSize);
+      }
+    });
+    ctx.globalAlpha = 1.0;
+    // Decay the flashes
+    sequenceur.lastPlayedCells.clear();
+  },
+
+  // Waveform ribbon at bottom of canvas
+  drawWaveformRibbon(ctx, canvas, height = 20) {
+    if (!state.sonVisuRuban) return;
+    const analyser = audioEngine.analyser || audioEngineHarmonique.analyser || granulaireSynthetiseur.analyser || sequenceur.analyser;
+    if (!analyser) return;
+
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteFrequencyData(dataArray);
+
+    const y = canvas.height - height;
+    // Dark semi-transparent background
+    ctx.fillStyle = 'rgba(10, 25, 41, 0.7)';
+    ctx.fillRect(0, y, canvas.width, height);
+
+    // Draw waveform with gradient
+    const gradient = ctx.createLinearGradient(0, y, 0, y + height);
+    gradient.addColorStop(0, '#66E3FF');
+    gradient.addColorStop(1, '#00A8FF');
+
+    ctx.strokeStyle = gradient;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+
+    // Downsample for performance
+    const step = Math.ceil(dataArray.length / canvas.width);
+    let firstPoint = true;
+
+    for (let i = 0; i < dataArray.length; i += step) {
+      const value = (dataArray[i] / 255) * height;
+      const x = (i / dataArray.length) * canvas.width;
+      const ry = y + height - value;
+
+      if (firstPoint) {
+        ctx.moveTo(x, ry);
+        firstPoint = false;
+      } else {
+        ctx.lineTo(x, ry);
+      }
+    }
+    ctx.stroke();
+
+    // Draw zero line
+    ctx.strokeStyle = 'rgba(255, 209, 102, 0.2)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, y + height / 2);
+    ctx.lineTo(canvas.width, y + height / 2);
+    ctx.stroke();
+  },
+
+  // Entropy aura: glow cells in high-entropy rows
+  drawEntropyAura(ctx, baseGrid, rows, cols, cellSize, gridStats) {
+    if (!state.sonVisuEntropie || !baseGrid) return;
+
+    ctx.globalAlpha = 0.12; // Very subtle
+    for (let r = 0; r < rows; r++) {
+      const liveInRow = baseGrid[r].filter(v => v === 1).length;
+      const density = cols > 0 ? liveInRow / cols : 0;
+      const rowEntropy = density > 0 && density < 1
+        ? -density * Math.log2(density) - (1 - density) * Math.log2(1 - density)
+        : 0;
+
+      if (rowEntropy > 0.3) {
+        // Color based on entropy level
+        const intensity = Math.min(1, rowEntropy / 1.0);
+        ctx.fillStyle = `rgba(255, 209, 102, ${intensity * 0.3})`;
+
+        // Only draw on live cells
+        for (let c = 0; c < cols; c++) {
+          if (baseGrid[r][c] === 1) {
+            ctx.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
+          }
+        }
+      }
+    }
+    ctx.globalAlpha = 1.0;
+  },
+};
+
 function updateSequencerPlayhead(totalRows) {
   const playhead = document.getElementById("sequencer-playhead");
   if (!playhead) return;
@@ -4556,6 +5010,26 @@ function drawPianoRoll(couches = dernieresCouches) {
   const rows = grid.length;
   const cols = grid[0].length;
   const lanes = 12;
+
+  // Draw scale overlay (faint in-scale vs chromatic notes)
+  const gammeCode = state.sonScale === "auto" ? (wolframClass(state.rule) - 1) : Number.parseInt(state.sonScale, 10);
+  const gamme = [
+    [0, 2, 4, 7, 9],
+    [0, 2, 4, 5, 7, 9, 11],
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+    [0, 2, 4, 6, 8, 10],
+  ][gammeCode] || [0, 2, 4, 5, 7, 9, 11];
+
+  for (let lane = 0; lane < lanes; lane++) {
+    const y = Math.round(((lane) / lanes) * canvas.height);
+    const isInScale = gamme.includes(lane % 12);
+    if (!isInScale) {
+      ctx.fillStyle = "rgba(255, 100, 100, 0.05)";
+      ctx.fillRect(0, y, canvas.width, Math.ceil(canvas.height / lanes));
+    }
+  }
+
+  // Lane dividers
   ctx.strokeStyle = "rgba(139, 210, 255, 0.13)";
   ctx.lineWidth = 1;
   for (let lane = 1; lane < lanes; lane++) {
@@ -4565,8 +5039,22 @@ function drawPianoRoll(couches = dernieresCouches) {
     ctx.lineTo(canvas.width, y);
     ctx.stroke();
   }
+
+  // Frequency labels on right
+  const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  ctx.fillStyle = "rgba(150, 180, 200, 0.5)";
+  ctx.font = "8px monospace";
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  for (let lane = 0; lane < lanes; lane++) {
+    const y = canvas.height - Math.round(((lane + 0.5) / lanes) * canvas.height);
+    ctx.fillText(noteNames[lane % 12], canvas.width - 3, y);
+  }
+
   const rowStep = Math.max(1, Math.ceil(rows / canvas.width));
-  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--accent-2").trim() || "#66e3ff";
+  const noteColor = getComputedStyle(document.documentElement).getPropertyValue("--accent-2").trim() || "#66e3ff";
+  ctx.fillStyle = noteColor;
+
   for (let r = 0; r < rows; r += rowStep) {
     const x = Math.floor((r / Math.max(1, rows - 1)) * canvas.width);
     const row = grid[r];
@@ -4574,15 +5062,20 @@ function drawPianoRoll(couches = dernieresCouches) {
       if (row[c] !== 1) continue;
       const degree = degreNoteCellule(c, cols, lanes, sequenceur.params?.mode ?? 1);
       const y = canvas.height - Math.floor(((degree + 1) / lanes) * canvas.height);
-      ctx.globalAlpha = 0.28 + (c / cols) * 0.38;
-      ctx.fillRect(x, y, Math.max(1, Math.ceil(canvas.width / rows)), Math.max(2, Math.floor(canvas.height / lanes) - 1));
+      // Stronger opacity gradient
+      ctx.globalAlpha = 0.35 + (c / cols) * 0.45;
+      const noteWidth = Math.max(1, Math.ceil(canvas.width / rows));
+      const noteHeight = Math.max(2, Math.floor(canvas.height / lanes) - 1);
+      ctx.fillRect(x, y, noteWidth, noteHeight);
     }
   }
   ctx.globalAlpha = 1;
+
+  // Playhead - thicker and more visible
   if (sequenceur.active && sequenceur.grille) {
     const x = Math.floor((sequenceur.rowIndex / Math.max(1, sequenceur.grille.length - 1)) * canvas.width);
     ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--accent-3").trim() || "#ffd166";
-    ctx.fillRect(x, 0, 2, canvas.height);
+    ctx.fillRect(x - 1, 0, 3, canvas.height); // Slightly thicker
   }
 }
 
@@ -4622,8 +5115,47 @@ function bindSonControls() {
       if (audioEngine.active) scheduleRender();
     });
   };
+  const bindCheckbox = (id, key, onChange = null) => {
+    const input = document.getElementById(id);
+    if (!input) return;
+    input.checked = Boolean(state[key]);
+    input.addEventListener("change", (event) => {
+      state[key] = event.target.checked;
+      if (onChange) onChange();
+      if (audioEngine.active) scheduleRender();
+    });
+  };
 
-  bindSelect("son-mode", "sonMode", updateSonTransportUI);
+  bindSelect("son-mode", "sonMode", () => {
+    updateSonTransportUI();
+    // If audio is active, restart with new mode
+    const anyActive = audioEngine.active || audioEngineHarmonique.active || granulaireSynthetiseur.active;
+    if (anyActive) {
+      audioEngine.stop();
+      audioEngineHarmonique.stop();
+      granulaireSynthetiseur.stop();
+
+      const mode = state.sonMode === "auto"
+        ? (["drone", "scanline", "poly", "percussion"][(wolframClass(state.rule) || 1) - 1] || "drone")
+        : state.sonMode;
+
+      switch(mode) {
+        case "harmonique":
+          audioEngineHarmonique.start();
+          break;
+        case "granulaire":
+          granulaireSynthetiseur.start();
+          break;
+        case "wolfram_classe":
+        case "entropique":
+        case "attracteur":
+          audioEngine.start();
+          break;
+        default:
+          audioEngine.start();
+      }
+    }
+  });
   bindSelect("son-scale", "sonScale", () => {
     if (sequenceur.active && dernieresCouches) sequenceur.refresh(dernieresCouches, state.rule);
   });
@@ -4645,9 +5177,57 @@ function bindSonControls() {
   bindRange("son-stereo", "son-stereo-display", "sonStereoWidth", (value) => clamp(Number.parseFloat(value) || 0, 0, 1), (value) => `${Math.round(value * 100)}%`);
   bindRange("son-collision-accent", "son-collision-accent-display", "sonCollisionAccent", (value) => clamp(Number.parseFloat(value) || 0, 0, 1), (value) => `${Math.round(value * 100)}%`);
 
+  // Qualité du drone
+  bindCheckbox("son-harmonie", "sonHarmonie");
+  bindCheckbox("son-quantification", "sonQuantification");
+  bindRange("son-detune", "son-detune-display", "sonDetune", (value) => clamp(Number.parseInt(value, 10) || -1, -1, 1200), (value) => value === -1 ? "Auto" : `${value}¢`);
+  bindSelect("son-filtre", "sonFiltreType");
+
+  // Options avancées
+  bindCheckbox("son-spatial", "sonSpatial");
+  bindCheckbox("son-phase", "sonPhase");
+  bindCheckbox("son-polyrhythme", "sonPolyrhythme");
+  bindCheckbox("son-chroma", "sonChroma");
+
+  // Visualisation sonore
+  bindCheckbox("son-visu-colonnes", "sonVisuColonnes");
+  bindCheckbox("son-visu-eclairs", "sonVisuEclairs");
+  bindCheckbox("son-visu-ruban", "sonVisuRuban");
+  bindCheckbox("son-visu-spectre", "sonVisuSpectre");
+  bindCheckbox("son-visu-entropie", "sonVisuEntropie");
+
   document.getElementById("son-toggle-drone")?.addEventListener("click", () => {
-    if (audioEngine.active) audioEngine.stop();
-    else audioEngine.start();
+    // Route to appropriate synthesis mode
+    const mode = state.sonMode === "auto"
+      ? (["drone", "scanline", "poly", "percussion"][(wolframClass(state.rule) || 1) - 1] || "drone")
+      : state.sonMode;
+
+    const anyActive = audioEngine.active || audioEngineHarmonique.active || granulaireSynthetiseur.active;
+
+    if (anyActive) {
+      // Stop all audio engines
+      audioEngine.stop();
+      audioEngineHarmonique.stop();
+      granulaireSynthetiseur.stop();
+    } else {
+      // Start appropriate engine based on mode
+      switch(mode) {
+        case "harmonique":
+          audioEngineHarmonique.start();
+          break;
+        case "granulaire":
+          granulaireSynthetiseur.start();
+          break;
+        case "wolfram_classe":
+        case "entropique":
+        case "attracteur":
+          // These use extended audioEngine modes
+          audioEngine.start();
+          break;
+        default:
+          audioEngine.start();
+      }
+    }
   });
   document.getElementById("son-toggle-sequencer")?.addEventListener("click", () => {
     if (sequenceur.active) {
@@ -5082,10 +5662,36 @@ function bindControls() {
   });
 
   document.getElementById("btn-sound").addEventListener("click", () => {
-    if (audioEngine.active) {
+    // Route to appropriate synthesis mode
+    const mode = state.sonMode === "auto"
+      ? (["drone", "scanline", "poly", "percussion"][(wolframClass(state.rule) || 1) - 1] || "drone")
+      : state.sonMode;
+
+    const anyActive = audioEngine.active || audioEngineHarmonique.active || granulaireSynthetiseur.active;
+
+    if (anyActive) {
+      // Stop all audio engines
       audioEngine.stop();
+      audioEngineHarmonique.stop();
+      granulaireSynthetiseur.stop();
     } else {
-      audioEngine.start();
+      // Start appropriate engine based on mode
+      switch(mode) {
+        case "harmonique":
+          audioEngineHarmonique.start();
+          break;
+        case "granulaire":
+          granulaireSynthetiseur.start();
+          break;
+        case "wolfram_classe":
+        case "entropique":
+        case "attracteur":
+          // These use extended audioEngine modes
+          audioEngine.start();
+          break;
+        default:
+          audioEngine.start();
+      }
     }
   });
 

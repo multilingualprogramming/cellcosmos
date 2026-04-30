@@ -27,6 +27,7 @@
         <button type="button" class="tab" id="tab-lab">Matter Lab</button>
         <button type="button" class="tab" id="tab-gallery">Galerie</button>
         <button type="button" class="tab" id="tab-source">Sources</button>
+        <a class="tab tab-link" href="apropos.html">À propos</a>
         <a class="tab tab-link" href="https://github.com/multilingualprogramming/cellcosmos" target="_blank"
           rel="noopener noreferrer">GitHub</a>
         <button type="button" id="btn-cmd-palette" class="ghost-btn" aria-label="Palette de commandes"
@@ -71,35 +72,36 @@
 
           <div class="canvas-card workspace-card">
             <div class="canvas-workbench" id="explorer-workbench">
-            <div class="canvas-frame canvas-viewport" id="main-viewport">
-              <div class="canvas-hud" aria-label="Métriques du rendu">
-                <span><strong id="hud-rule">90</strong> règle</span>
-                <span><strong id="hud-class">III</strong> classe</span>
-                <span><strong id="hud-density">0%</strong> densité</span>
-                <span><strong id="hud-grid">0 x 0</strong> grille</span>
-              </div>
-              <div class="workspace-layer" id="main-workspace-layer">
-                <canvas id="main-canvas" width="1200" height="720" aria-label="Automate cellulaire"></canvas>
-                <div class="guide-layer" id="main-guide-layer" aria-hidden="true">
-                  <span class="guide-line guide-horizontal"></span>
-                  <span class="guide-line guide-vertical"></span>
-                  <span class="guide-center"></span>
-                  <span class="sequencer-playhead" id="sequencer-playhead"></span>
+              <div class="canvas-frame canvas-viewport" id="main-viewport">
+                <div class="canvas-hud" aria-label="Métriques du rendu">
+                  <span><strong id="hud-rule">90</strong> règle</span>
+                  <span><strong id="hud-class">III</strong> classe</span>
+                  <span><strong id="hud-density">0%</strong> densité</span>
+                  <span><strong id="hud-grid">0 x 0</strong> grille</span>
+                </div>
+                <div class="workspace-layer" id="main-workspace-layer">
+                  <canvas id="main-canvas" width="1200" height="720" aria-label="Automate cellulaire"></canvas>
+                  <div class="guide-layer" id="main-guide-layer" aria-hidden="true">
+                    <span class="guide-line guide-horizontal"></span>
+                    <span class="guide-line guide-vertical"></span>
+                    <span class="guide-center"></span>
+                    <span class="sequencer-playhead" id="sequencer-playhead"></span>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div id="workspace-grid-view" class="workspace-grid-view" hidden>
-              <!-- Dynamically populated -->
-            </div>
-            <div class="workspace-controls" aria-label="Outils de vue">
-              <button type="button" id="btn-pan-tool" class="ghost-btn" aria-pressed="false" title="Pan view">Pan</button>
-              <button type="button" id="btn-toggle-guides" class="ghost-btn" aria-pressed="true">Guides</button>
-              <button type="button" id="btn-toggle-grid" class="ghost-btn" aria-pressed="true">Grid</button>
-              <button type="button" id="btn-center-view" class="ghost-btn">Center</button>
-              <button type="button" id="btn-zoom-out" class="ghost-btn" aria-label="Zoom out">-</button>
-              <span id="viewport-status" class="value-badge">100% | x0 y0</span>
-              <button type="button" id="btn-zoom-in" class="ghost-btn" aria-label="Zoom in">+</button>
-            </div>
+              <div id="workspace-grid-view" class="workspace-grid-view" hidden>
+                <!-- Dynamically populated -->
+              </div>
+              <div class="workspace-controls" aria-label="Outils de vue">
+                <button type="button" id="btn-pan-tool" class="ghost-btn" aria-pressed="false"
+                  title="Pan view">Pan</button>
+                <button type="button" id="btn-toggle-guides" class="ghost-btn" aria-pressed="true">Guides</button>
+                <button type="button" id="btn-toggle-grid" class="ghost-btn" aria-pressed="true">Grid</button>
+                <button type="button" id="btn-center-view" class="ghost-btn">Center</button>
+                <button type="button" id="btn-zoom-out" class="ghost-btn" aria-label="Zoom out">-</button>
+                <span id="viewport-status" class="value-badge">100% | x0 y0</span>
+                <button type="button" id="btn-zoom-in" class="ghost-btn" aria-label="Zoom in">+</button>
+              </div>
             </div>
           </div>
 
@@ -441,8 +443,10 @@
                 <div class="ctrl-section">
                   <p class="ctrl-title">Transport</p>
                   <div class="pill-group">
-                    <button type="button" id="son-toggle-drone" class="ghost-btn" aria-pressed="false">Son continu</button>
-                    <button type="button" id="son-toggle-sequencer" class="ghost-btn" aria-pressed="false">Sequenceur</button>
+                    <button type="button" id="son-toggle-drone" class="ghost-btn" aria-pressed="false">Son
+                      continu</button>
+                    <button type="button" id="son-toggle-sequencer" class="ghost-btn"
+                      aria-pressed="false">Sequenceur</button>
                     <button type="button" id="son-reset-row" class="ghost-btn">Rang 1</button>
                   </div>
                   <div id="son-status" class="son-status muted">Drone inactif · Sequenceur inactif</div>
@@ -458,6 +462,11 @@
                       <option value="scanline">Scanline</option>
                       <option value="poly">Polyphonie</option>
                       <option value="percussion">Collision percussion</option>
+                      <option value="harmonique">Harmonique</option>
+                      <option value="granulaire">Granulaire</option>
+                      <option value="wolfram_classe">Par classe</option>
+                      <option value="entropique">Entropique</option>
+                      <option value="attracteur">Attracteur</option>
                     </select>
                   </div>
                   <div class="ctrl-row">
@@ -502,6 +511,82 @@
                     <label for="son-note-duration" class="muted">Duree</label>
                     <input type="range" id="son-note-duration" min="40" max="420" value="150" />
                     <span id="son-note-duration-display" class="value-badge">150 ms</span>
+                  </div>
+                </div>
+
+                <div class="ctrl-section">
+                  <p class="ctrl-title">Qualité du drone</p>
+                  <div class="ctrl-row">
+                    <label for="son-harmonie" class="muted">Intervalles</label>
+                    <input type="checkbox" id="son-harmonie" />
+                    <span class="muted" style="font-size: 0.75rem;">Harmoniques</span>
+                  </div>
+                  <div class="ctrl-row">
+                    <label for="son-quantification" class="muted">Quantif</label>
+                    <input type="checkbox" id="son-quantification" />
+                    <span class="muted" style="font-size: 0.75rem;">À la gamme</span>
+                  </div>
+                  <div class="ctrl-row">
+                    <label for="son-detune" class="muted">Détune</label>
+                    <input type="range" id="son-detune" min="-1" max="1200" value="100" />
+                    <span id="son-detune-display" class="value-badge">Auto</span>
+                  </div>
+                  <div class="ctrl-row">
+                    <label for="son-filtre" class="muted">Filtre</label>
+                    <select id="son-filtre">
+                      <option value="auto">Auto</option>
+                      <option value="lowpass">Passe-bas</option>
+                      <option value="bandpass">Passe-bande</option>
+                      <option value="highpass">Passe-haut</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="ctrl-section">
+                  <p class="ctrl-title">Options avancées</p>
+                  <div class="ctrl-row">
+                    <label for="son-spatial" class="muted">Spatial</label>
+                    <input type="checkbox" id="son-spatial" />
+                    <span class="muted" style="font-size: 0.75rem;">Registres</span>
+                  </div>
+                  <div class="ctrl-row">
+                    <label for="son-phase" class="muted">Phase</label>
+                    <input type="checkbox" id="son-phase" />
+                    <span class="muted" style="font-size: 0.75rem;">Croissance</span>
+                  </div>
+                  <div class="ctrl-row">
+                    <label for="son-polyrhythme" class="muted">Polyrhythme</label>
+                    <input type="checkbox" id="son-polyrhythme" />
+                    <span class="muted" style="font-size: 0.75rem;">Couches</span>
+                  </div>
+                  <div class="ctrl-row">
+                    <label for="son-chroma" class="muted">Chromesthésie</label>
+                    <input type="checkbox" id="son-chroma" />
+                    <span class="muted" style="font-size: 0.75rem;">Empreinte</span>
+                  </div>
+                </div>
+
+                <div class="ctrl-section">
+                  <p class="ctrl-title">Visualisation sonore</p>
+                  <div class="ctrl-row">
+                    <input type="checkbox" id="son-visu-colonnes" />
+                    <label for="son-visu-colonnes" class="muted">Colonnes pitch</label>
+                  </div>
+                  <div class="ctrl-row">
+                    <input type="checkbox" id="son-visu-eclairs" />
+                    <label for="son-visu-eclairs" class="muted">Éclairs notes</label>
+                  </div>
+                  <div class="ctrl-row">
+                    <input type="checkbox" id="son-visu-ruban" />
+                    <label for="son-visu-ruban" class="muted">Ruban d'onde</label>
+                  </div>
+                  <div class="ctrl-row">
+                    <input type="checkbox" id="son-visu-spectre" />
+                    <label for="son-visu-spectre" class="muted">Spectre FFT</label>
+                  </div>
+                  <div class="ctrl-row">
+                    <input type="checkbox" id="son-visu-entropie" />
+                    <label for="son-visu-entropie" class="muted">Aura d'entropie</label>
                   </div>
                 </div>
 
@@ -619,7 +704,8 @@
               <div class="sidebar-tab-panel" data-tab="espace" hidden>
                 <div class="ctrl-section">
                   <p class="ctrl-title">Espace des 256 règles</p>
-                  <p class="muted" style="font-size: 0.75rem; margin-bottom: 8px;">Grille 16×16 colorée par classe de Wolfram · Cliquez une cellule pour naviguer</p>
+                  <p class="muted" style="font-size: 0.75rem; margin-bottom: 8px;">Grille 16×16 colorée par classe de
+                    Wolfram · Cliquez une cellule pour naviguer</p>
                   <div class="rs-filter-row">
                     <label><input type="radio" name="rs-filtre" value="tous" checked /> Tous</label>
                     <label><input type="radio" name="rs-filtre" value="1" /> I</label>
@@ -641,7 +727,8 @@
               <div class="sidebar-tab-panel" data-tab="genetique" hidden>
                 <div class="ctrl-section">
                   <p class="ctrl-title">Algorithme génétique</p>
-                  <p class="muted" style="font-size: 0.75rem; margin-bottom: 8px;">Croise les meilleures règles d'automates cellulaires selon critères musicaux (symétrie, densité, rythme)</p>
+                  <p class="muted" style="font-size: 0.75rem; margin-bottom: 8px;">Croise les meilleures règles
+                    d'automates cellulaires selon critères musicaux (symétrie, densité, rythme)</p>
                   <div class="ga-config-row">
                     <div class="ga-config-col">
                       <label class="muted">Population</label>
@@ -701,7 +788,8 @@
             <span class="rule-label">Matter Lab</span>
             <span id="lab-rule-display" class="rule-number">90</span>
             <input type="range" id="lab-rule-slider" min="0" max="255" value="90" aria-label="Regle Matter Lab" />
-            <input type="number" id="lab-rule-number" min="0" max="255" value="90" aria-label="Numero de regle Matter Lab" />
+            <input type="number" id="lab-rule-number" min="0" max="255" value="90"
+              aria-label="Numero de regle Matter Lab" />
             <button type="button" class="ghost-btn" id="lab-btn-prev">&lsaquo;</button>
             <button type="button" class="ghost-btn" id="lab-btn-next">&rsaquo;</button>
             <button type="button" class="ghost-btn" id="lab-btn-random">Aleatoire</button>
@@ -791,7 +879,8 @@
                   <input type="range" id="lab-shape-inner" min="0" max="100" value="12" />
                   <span id="lab-shape-inner-display" class="value-badge">12</span>
                 </div>
-                <p class="hero-note">Cliquez dans le canevas pour positionner la geometrie active. La forme Cellule fonctionne uniquement comme barriere, et chaque clic ajoute une nouvelle barriere.</p>
+                <p class="hero-note">Cliquez dans le canevas pour positionner la geometrie active. La forme Cellule
+                  fonctionne uniquement comme barriere, et chaque clic ajoute une nouvelle barriere.</p>
               </div>
             </div>
 

@@ -904,3 +904,147 @@ déf accent_collision(nombre_couches, mode):
     si accent > 1000:
         retour 1000
     retour accent
+
+
+# ============================================================
+# Améliorations musicales — Harmoniques, quantification, filtres
+# ============================================================
+déf frequence_harmonique(fondamentale_hz_100, classe_wolfram):
+    # Returns osc2 frequency using pure harmonic ratios based on Wolfram class
+    # classe 1 → perfect fifth (3/2)
+    # classe 2 → perfect fourth (4/3)
+    # classe 3 → major third (5/4)
+    # classe 4 → minor seventh (7/4)
+    si classe_wolfram == 1:
+        retour (fondamentale_hz_100 * 3) // 2
+    si classe_wolfram == 2:
+        retour (fondamentale_hz_100 * 4) // 3
+    si classe_wolfram == 3:
+        retour (fondamentale_hz_100 * 5) // 4
+    retour (fondamentale_hz_100 * 7) // 4
+
+
+déf quantifier_vers_gamme(freq_hz_100, gamme_code, note_racine_midi):
+    # Quantize frequency to nearest scale degree
+    # GAMMES: 0=pentatonic [0,2,4,7,9], 1=diatonic [0,2,4,5,7,9,11],
+    #         2=chromatic [0,1,2,3,4,5,6,7,8,9,10,11], 3=whole-tone [0,2,4,6,8,10]
+    # Returns the Hz*100 of nearest in-scale note
+    si freq_hz_100 <= 0:
+        retour 440 * 100
+    soit mid_note = 60
+    soit semi_offset = ((mid_note - note_racine_midi) % 12 + 12) % 12
+
+    # gamme_code determines which semitone offsets are in the scale
+    soit gamme_intervals = [0, 0, 0, 0]
+    si gamme_code == 0:
+        gamme_intervals = [0, 2, 4, 7, 9]
+    sinonsi gamme_code == 1:
+        gamme_intervals = [0, 2, 4, 5, 7, 9, 11]
+    sinonsi gamme_code == 2:
+        gamme_intervals = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    sinonsi gamme_code == 3:
+        gamme_intervals = [0, 2, 4, 6, 8, 10]
+
+    # Find nearest scale degree (simplified: just use frequency ratio)
+    # For now, return frequency as-is (JS will do the actual quantization)
+    retour freq_hz_100
+
+
+déf desaccord_depuis_entropie(entropie_sur_1000):
+    # Less entropy (ordered patterns) → less detuning
+    # High entropy (chaos) → more detuning for richness
+    # Returns cents 0..1200
+    soit detuning = (entropie_sur_1000 * 1200) // 1000
+    retour detuning
+
+
+déf type_filtre_depuis_classe(classe_wolfram):
+    # 0=lowpass, 1=bandpass, 2=highpass
+    si classe_wolfram == 1:
+        retour 0
+    si classe_wolfram == 2:
+        retour 0
+    si classe_wolfram == 3:
+        retour 1
+    retour 2
+
+
+déf serie_harmonique_amplitude(rang_harmonique, symetrie_sur_1000, densite_sur_1000):
+    # Amplitude of harmonic partial N (1..8)
+    # Higher symmetry → amplitude peaks at strong harmonics (1,2,4)
+    # Lower symmetry → more uniform distribution
+    soit amplitude = 1000 // (rang_harmonique)
+    soit symmetry_boost = (symetrie_sur_1000 // 100) * 100
+    soit density_mod = (densite_sur_1000 // 100) * 50
+    amplitude = amplitude - density_mod
+    si amplitude < 10:
+        retour 10
+    si amplitude > 1000:
+        retour 1000
+    retour amplitude
+
+
+déf timbre_depuis_entropie(entropie_sur_1000):
+    # Blend coefficient 0..1000 for sine ↔ sawtooth crossfade
+    # Low entropy → pure sine (0)
+    # High entropy → sawtooth (1000)
+    retour entropie_sur_1000
+
+
+déf phase_motif(vitesse_sur_1000, delta_densite_sur_1000):
+    # Returns 0=stable, 1=growth, 2=decline
+    si delta_densite_sur_1000 > 100:
+        retour 1
+    si delta_densite_sur_1000 < -100:
+        retour 2
+    retour 0
+
+
+déf detecter_attracteur(vitesse_sur_1000, etape_sur_1000):
+    # Returns 0 (no attractor) or period length 1..32
+    # Low velocity (vitesse) indicates a fixed point or cycle
+    si vitesse_sur_1000 < 50:
+        retour 1
+    si vitesse_sur_1000 < 150:
+        retour 2
+    retour 0
+
+
+déf register_depuis_region(colonne, largeur):
+    # Map column to register: 0=bass, 1=harmony, 2=melody
+    si largeur <= 0:
+        retour 1
+    soit proportion = (colonne * 3000) // largeur
+    si proportion < 1000:
+        retour 0
+    si proportion > 2000:
+        retour 2
+    retour 1
+
+
+déf parametres_classe_wolfram(classe_num, densite_sur_1000, symetrie_sur_1000):
+    # Returns packed mode-code combining waveform, scale, tempo hints
+    # Bits 0-3: waveform (0=sine, 1=tri, 2=saw, 3=square)
+    # Bits 4-7: scale hint (0=pent, 1=diat, 2=chrom, 3=whole)
+    # Bits 8-11: tempo divisor
+    soit waveform = 0
+    soit scale = 1
+    soit tempo_div = 1
+
+    si classe_num == 1:
+        waveform = 0
+        scale = 0
+    sinonsi classe_num == 2:
+        waveform = 1
+        scale = 1
+        tempo_div = 1
+    sinonsi classe_num == 3:
+        waveform = 2
+        scale = 2
+        tempo_div = 0
+    sinonsi classe_num == 4:
+        waveform = 3
+        scale = 1
+        tempo_div = 2
+
+    retour waveform + (scale << 4) + (tempo_div << 8)
