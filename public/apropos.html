@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>&Agrave; propos - Cellcosmos</title>
+    <meta name="description"
+      content="Cellcosmos est un laboratoire d'automates cellulaires centre sur les regles, les couleurs, les gradients et l'analyse visuelle." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      .about-container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 2rem 1rem;
+        line-height: 1.7;
+      }
+
+      .about-container h2 {
+        margin-top: 2.5rem;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid var(--accent-3);
+        color: var(--text-primary);
+      }
+
+      .about-container h3 {
+        margin-top: 1.5rem;
+        margin-bottom: 0.75rem;
+        color: var(--text-primary);
+      }
+
+      .about-container p {
+        margin-bottom: 1rem;
+        color: var(--text-secondary);
+      }
+
+      .about-container ul,
+      .about-container ol {
+        margin-left: 2rem;
+        margin-bottom: 1rem;
+      }
+
+      .about-container li {
+        margin-bottom: 0.5rem;
+        color: var(--text-secondary);
+      }
+
+      .feature-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin: 1.5rem 0;
+      }
+
+      .feature-card {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        padding: 1.5rem;
+        border-radius: 8px;
+        color: var(--text-secondary);
+      }
+
+      .feature-card h4 {
+        color: var(--accent-2);
+        margin-bottom: 0.75rem;
+      }
+
+      .back-button {
+        display: inline-block;
+        margin-bottom: 2rem;
+        padding: 0.5rem 1rem;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        color: var(--text-primary);
+        text-decoration: none;
+        transition: all 0.2s ease;
+      }
+
+      .back-button:hover {
+        background: var(--accent-4);
+        border-color: var(--accent-3);
+      }
+
+      .tech-stack {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin: 1rem 0;
+      }
+
+      .tech-badge {
+        background: var(--accent-4);
+        color: var(--text-primary);
+        padding: 0.4rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-family: 'IBM Plex Mono', monospace;
+      }
+    </style>
+  </head>
+
+  <body>
+    <canvas id="bg-canvas"></canvas>
+    <header class="topbar">
+      <div class="brand-lockup">
+        <p class="eyebrow">multilingual -&gt; wasm</p>
+        <h1>Cellcosmos</h1>
+      </div>
+      <nav class="tab-nav">
+        <a href="index.html" class="tab tab-link">Accueil</a>
+        <button type="button" class="tab active" id="tab-about">&Agrave; propos</button>
+        <a class="tab tab-link" href="https://github.com/multilingualprogramming/cellcosmos" target="_blank"
+          rel="noopener noreferrer">GitHub</a>
+        <button type="button" id="btn-theme" class="ghost-btn" aria-label="Changer de th&egrave;me">&#9728;</button>
+      </nav>
+    </header>
+
+    <main>
+      <article class="about-container">
+        <a href="index.html" class="back-button">&larr; Retour &agrave; l'explorateur</a>
+
+        <h2>&Agrave; propos de Cellcosmos</h2>
+
+        <p>
+          <strong>Cellcosmos</strong> est un laboratoire interactif pour explorer les automates cellulaires
+          &eacute;l&eacute;mentaires par la couleur, la forme, les gradients et l'analyse de motifs. Le projet part
+          d'un principe simple: une r&egrave;gle binaire, appliqu&eacute;e ligne apr&egrave;s ligne, peut produire
+          des champs visuels tr&egrave;s diff&eacute;rents selon la graine, la propagation, la probabilit&eacute; et
+          la palette chromatique.
+        </p>
+
+        <p>
+          La dimension sonore existe dans l'interface, mais elle n'est pas le coeur du projet. Cellcosmos est d'abord
+          un observatoire visuel: il rend lisibles les comportements de 256 r&egrave;gles en les transformant en
+          paysages de cellules, de couches color&eacute;es, de textures et de mesures dynamiques.
+        </p>
+
+        <h2>Automates cellulaires &eacute;l&eacute;mentaires</h2>
+
+        <p>
+          Un automate cellulaire &eacute;l&eacute;mentaire est une grille unidimensionnelle qui &eacute;volue dans le
+          temps. Chaque cellule vaut 0 ou 1. Pour calculer la ligne suivante, le programme regarde chaque triplet
+          gauche-centre-droite et applique une table de huit sorties. Ces huit bits forment un num&eacute;ro de
+          r&egrave;gle entre 0 et 255.
+        </p>
+
+        <p>
+          Cellcosmos expose cette logique dans l'explorateur: le curseur et l'entr&eacute;e num&eacute;rique changent
+          la r&egrave;gle courante, le diagramme de r&egrave;gle montre les huit motifs locaux, et les presets donnent
+          un acc&egrave;s rapide &agrave; des comportements connus comme 30, 90, 110, 150, 184, 225 ou 254.
+        </p>
+
+        <h3>Lire une r&egrave;gle comme une image</h3>
+        <p>
+          Le rendu ne se limite pas &agrave; afficher des cases noires et blanches. Chaque g&eacute;n&eacute;ration
+          devient une strate visuelle: la densit&eacute; indique la quantit&eacute; de mati&egrave;re, la
+          sym&eacute;trie
+          montre l'&eacute;quilibre de la structure, les transitions signalent l'instabilit&eacute;, et les collisions
+          entre fronts de croissance r&eacute;v&egrave;lent les endroits o&ugrave; plusieurs origines interagissent.
+        </p>
+
+        <div class="feature-grid">
+          <div class="feature-card">
+            <h4>R&egrave;gles</h4>
+            <p>Les 256 r&egrave;gles Wolfram peuvent &ecirc;tre parcourues une par une, choisies par preset ou
+              tir&eacute;es avec le bouton Al&eacute;atoire.</p>
+          </div>
+          <div class="feature-card">
+            <h4>Graines</h4>
+            <p>L'&eacute;tat initial peut partir du haut, du centre, du bas, d'un ensemble al&eacute;atoire ou de points
+              plac&eacute;s &agrave; la main.</p>
+          </div>
+          <div class="feature-card">
+            <h4>Propagation</h4>
+            <p>Les fronts peuvent descendre, monter, se propager dans les deux sens, suivre un axe horizontal ou partir
+              selon un angle.</p>
+          </div>
+          <div class="feature-card">
+            <h4>Morphose</h4>
+            <p>Une r&egrave;gle source peut se transformer progressivement vers une r&egrave;gle cible, motif par motif.
+            </p>
+          </div>
+        </div>
+
+        <h2>Chromatisme et rendu</h2>
+
+        <p>
+          La couleur est un outil d'analyse autant qu'un choix esth&eacute;tique. Les palettes ne servent pas seulement
+          &agrave; embellir la grille: elles aident &agrave; suivre l'origine des cellules, la direction de croissance,
+          l'&eacute;paisseur des strates et les diff&eacute;rences entre plusieurs points actifs.
+        </p>
+
+        <h3>Palettes globales et gradients</h3>
+        <p>
+          L'onglet <strong>Affichage</strong> propose des th&egrave;mes pr&eacute;charg&eacute;s et un &eacute;diteur
+          de d&eacute;grad&eacute; global. Les arr&ecirc;ts de couleur sont interpol&eacute;s sur les lignes de la
+          simulation: un motif peut donc &ecirc;tre lu comme une coupe temporelle, o&ugrave; chaque nuance correspond
+          &agrave; une phase de l'&eacute;volution.
+        </p>
+
+        <h3>Couleurs par point d'origine</h3>
+        <p>
+          En mode Points, chaque origine peut porter sa propre palette et sa propre r&egrave;gle. Cela permet de
+          comparer plusieurs automates dans une m&ecirc;me image, de visualiser leurs zones d'influence et de rendre
+          visibles les superpositions. Les op&eacute;rations de sym&eacute;trie, de duplication et de tuile aident
+          &agrave; construire des compositions r&eacute;p&eacute;tables.
+        </p>
+
+        <h3>Formes, textures et fusion</h3>
+        <p>
+          Les cellules peuvent &ecirc;tre rendues en rectangles, cercles, ellipses ou triangles. Les textures solides,
+          pointill&eacute;es, hachur&eacute;es, bruit&eacute;es ou en d&eacute;grad&eacute; donnent une lecture plus
+          mati&eacute;rielle du motif. Les modes de fusion comme &Eacute;cran, Multiplier, Superposer, Diff&eacute;rence
+          ou Esquiver changent la mani&egrave;re dont les couches s'accumulent.
+        </p>
+
+        <h2>Analyse visuelle</h2>
+
+        <p>
+          Cellcosmos accompagne le rendu par des mesures qui qualifient le comportement de la grille. Ces indicateurs
+          donnent un langage commun pour comparer deux r&egrave;gles qui se ressemblent visuellement ou, au contraire,
+          pour expliquer pourquoi deux images proches produisent des dynamiques diff&eacute;rentes.
+        </p>
+
+        <ul>
+          <li><strong>Densit&eacute;:</strong> proportion de cellules actives dans la grille.</li>
+          <li><strong>Entropie:</strong> niveau de d&eacute;sordre binaire, utile pour distinguer structure et chaos.
+          </li>
+          <li><strong>Compacit&eacute;:</strong> coh&eacute;sion des masses actives par rapport &agrave; leur
+            p&eacute;rim&egrave;tre.</li>
+          <li><strong>Fragmentation:</strong> nombre relatif de groupes distincts.</li>
+          <li><strong>Croissance:</strong> variation du nombre de cellules actives entre deux &eacute;tats.</li>
+          <li><strong>Sym&eacute;trie:</strong> correspondances horizontales et verticales dans le motif.</li>
+        </ul>
+
+        <p>
+          Le microscope cellulaire compl&egrave;te ces mesures en affichant, pour une cellule choisie, son &eacute;tat
+          source, son voisinage, la r&egrave;gle effective, la probabilit&eacute;, la morphose et l'origine
+          associ&eacute;e.
+        </p>
+
+        <h2>Espaces d'exploration</h2>
+
+        <h3>Explorateur</h3>
+        <p>
+          L'explorateur principal sert &agrave; composer et analyser un automate. On y r&egrave;gle la r&egrave;gle,
+          l'&eacute;tat initial, le rendu, la probabilit&eacute;, la direction de lecture, la propagation, la morphose
+          et les options de visualisation. Le PNG courant peut &ecirc;tre export&eacute; et la configuration peut
+          &ecirc;tre partag&eacute;e par URL.
+        </p>
+
+        <h3>Matter Lab</h3>
+        <p>
+          Matter Lab introduit des contraintes spatiales sur la grille: formes g&eacute;om&eacute;triques, masques,
+          champs de probabilit&eacute; peints au pinceau et &eacute;v&eacute;nements locaux. Il sert &agrave; tester
+          comment une r&egrave;gle r&eacute;agit quand son milieu n'est plus homog&egrave;ne.
+        </p>
+
+        <h3>Galerie, sources et espace des r&egrave;gles</h3>
+        <p>
+          La galerie pr&eacute;sente les 256 r&egrave;gles pr&eacute;calcul&eacute;es. Le panneau Sources documente
+          les fichiers principaux du projet. L'espace des r&egrave;gles place les 256 num&eacute;ros dans une carte
+          compacte et met en valeur les voisins &agrave; distance de Hamming 1, ce qui aide &agrave; comprendre comment
+          un seul bit modifi&eacute; peut transformer toute l'image.
+        </p>
+
+        <h2>Sonification</h2>
+
+        <p>
+          Le son est une couche optionnelle de lecture. Le bouton <strong>Son</strong> active un drone continu et le
+          bouton <strong>S&eacute;quenceur</strong> lit la grille comme une partition de colonnes et de lignes. Dans
+          l'onglet Son, les r&eacute;glages disponibles concernent notamment la sc&egrave;ne sonore, la gamme, le
+          tempo, la direction de lecture, le volume, la brillance, la r&eacute;verb&eacute;ration, la largeur
+          st&eacute;r&eacute;o
+          et les visualisations associ&eacute;es.
+        </p>
+
+        <p>
+          Ces fonctions sonores prolongent l'analyse chromatique: les colonnes de pitch, les &eacute;clairs de notes,
+          le ruban d'onde, le spectre FFT et l'aura d'entropie peuvent &ecirc;tre activ&eacute;s pour relier ce que
+          l'on voit &agrave; ce que l'on entend, sans remplacer la lecture visuelle du motif.
+        </p>
+
+        <h2>Architecture technique</h2>
+
+        <p>
+          Cellcosmos est construit comme une application statique: des sources Multilingual Programming alimentent
+          un module WebAssembly, tandis que JavaScript orchestre l'interface, le canvas, l'audio et la
+          s&eacute;rialisation
+          des configurations.
+        </p>
+
+        <div class="tech-stack">
+          <span class="tech-badge">Multilingual</span>
+          <span class="tech-badge">WebAssembly</span>
+          <span class="tech-badge">Canvas 2D</span>
+          <span class="tech-badge">Web Audio API</span>
+          <span class="tech-badge">JavaScript</span>
+        </div>
+
+        <h3>Composants</h3>
+
+        <ul>
+          <li>
+            <strong>src/automate_elementaire_wasm.ml:</strong> primitives WASM pour les r&egrave;gles, les codes de
+            rendu, la propagation, les mesures et les param&egrave;tres sonores.
+          </li>
+          <li>
+            <strong>src/automate_elementaire_canonique.ml:</strong> module complet avec lecture de configuration,
+            &eacute;volution de grille, couches, gradients, analyse et validation.
+          </li>
+          <li>
+            <strong>public/index.html:</strong> structure HTML et contr&ocirc;les interactifs.
+          </li>
+          <li>
+            <strong>public/ui.js:</strong> rendu canvas, &eacute;dition des points, Matter Lab, audio, galerie,
+            espace des r&egrave;gles, partage d'&eacute;tat et gestion d'&eacute;v&eacute;nements.
+          </li>
+          <li>
+            <strong>public/style.css:</strong> th&egrave;me clair/sombre, variables CSS et design r&eacute;actif.
+          </li>
+        </ul>
+
+        <h3>Pipeline d'ex&eacute;cution</h3>
+
+        <p>
+          Pour chaque rendu d'automate cellulaire:
+        </p>
+
+        <ol>
+          <li>La r&egrave;gle active est traduite en table de huit sorties.</li>
+          <li>Les graines initiales, points, champs et options de propagation produisent une ou plusieurs couches.</li>
+          <li>Les gradients globaux ou par point colorent les lignes, les origines et les phases de croissance.</li>
+          <li>Le canvas compose cellules, textures, modes de fusion, guides et couches analytiques.</li>
+          <li>Les m&eacute;triques et la sonification optionnelle sont mises &agrave; jour depuis l'&eacute;tat courant.
+          </li>
+        </ol>
+
+        <h2>R&eacute;f&eacute;rences et inspiration</h2>
+
+        <p>
+          Cellcosmos s'appuie sur les travaux et domaines suivants:
+        </p>
+
+        <ul>
+          <li>
+            <strong>Stephen Wolfram</strong> - automates cellulaires &eacute;l&eacute;mentaires et classification des
+            comportements dynamiques.
+          </li>
+          <li>
+            <strong>John Horton Conway</strong> - Jeu de la Vie, automate cellulaire qui a popularis&eacute;
+            l'exploration de comportements &eacute;mergents.
+          </li>
+          <li>
+            <strong>Visualisation scientifique</strong> - usage de la couleur, des textures et des mesures pour
+            rendre des syst&egrave;mes abstraits inspectables.
+          </li>
+          <li>
+            <strong>Programmation multilingue</strong> - sources scientifiques lisibles en syntaxe fran&ccedil;aise,
+            compil&eacute;es vers WebAssembly pour le navigateur.
+          </li>
+        </ul>
+
+        <h2>Perspectives futures</h2>
+
+        <ul>
+          <li>Comparer plus finement les familles chromatiques de r&egrave;gles proches.</li>
+          <li>Ajouter des annotations visuelles pour les collisions, fronts, attracteurs et zones stables.</li>
+          <li>Enrichir les exports d'images avec m&eacute;tadonn&eacute;es de r&egrave;gle, palette et graine.</li>
+          <li>Cr&eacute;er des presets visuels document&eacute;s par couleur, texture, morphose et propagation.</li>
+          <li>&Eacute;tendre Matter Lab avec davantage de champs et de contraintes spatiales.</li>
+        </ul>
+
+        <h2>Cr&eacute;dits</h2>
+
+        <p>
+          Cellcosmos est un projet de recherche et de d&eacute;monstration autour des syst&egrave;mes complexes,
+          des automates cellulaires, de la visualisation chromatique et de la compilation Multilingual Programming
+          vers WebAssembly.
+        </p>
+
+        <p
+          style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid var(--border-color); color: var(--text-tertiary); font-size: 0.9rem;">
+          Pour en savoir plus, visitez le <a href="https://github.com/multilingualprogramming/cellcosmos"
+            target="_blank" rel="noopener noreferrer">d&eacute;p&ocirc;t GitHub</a>
+          ou explorez les <a href="https://en.wikipedia.org/wiki/Elementary_cellular_automaton" target="_blank"
+            rel="noopener noreferrer">automates cellulaires &eacute;l&eacute;mentaires sur Wikipedia</a>.
+        </p>
+      </article>
+    </main>
+
+    <script src="ui.js"></script>
+    <script>
+      initTheme();
+      initBackground();
+    </script>
+  </body>
+
+</html>
