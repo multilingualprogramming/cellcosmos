@@ -84,6 +84,7 @@
                   <span class="guide-line guide-horizontal"></span>
                   <span class="guide-line guide-vertical"></span>
                   <span class="guide-center"></span>
+                  <span class="sequencer-playhead" id="sequencer-playhead"></span>
                 </div>
               </div>
             </div>
@@ -166,6 +167,7 @@
               <button type="button" class="sidebar-tab-btn" data-tab="rendu">Rendu</button>
               <button type="button" class="sidebar-tab-btn" data-tab="avance">Avancé</button>
               <button type="button" class="sidebar-tab-btn" data-tab="analytique">Analytique</button>
+              <button type="button" class="sidebar-tab-btn" data-tab="son">Son</button>
               <button type="button" class="sidebar-tab-btn" data-tab="espaces">Espaces</button>
               <button type="button" class="sidebar-tab-btn" data-tab="espace">Espace</button>
               <button type="button" class="sidebar-tab-btn" data-tab="genetique">Génétique</button>
@@ -430,6 +432,115 @@
                       <option value="absorption">Absorption</option>
                       <option value="hybridation">Hybridation</option>
                     </select>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Son Tab -->
+              <div class="sidebar-tab-panel" data-tab="son">
+                <div class="ctrl-section">
+                  <p class="ctrl-title">Transport</p>
+                  <div class="pill-group">
+                    <button type="button" id="son-toggle-drone" class="ghost-btn" aria-pressed="false">Son continu</button>
+                    <button type="button" id="son-toggle-sequencer" class="ghost-btn" aria-pressed="false">Sequenceur</button>
+                    <button type="button" id="son-reset-row" class="ghost-btn">Rang 1</button>
+                  </div>
+                  <div id="son-status" class="son-status muted">Drone inactif · Sequenceur inactif</div>
+                </div>
+
+                <div class="ctrl-section">
+                  <p class="ctrl-title">Mode musical</p>
+                  <div class="ctrl-row">
+                    <label for="son-mode" class="muted">Scene</label>
+                    <select id="son-mode">
+                      <option value="auto">Auto depuis classe</option>
+                      <option value="drone">Drone cellulaire</option>
+                      <option value="scanline">Scanline</option>
+                      <option value="poly">Polyphonie</option>
+                      <option value="percussion">Collision percussion</option>
+                    </select>
+                  </div>
+                  <div class="ctrl-row">
+                    <label for="son-scale" class="muted">Gamme</label>
+                    <select id="son-scale">
+                      <option value="auto">Auto depuis classe</option>
+                      <option value="0">Pentatonique</option>
+                      <option value="1">Diatonique</option>
+                      <option value="2">Chromatique</option>
+                      <option value="3">Ton entier</option>
+                    </select>
+                  </div>
+                  <div class="ctrl-row">
+                    <label for="son-root" class="muted">Racine MIDI</label>
+                    <input type="number" id="son-root" min="24" max="84" value="60" />
+                  </div>
+                </div>
+
+                <div class="ctrl-section">
+                  <p class="ctrl-title">Tempo et scanline</p>
+                  <div class="ctrl-row">
+                    <label for="son-tempo-mode" class="muted">Tempo</label>
+                    <select id="son-tempo-mode">
+                      <option value="auto">Auto transitions</option>
+                      <option value="manual">Manuel</option>
+                    </select>
+                  </div>
+                  <div class="ctrl-row">
+                    <label for="son-bpm" class="muted">BPM</label>
+                    <input type="range" id="son-bpm" min="40" max="240" value="112" />
+                    <span id="son-bpm-display" class="value-badge">112</span>
+                  </div>
+                  <div class="ctrl-row">
+                    <label for="son-direction" class="muted">Lecture</label>
+                    <select id="son-direction">
+                      <option value="down">Bas</option>
+                      <option value="up">Haut</option>
+                      <option value="pingpong">Ping-pong</option>
+                    </select>
+                  </div>
+                  <div class="ctrl-row">
+                    <label for="son-note-duration" class="muted">Duree</label>
+                    <input type="range" id="son-note-duration" min="40" max="420" value="150" />
+                    <span id="son-note-duration-display" class="value-badge">150 ms</span>
+                  </div>
+                </div>
+
+                <div class="ctrl-section">
+                  <p class="ctrl-title">Timbre</p>
+                  <div class="ctrl-row">
+                    <label for="son-volume" class="muted">Volume</label>
+                    <input type="range" id="son-volume" min="0" max="1" step="0.01" value="0.24" />
+                    <span id="son-volume-display" class="value-badge">24%</span>
+                  </div>
+                  <div class="ctrl-row">
+                    <label for="son-brightness" class="muted">Brillance</label>
+                    <input type="range" id="son-brightness" min="0.25" max="2" step="0.05" value="1" />
+                    <span id="son-brightness-display" class="value-badge">1.00x</span>
+                  </div>
+                  <div class="ctrl-row">
+                    <label for="son-reverb" class="muted">Espace</label>
+                    <input type="range" id="son-reverb" min="0" max="1" step="0.01" value="0.25" />
+                    <span id="son-reverb-display" class="value-badge">25%</span>
+                  </div>
+                  <div class="ctrl-row">
+                    <label for="son-stereo" class="muted">Stereo</label>
+                    <input type="range" id="son-stereo" min="0" max="1" step="0.01" value="0.8" />
+                    <span id="son-stereo-display" class="value-badge">80%</span>
+                  </div>
+                  <div class="ctrl-row">
+                    <label for="son-collision-accent" class="muted">Collisions</label>
+                    <input type="range" id="son-collision-accent" min="0" max="1" step="0.01" value="0.5" />
+                    <span id="son-collision-accent-display" class="value-badge">50%</span>
+                  </div>
+                </div>
+
+                <div class="ctrl-section">
+                  <p class="ctrl-title">Piano roll cellulaire</p>
+                  <canvas id="son-pianoroll" width="320" height="150" aria-label="Piano roll du sequenceur"></canvas>
+                  <div class="son-readout">
+                    <span><strong id="son-readout-bpm">—</strong> BPM</span>
+                    <span><strong id="son-readout-scale">—</strong></span>
+                    <span>Rang <strong id="son-readout-row">—</strong></span>
                   </div>
                 </div>
               </div>

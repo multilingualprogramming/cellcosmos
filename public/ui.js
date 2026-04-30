@@ -110,6 +110,18 @@ const DEFAULTS = {
   viewportPanX: 0,
   viewportPanY: 0,
   panToolActive: false,
+  sonMode: "auto",
+  sonScale: "auto",
+  sonRoot: 60,
+  sonTempoMode: "auto",
+  sonManualBpm: 112,
+  sonDirection: "down",
+  sonNoteDuration: 150,
+  sonVolume: 0.24,
+  sonBrightness: 1,
+  sonReverb: 0.25,
+  sonStereoWidth: 0.8,
+  sonCollisionAccent: 0.5,
 };
 
 const DEFAULT_MATTER_LAB_RULE = 30;
@@ -841,6 +853,20 @@ function validateWasmExports(exports) {
       }
     }
 
+    if (typeof exports.tempo_musical === "function") {
+      const tempo = Number(exports.tempo_musical(500, 400, 1));
+      if (!Number.isFinite(tempo) || tempo < 40 || tempo > 240) {
+        return false;
+      }
+    }
+
+    if (typeof exports.degre_note_cellule === "function") {
+      const degree = Number(exports.degre_note_cellule(8, 16, 7, 0));
+      if (!Number.isFinite(degree) || degree < 0 || degree > 6) {
+        return false;
+      }
+    }
+
     if (typeof exports.octave_depuis_course === "function") {
       const octave = Number(exports.octave_depuis_course(10, 100));
       if (!Number.isFinite(octave) || octave < 3 || octave > 5) {
@@ -1324,6 +1350,61 @@ function gainHarmoniqueDepuisSymetrie(symetrieSur1000) {
     catch (e) { disableWasmRuntime(e); }
   }
   return 1000 - symetrieSur1000;
+}
+
+function modeSonoreDepuisClasse(cls) {
+  if (wasmAvailable && wasm && typeof wasm.mode_sonore_depuis_classe === "function") {
+    try { return Number(wasm.mode_sonore_depuis_classe(cls)); }
+    catch (e) { disableWasmRuntime(e); }
+  }
+  if (cls === 1) return 0;
+  if (cls === 3) return 3;
+  if (cls === 4) return 2;
+  return 1;
+}
+
+function tempoMusical(transitionsSur1000, densiteSur1000, mode) {
+  if (wasmAvailable && wasm && typeof wasm.tempo_musical === "function") {
+    try { return Number(wasm.tempo_musical(transitionsSur1000, densiteSur1000, mode)); }
+    catch (e) { disableWasmRuntime(e); }
+  }
+  return clamp(54 + Math.floor(transitionsSur1000 * 126 / 1000), 40, 240);
+}
+
+function degreNoteCellule(colonne, largeur, longueurGamme, mapping) {
+  if (wasmAvailable && wasm && typeof wasm.degre_note_cellule === "function") {
+    try { return Number(wasm.degre_note_cellule(colonne, largeur, longueurGamme, mapping)); }
+    catch (e) { disableWasmRuntime(e); }
+  }
+  if (largeur <= 0 || longueurGamme <= 0) return 0;
+  return Math.floor(colonne * longueurGamme / largeur) % longueurGamme;
+}
+
+function panCellule(colonne, largeur, centreSur1000, largeurStereoSur1000) {
+  if (wasmAvailable && wasm && typeof wasm.pan_cellule === "function") {
+    try { return Number(wasm.pan_cellule(colonne, largeur, centreSur1000, largeurStereoSur1000)); }
+    catch (e) { disableWasmRuntime(e); }
+  }
+  if (largeur <= 1) return 0;
+  return (((colonne * 2000) / (largeur - 1)) - 1000) * (largeurStereoSur1000 / 1000);
+}
+
+function octaveCellule(ligne, origine, hauteur, mode) {
+  if (wasmAvailable && wasm && typeof wasm.octave_cellule === "function") {
+    try { return Number(wasm.octave_cellule(ligne, origine, hauteur, mode)); }
+    catch (e) { disableWasmRuntime(e); }
+  }
+  if (hauteur <= 1) return 4;
+  const ratio = Math.abs(ligne - origine) / hauteur;
+  return ratio > 0.66 ? 5 : ratio > 0.33 ? 4 : 3;
+}
+
+function enveloppeDepuisDensite(densiteSur1000) {
+  if (wasmAvailable && wasm && typeof wasm.enveloppe_depuis_densite === "function") {
+    try { return Number(wasm.enveloppe_depuis_densite(densiteSur1000)); }
+    catch (e) { disableWasmRuntime(e); }
+  }
+  return densiteSur1000 > 700 ? 80 : densiteSur1000 > 400 ? 150 : 260;
 }
 
 function obtenirOrigineYParDefaut(rows) {
@@ -2536,6 +2617,7 @@ function renderMainView() {
     if (sequenceur.active && dernieresCouches) {
       sequenceur.refresh(dernieresCouches, state.rule);
     }
+    drawPianoRoll(dernieresCouches);
   }
   renderMatterLabView();
 }
@@ -4091,13 +4173,16 @@ function paramsMusicauxDepuisMotif(stats, ruleNumber) {
     ? wasm.classe_wolfram(ruleNumber)
     : fallbackDomain.wolframClass(ruleNumber);
 
-  const bpm = wasmAvailable && wasm && wasm.tempo_depuis_vitesse
-    ? wasm.tempo_depuis_vitesse(vitesse1000)
-    : 60 + Math.floor(vitesse1000 * 120 / 1000);
+  const modeAuto = modeSonoreDepuisClasse(cls);
+  const modeOverrides = { drone: 0, scanline: 1, poly: 2, percussion: 3 };
+  const mode = state.sonMode === "auto" ? modeAuto : (modeOverrides[state.sonMode] ?? modeAuto);
+  const bpmAuto = tempoMusical(vitesse1000, densite1000, mode);
+  const bpm = state.sonTempoMode === "manual" ? state.sonManualBpm : bpmAuto;
 
-  const gammeCode = wasmAvailable && wasm && wasm.gamme_depuis_classe
+  const gammeAuto = wasmAvailable && wasm && wasm.gamme_depuis_classe
     ? wasm.gamme_depuis_classe(cls)
     : [0, 1, 2, 3][cls - 1] ?? 1;
+  const gammeCode = state.sonScale === "auto" ? gammeAuto : clamp(Number.parseInt(state.sonScale, 10) || 0, 0, 3);
 
   const reverbAmount = wasmAvailable && wasm && wasm.reverb_depuis_symetrie
     ? wasm.reverb_depuis_symetrie(symetrie1000) / 1000
@@ -4112,11 +4197,10 @@ function paramsMusicauxDepuisMotif(stats, ruleNumber) {
     ? wasm.octave_depuis_course(stats.courseMax, stats.colonnes)
     : (stats.courseMax / stats.colonnes > 0.6 ? 5 : stats.courseMax / stats.colonnes > 0.3 ? 4 : 3);
 
-  const dureeNote = wasmAvailable && wasm && wasm.duree_note_depuis_densite
-    ? wasm.duree_note_depuis_densite(densite1000)
-    : (stats.densite > 0.7 ? 80 : stats.densite > 0.4 ? 150 : 250);
+  const dureeAuto = enveloppeDepuisDensite(densite1000);
+  const dureeNote = state.sonNoteDuration || dureeAuto;
 
-  return { bpm, gammeCode, reverbAmount, pan, octave, dureeNote };
+  return { bpm, gammeCode, reverbAmount: reverbAmount * state.sonReverb, pan, octave, dureeNote, mode, centre1000, densite1000 };
 }
 
 const GAMMES = {
@@ -4143,13 +4227,14 @@ const audioEngine = {
   master: null,
   delay: null,
   feedback: null,
+  osc2Gain: null,
   active: false,
 
   init() {
     if (this.ctx) return;
     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
     this.master = this.ctx.createGain();
-    this.master.gain.value = 0.18;
+    this.master.gain.value = state.sonVolume;
     this.master.connect(this.ctx.destination);
 
     this.gain = this.ctx.createGain();
@@ -4208,10 +4293,10 @@ const audioEngine = {
       : fallbackDomain.desaccordSecondaire(state.rule);
 
     this.osc2.detune.value = detune;
-    const gain2 = this.ctx.createGain();
-    gain2.gain.value = 0.3;
-    this.osc2.connect(gain2);
-    gain2.connect(this.filter);
+    this.osc2Gain = this.ctx.createGain();
+    this.osc2Gain.gain.value = 0.3;
+    this.osc2.connect(this.osc2Gain);
+    this.osc2Gain.connect(this.filter);
 
     this.osc.start();
     this.osc2.start();
@@ -4222,8 +4307,10 @@ const audioEngine = {
     if (this.ctx.state === "suspended") {
       this.ctx.resume();
     }
+    if (this.master) this.master.gain.value = state.sonVolume;
     this.createOscillators();
     this.active = true;
+    updateSonTransportUI();
   },
 
   stop() {
@@ -4231,6 +4318,7 @@ const audioEngine = {
     if (this.osc2) this.osc2.stop();
     if (this.ctx) this.ctx.suspend();
     this.active = false;
+    updateSonTransportUI();
   },
 
   update(ruleNumber, wolframCls, density, gridStats) {
@@ -4247,8 +4335,11 @@ const audioEngine = {
       this.osc2.frequency.setTargetAtTime(baseFreq * 1.5, this.ctx.currentTime, 0.05);
     }
     if (this.filter) {
-      const cutoff = 200 + density * 3000;
+      const cutoff = (200 + density * 3000) * state.sonBrightness;
       this.filter.frequency.setTargetAtTime(cutoff, this.ctx.currentTime, 0.1);
+    }
+    if (this.master) {
+      this.master.gain.setTargetAtTime(state.sonVolume, this.ctx.currentTime, 0.05);
     }
 
     if (gridStats) {
@@ -4265,10 +4356,11 @@ const audioEngine = {
       }
 
       const gainHarmo = gainHarmoniqueDepuisSymetrie(symetrieSur1000) / 1000 * 0.5;
-      if (this.osc2 && this.osc2.gain) {
-        this.osc2.gain.setTargetAtTime(gainHarmo, this.ctx.currentTime, 0.2);
+      if (this.osc2Gain) {
+        this.osc2Gain.gain.setTargetAtTime(gainHarmo, this.ctx.currentTime, 0.2);
       }
     }
+    updateSonReadout();
   },
 };
 
@@ -4278,6 +4370,7 @@ const sequenceur = {
   timer: null,
   active: false,
   rowIndex: 0,
+  directionStep: 1,
   params: null,
   grille: null,
 
@@ -4285,18 +4378,18 @@ const sequenceur = {
     if (this.ctx) return;
     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
     this.master = this.ctx.createGain();
-    this.master.gain.value = 0.25;
+    this.master.gain.value = state.sonVolume;
     this.master.connect(this.ctx.destination);
   },
 
-  jouerNote(freq, dureeMs, pan) {
+  jouerNote(freq, dureeMs, pan, velocity = 0.3) {
     const t = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
     const env = this.ctx.createGain();
     const panner = this.ctx.createStereoPanner();
     osc.type = "sine";
     osc.frequency.value = freq;
-    env.gain.setValueAtTime(0.3, t);
+    env.gain.setValueAtTime(clamp(velocity, 0.05, 0.9), t);
     env.gain.exponentialRampToValueAtTime(0.001, t + dureeMs / 1000);
     panner.pan.value = Math.max(-1, Math.min(1, pan));
     osc.connect(env);
@@ -4310,16 +4403,20 @@ const sequenceur = {
     if (!row || !params) return;
     const gamme = GAMMES[params.gammeCode] || GAMMES[1];
     const cols = row.length;
-    const noteBase = (params.octave - 4) * 12 + BASE_MIDI;
+    const noteBase = (params.octave - 4) * 12 + state.sonRoot;
+    const liveCount = row.reduce((total, cell) => total + (cell === 1 ? 1 : 0), 0);
+    const densityLocal = cols > 0 ? Math.round((liveCount / cols) * 1000) : 0;
+    const currentRow = this.rowIndex;
 
     row.forEach((cell, col) => {
       if (cell !== 1) return;
-      const degre = wasmAvailable && wasm && wasm.note_depuis_colonne
-        ? wasm.note_depuis_colonne(col, cols, gamme.length)
-        : Math.floor(col * gamme.length / cols) % gamme.length;
+      const degre = degreNoteCellule(col, cols, gamme.length, params.mode);
       const semitones = gamme[degre];
-      const freq = midiToHz(noteBase + semitones);
-      this.jouerNote(freq, params.dureeNote, params.pan);
+      const octave = octaveCellule(currentRow, Math.floor((this.grille?.length || 1) / 2), this.grille?.length || 1, params.mode);
+      const freq = midiToHz(noteBase + semitones + ((octave - 4) * 12));
+      const pan = panCellule(col, cols, params.centre1000 || 500, Math.round(state.sonStereoWidth * 1000)) / 1000;
+      const velocity = (32 + densityLocal * 76 / 1000) / 127;
+      this.jouerNote(freq, params.dureeNote, pan, velocity);
     });
   },
 
@@ -4327,11 +4424,23 @@ const sequenceur = {
     if (!this.active || !this.grille || !this.params) return;
     const lignes = this.grille.length;
     if (lignes === 0) return;
-    this.rowIndex = this.rowIndex % lignes;
+    if (state.sonDirection === "up" && this.rowIndex === 0) this.rowIndex = lignes - 1;
+    this.rowIndex = clamp(this.rowIndex, 0, lignes - 1);
     this.jouerRang(this.grille[this.rowIndex], this.params);
     const seqRow = document.getElementById("seq-row");
     if (seqRow) seqRow.textContent = this.rowIndex + 1;
-    this.rowIndex++;
+    updateSequencerPlayhead(lignes);
+    updateSonReadout();
+    drawPianoRoll();
+    if (state.sonDirection === "up") {
+      this.rowIndex = this.rowIndex <= 0 ? lignes - 1 : this.rowIndex - 1;
+    } else if (state.sonDirection === "pingpong") {
+      if (this.rowIndex >= lignes - 1) this.directionStep = -1;
+      if (this.rowIndex <= 0) this.directionStep = 1;
+      this.rowIndex += this.directionStep;
+    } else {
+      this.rowIndex = (this.rowIndex + 1) % lignes;
+    }
   },
 
   start(couches, ruleNumber) {
@@ -4341,17 +4450,23 @@ const sequenceur = {
     if (!stats) return;
     this.params = paramsMusicauxDepuisMotif(stats, ruleNumber);
     this.grille = couches.flatMap(c => c.automate);
-    this.rowIndex = 0;
+    this.rowIndex = state.sonDirection === "up" ? this.grille.length - 1 : 0;
+    this.directionStep = 1;
     this.active = true;
     this.updateStatusUI();
     const intervalMs = Math.round(60000 / this.params.bpm);
     this.timer = setInterval(() => this.tick(), intervalMs);
+    updateSequencerPlayhead(this.grille.length);
+    drawPianoRoll(couches);
+    updateSonTransportUI();
   },
 
   stop() {
     this.active = false;
     if (this.timer) { clearInterval(this.timer); this.timer = null; }
     if (this.ctx) this.ctx.suspend();
+    updateSequencerPlayhead(0);
+    updateSonTransportUI();
   },
 
   refresh(couches, ruleNumber) {
@@ -4364,6 +4479,8 @@ const sequenceur = {
     if (this.timer) clearInterval(this.timer);
     this.timer = setInterval(() => this.tick(), intervalMs);
     this.updateStatusUI();
+    drawPianoRoll(couches);
+    updateSonTransportUI();
   },
 
   updateStatusUI() {
@@ -4373,8 +4490,185 @@ const sequenceur = {
     if (status) status.hidden = false;
     if (tempoEl && this.params) tempoEl.textContent = this.params.bpm;
     if (gammeEl && this.params) gammeEl.textContent = GAMME_NOMS[this.params.gammeCode] ?? "—";
+    updateSonReadout();
   },
 };
+
+function updateSequencerPlayhead(totalRows) {
+  const playhead = document.getElementById("sequencer-playhead");
+  if (!playhead) return;
+  if (!sequenceur.active || !totalRows) {
+    playhead.classList.remove("active");
+    return;
+  }
+  const row = clamp(sequenceur.rowIndex, 0, Math.max(0, totalRows - 1));
+  const y = totalRows > 1 ? (row / (totalRows - 1)) * 100 : 0;
+  playhead.style.top = `${y}%`;
+  playhead.classList.add("active");
+}
+
+function updateSonTransportUI() {
+  const droneBtn = document.getElementById("son-toggle-drone");
+  const seqBtn = document.getElementById("son-toggle-sequencer");
+  const bottomDrone = document.getElementById("btn-sound");
+  const bottomSeq = document.getElementById("btn-sequencer");
+  const status = document.getElementById("son-status");
+  if (droneBtn) {
+    droneBtn.setAttribute("aria-pressed", String(audioEngine.active));
+    droneBtn.textContent = audioEngine.active ? "Stop son" : "Son continu";
+  }
+  if (seqBtn) {
+    seqBtn.setAttribute("aria-pressed", String(sequenceur.active));
+    seqBtn.textContent = sequenceur.active ? "Stop sequenceur" : "Sequenceur";
+  }
+  if (bottomDrone) bottomDrone.textContent = audioEngine.active ? "⏹ Son" : "▶ Son";
+  if (bottomSeq) bottomSeq.textContent = sequenceur.active ? "⏹ Séquenceur" : "▶ Séquenceur";
+  if (status) {
+    status.textContent = `${audioEngine.active ? "Drone actif" : "Drone inactif"} · ${sequenceur.active ? "Sequenceur actif" : "Sequenceur inactif"}`;
+  }
+}
+
+function updateSonReadout() {
+  const bpm = sequenceur.params?.bpm ?? state.sonManualBpm;
+  const gammeCode = sequenceur.params?.gammeCode;
+  const row = sequenceur.grille ? clamp(sequenceur.rowIndex + 1, 1, sequenceur.grille.length) : "—";
+  const updates = [
+    ["son-readout-bpm", bpm],
+    ["son-readout-scale", gammeCode == null ? "—" : (GAMME_NOMS[gammeCode] ?? "—")],
+    ["son-readout-row", row],
+  ];
+  updates.forEach(([id, value]) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = String(value);
+  });
+}
+
+function drawPianoRoll(couches = dernieresCouches) {
+  const canvas = document.getElementById("son-pianoroll");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--canvas-surface-bg").trim() || "#04080c";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  if (!couches || couches.length === 0) return;
+  const grid = couches.flatMap(couche => couche.automate);
+  if (grid.length === 0 || grid[0].length === 0) return;
+  const rows = grid.length;
+  const cols = grid[0].length;
+  const lanes = 12;
+  ctx.strokeStyle = "rgba(139, 210, 255, 0.13)";
+  ctx.lineWidth = 1;
+  for (let lane = 1; lane < lanes; lane++) {
+    const y = Math.round((lane / lanes) * canvas.height);
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(canvas.width, y);
+    ctx.stroke();
+  }
+  const rowStep = Math.max(1, Math.ceil(rows / canvas.width));
+  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--accent-2").trim() || "#66e3ff";
+  for (let r = 0; r < rows; r += rowStep) {
+    const x = Math.floor((r / Math.max(1, rows - 1)) * canvas.width);
+    const row = grid[r];
+    for (let c = 0; c < cols; c += 1) {
+      if (row[c] !== 1) continue;
+      const degree = degreNoteCellule(c, cols, lanes, sequenceur.params?.mode ?? 1);
+      const y = canvas.height - Math.floor(((degree + 1) / lanes) * canvas.height);
+      ctx.globalAlpha = 0.28 + (c / cols) * 0.38;
+      ctx.fillRect(x, y, Math.max(1, Math.ceil(canvas.width / rows)), Math.max(2, Math.floor(canvas.height / lanes) - 1));
+    }
+  }
+  ctx.globalAlpha = 1;
+  if (sequenceur.active && sequenceur.grille) {
+    const x = Math.floor((sequenceur.rowIndex / Math.max(1, sequenceur.grille.length - 1)) * canvas.width);
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--accent-3").trim() || "#ffd166";
+    ctx.fillRect(x, 0, 2, canvas.height);
+  }
+}
+
+function bindSonControls() {
+  const bindSelect = (id, key, onChange = null) => {
+    const input = document.getElementById(id);
+    if (!input) return;
+    input.value = String(state[key]);
+    input.addEventListener("change", (event) => {
+      state[key] = event.target.value;
+      if (onChange) onChange();
+      scheduleRender();
+    });
+  };
+  const bindNumber = (id, key, min, max, onChange = null) => {
+    const input = document.getElementById(id);
+    if (!input) return;
+    input.value = String(state[key]);
+    input.addEventListener("change", (event) => {
+      state[key] = clamp(Number.parseInt(event.target.value, 10) || state[key], min, max);
+      input.value = String(state[key]);
+      if (onChange) onChange();
+      scheduleRender();
+    });
+  };
+  const bindRange = (id, displayId, key, parser, formatter, onChange = null) => {
+    const input = document.getElementById(id);
+    const display = document.getElementById(displayId);
+    if (!input) return;
+    input.value = String(state[key]);
+    if (display) display.textContent = formatter(state[key]);
+    input.addEventListener("input", (event) => {
+      state[key] = parser(event.target.value);
+      if (display) display.textContent = formatter(state[key]);
+      if (onChange) onChange();
+      if (sequenceur.active && dernieresCouches) sequenceur.refresh(dernieresCouches, state.rule);
+      if (audioEngine.active) scheduleRender();
+    });
+  };
+
+  bindSelect("son-mode", "sonMode", updateSonTransportUI);
+  bindSelect("son-scale", "sonScale", () => {
+    if (sequenceur.active && dernieresCouches) sequenceur.refresh(dernieresCouches, state.rule);
+  });
+  bindSelect("son-tempo-mode", "sonTempoMode", () => {
+    if (sequenceur.active && dernieresCouches) sequenceur.refresh(dernieresCouches, state.rule);
+  });
+  bindSelect("son-direction", "sonDirection");
+  bindNumber("son-root", "sonRoot", 24, 84, () => {
+    if (sequenceur.active && dernieresCouches) sequenceur.refresh(dernieresCouches, state.rule);
+  });
+  bindRange("son-bpm", "son-bpm-display", "sonManualBpm", (value) => clamp(Number.parseInt(value, 10) || 112, 40, 240), (value) => String(value));
+  bindRange("son-note-duration", "son-note-duration-display", "sonNoteDuration", (value) => clamp(Number.parseInt(value, 10) || 150, 40, 420), (value) => `${value} ms`);
+  bindRange("son-volume", "son-volume-display", "sonVolume", (value) => clamp(Number.parseFloat(value) || 0, 0, 1), (value) => `${Math.round(value * 100)}%`, () => {
+    if (audioEngine.master) audioEngine.master.gain.value = state.sonVolume;
+    if (sequenceur.master) sequenceur.master.gain.value = state.sonVolume;
+  });
+  bindRange("son-brightness", "son-brightness-display", "sonBrightness", (value) => clamp(Number.parseFloat(value) || 1, 0.25, 2), (value) => `${value.toFixed(2)}x`);
+  bindRange("son-reverb", "son-reverb-display", "sonReverb", (value) => clamp(Number.parseFloat(value) || 0, 0, 1), (value) => `${Math.round(value * 100)}%`);
+  bindRange("son-stereo", "son-stereo-display", "sonStereoWidth", (value) => clamp(Number.parseFloat(value) || 0, 0, 1), (value) => `${Math.round(value * 100)}%`);
+  bindRange("son-collision-accent", "son-collision-accent-display", "sonCollisionAccent", (value) => clamp(Number.parseFloat(value) || 0, 0, 1), (value) => `${Math.round(value * 100)}%`);
+
+  document.getElementById("son-toggle-drone")?.addEventListener("click", () => {
+    if (audioEngine.active) audioEngine.stop();
+    else audioEngine.start();
+  });
+  document.getElementById("son-toggle-sequencer")?.addEventListener("click", () => {
+    if (sequenceur.active) {
+      sequenceur.stop();
+      const status = document.getElementById("seq-status");
+      if (status) status.hidden = true;
+    } else {
+      const dims = obtenirDimensionsRendu();
+      const couches = dernieresCouches || construireCouchesAutomate(state.rule, dims.rows, dims.cols);
+      sequenceur.start(couches, state.rule);
+    }
+  });
+  document.getElementById("son-reset-row")?.addEventListener("click", () => {
+    sequenceur.rowIndex = state.sonDirection === "up" && sequenceur.grille ? sequenceur.grille.length - 1 : 0;
+    updateSequencerPlayhead(sequenceur.grille?.length || 0);
+    updateSonReadout();
+    drawPianoRoll();
+  });
+  updateSonTransportUI();
+  updateSonReadout();
+}
 
 function renderChoreographieKeyframes() {
   const container = document.getElementById("choreo-keyframes");
@@ -4788,13 +5082,10 @@ function bindControls() {
   });
 
   document.getElementById("btn-sound").addEventListener("click", () => {
-    const btn = document.getElementById("btn-sound");
     if (audioEngine.active) {
       audioEngine.stop();
-      btn.textContent = "▶ Son";
     } else {
       audioEngine.start();
-      btn.textContent = "⏹ Son";
     }
   });
 
@@ -4803,13 +5094,12 @@ function bindControls() {
     btnSeq.addEventListener("click", () => {
       if (sequenceur.active) {
         sequenceur.stop();
-        btnSeq.textContent = "▶ Séquenceur";
         const status = document.getElementById("seq-status");
         if (status) status.hidden = true;
       } else {
-        const couches = dernieresCouches || construireCouchesAutomate(state.rule, ...obtenirDimensionsRendu());
+        const dims = obtenirDimensionsRendu();
+        const couches = dernieresCouches || construireCouchesAutomate(state.rule, dims.rows, dims.cols);
         sequenceur.start(couches, state.rule);
-        btnSeq.textContent = "⏹ Séquenceur";
       }
     });
   }
@@ -5582,6 +5872,7 @@ async function init() {
   initSidebarTabs();
   initMatterLabTabs();
   bindControls();
+  bindSonControls();
   bindViewportControls();
   bindCanvasEditor();
   bindMatterLabCanvas();

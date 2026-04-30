@@ -830,6 +830,96 @@ déf reverb_depuis_symetrie(symetrie_sur_1000):
     retour symetrie_sur_1000
 
 
+déf mode_sonore_depuis_classe(classe_wolfram):
+    si classe_wolfram == 1:
+        retour 0
+    si classe_wolfram == 2:
+        retour 1
+    si classe_wolfram == 3:
+        retour 3
+    retour 2
+
+
+déf tempo_musical(transitions_sur_1000, densite_sur_1000, mode):
+    soit base = 54 + (transitions_sur_1000 * 126) // 1000
+    si mode == 0:
+        base = 48 + (densite_sur_1000 * 60) // 1000
+    sinonsi mode == 2:
+        base = base + 12
+    sinonsi mode == 3:
+        base = 72 + (transitions_sur_1000 * 156) // 1000
+    si base < 40:
+        retour 40
+    si base > 240:
+        retour 240
+    retour base
+
+
+déf degre_note_cellule(colonne, largeur, longueur_gamme, mapping):
+    si largeur <= 0 ou longueur_gamme <= 0:
+        retour 0
+    si mapping == 1:
+        soit centre = largeur // 2
+        soit distance = abs(colonne - centre)
+        retour ((distance * longueur_gamme * 2) // largeur) % longueur_gamme
+    si mapping == 2:
+        soit diviseur = largeur
+        si diviseur < 1:
+            diviseur = 1
+        retour ((colonne * colonne + colonne) // diviseur) % longueur_gamme
+    retour ((colonne * longueur_gamme) // largeur) % longueur_gamme
+
+
+déf velocite_cellule(densite_locale_sur_1000, collision_active):
+    soit valeur = 32 + (densite_locale_sur_1000 * 76) // 1000
+    si collision_active:
+        valeur = valeur + 19
+    si valeur > 127:
+        retour 127
+    retour valeur
+
+
+déf pan_cellule(colonne, largeur, centre_sur_1000, largeur_stereo_sur_1000):
+    si largeur <= 1:
+        retour 0
+    soit position = (colonne * 2000) // (largeur - 1) - 1000
+    soit centre = centre_sur_1000 - 500
+    retour ((position + centre) * largeur_stereo_sur_1000) // 1000
+
+
+déf octave_cellule(ligne, origine, hauteur, mode):
+    si hauteur <= 1:
+        retour 4
+    soit distance = abs(ligne - origine)
+    soit rapport = (distance * 1000) // hauteur
+    si mode == 0:
+        retour 3
+    si rapport > 660:
+        retour 5
+    si rapport > 330:
+        retour 4
+    retour 3
+
+
+déf enveloppe_depuis_densite(densite_sur_1000):
+    si densite_sur_1000 > 700:
+        retour 80
+    si densite_sur_1000 > 400:
+        retour 150
+    retour 260
+
+
+déf accent_collision(nombre_couches, mode):
+    si nombre_couches <= 1:
+        retour 0
+    soit accent = nombre_couches * 180
+    si mode == 3:
+        accent = accent + 220
+    si accent > 1000:
+        retour 1000
+    retour accent
+
+
 # ============================================================
 # Espace des règles : distance et navigation
 # ============================================================
@@ -1007,4 +1097,3 @@ déf structure_temporelle(grille, numero_regle, taille_section):
         params["debut_rang"] = i * taille_section
         structure.append(params)
     retour structure
-

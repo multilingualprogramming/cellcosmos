@@ -708,6 +708,22 @@ main {
   box-shadow: 0 0 0 3px rgba(255, 209, 102, 0.12);
 }
 
+.sequencer-playhead {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  display: none;
+  background: linear-gradient(90deg, transparent, var(--accent-3), var(--accent-2), transparent);
+  box-shadow: 0 0 16px rgba(255, 209, 102, 0.38);
+  transform: translateY(-1px);
+}
+
+.sequencer-playhead.active {
+  display: block;
+}
+
 .workspace-controls {
   display: flex;
   align-items: center;
@@ -1636,6 +1652,48 @@ input[type="text"] {
   color: var(--muted);
   border-top: 1px solid var(--border);
   background: var(--seq-status-bg);
+}
+
+.son-status {
+  margin-top: 10px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.78rem;
+}
+
+#son-pianoroll {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 32 / 15;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--canvas-surface-bg);
+  image-rendering: pixelated;
+}
+
+.son-readout {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.son-readout span {
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--control-bg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.son-readout strong {
+  color: var(--accent-3);
 }
 
 .microscope-panel {
