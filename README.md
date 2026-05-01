@@ -310,3 +310,6 @@ La validation des exports (dans `ui.js:validateWasmExports`) teste:
 - **Automates cellulaires**: [Wikipedia - Elementary CA](https://en.wikipedia.org/wiki/Elementary_cellular_automaton)
 - **Multilingual Programming**: [Dépôt principal](https://github.com/multilingualprogramming/multilingual)
 - **Web Audio API**: [MDN Documentation](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)
+
+## Architecture et Création
+- John Samuel
