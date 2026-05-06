@@ -222,7 +222,7 @@ pip install -r requirements-build.txt
 #### Build local
 
 ```bash
-python -m multilingualprogramming scripts/compile_wasm.multi
+python -m multilingualprogramming run scripts/compile_wasm.multi
 ```
 
 Depuis la racine du dépôt. Cela génère:
@@ -235,7 +235,7 @@ Depuis la racine du dépôt. Cela génère:
 
 ```powershell
 $env:MULTILINGUAL_DEV_PATH="..\multilingual"
-python -m multilingualprogramming scripts/compile_wasm.multi
+python -m multilingualprogramming run scripts/compile_wasm.multi
 ```
 
 ### Déploiement
