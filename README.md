@@ -165,7 +165,7 @@ Le projet démontre qu'un programme scientifique et visuel complexe peut être:
 
 Le projet distingue trois niveaux:
 
-#### 1. Source canonique (`src/automate_elementaire_canonique.ml`)
+#### 1. Source canonique (`src/automate_elementaire_canonique.multi`)
 
 Implémentation complète et bien documentée en multilingual:
 
@@ -176,7 +176,7 @@ Implémentation complète et bien documentée en multilingual:
 - Synthèse sonore et configuration musicale
 - Validation esthétique
 
-#### 2. Module WASM (`src/automate_elementaire_wasm.ml`)
+#### 2. Module WASM (`src/automate_elementaire_wasm.multi`)
 
 Sous-ensemble compilé en WebAssembly, exposant:
 
@@ -222,20 +222,20 @@ pip install -r requirements-build.txt
 #### Build local
 
 ```bash
-python -m multilingualprogramming scripts/compile_wasm.ml
+python -m multilingualprogramming scripts/compile_wasm.multi
 ```
 
 Depuis la racine du dépôt. Cela génère:
 
 - `public/cellcosmos.wasm` — binaire WebAssembly
 - `public/cellcosmos.wat` — texte WebAssembly (pour inspection)
-- `public/main.ml`, `public/automate_elementaire_*.ml` — copies des sources
+- `public/main.multi`, `public/automate_elementaire_*.multi` — copies des sources
 
 #### Développement avec une branche locale de `multilingual`
 
 ```powershell
 $env:MULTILINGUAL_DEV_PATH="..\multilingual"
-python -m multilingualprogramming scripts/compile_wasm.ml
+python -m multilingualprogramming scripts/compile_wasm.multi
 ```
 
 ### Déploiement

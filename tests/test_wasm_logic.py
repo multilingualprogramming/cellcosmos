@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 def _load_namespace():
-    source = Path("src/automate_elementaire_wasm.ml").read_text(encoding="utf-8")
+    source = Path("src/automate_elementaire_wasm.multi").read_text(encoding="utf-8")
     source = unicodedata.normalize("NFC", source)
     translated = (
         source.replace("déf", "def")

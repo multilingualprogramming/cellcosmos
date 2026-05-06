@@ -10,15 +10,15 @@ importer html
 déf trouver_racine():
     soit candidats = [Path.cwd().resolve(), Path.cwd().resolve().parent]
     pour candidat dans candidats:
-        si (candidat / "src" / "main.ml").exists() et (candidat / "scripts" / "compile_wasm.ml").exists():
+        si (candidat / "src" / "main.multi").exists() et (candidat / "scripts" / "compile_wasm.multi").exists():
             retour candidat
     lever RuntimeError("Impossible de trouver la racine du depot. Executez cette commande depuis la racine du projet.")
 
 
 soit RACINE = trouver_racine()
-soit SOURCE_ML = RACINE / "src" / "main.ml"
-soit MODULE_WASM_ML = RACINE / "src" / "automate_elementaire_wasm.ml"
-soit MODULE_CANONIQUE_ML = RACINE / "src" / "automate_elementaire_canonique.ml"
+soit SOURCE_ML = RACINE / "src" / "main.multi"
+soit MODULE_WASM_ML = RACINE / "src" / "automate_elementaire_wasm.multi"
+soit MODULE_CANONIQUE_ML = RACINE / "src" / "automate_elementaire_canonique.multi"
 soit DOSSIER_PUBLIC = RACINE / "public"
 soit SORTIE_WAT = DOSSIER_PUBLIC / "cellcosmos.wat"
 soit SORTIE_WASM = DOSSIER_PUBLIC / "cellcosmos.wasm"
@@ -264,9 +264,9 @@ déf main():
     SORTIE_WAT.write_text(texte_wat, encoding="utf-8")
     SORTIE_WASM.write_bytes(octets_wasm)
 
-    shutil.copy(SOURCE_ML, DOSSIER_PUBLIC / "main.ml")
-    shutil.copy(MODULE_WASM_ML, DOSSIER_PUBLIC / "automate_elementaire_wasm.ml")
-    shutil.copy(MODULE_CANONIQUE_ML, DOSSIER_PUBLIC / "automate_elementaire_canonique.ml")
+    shutil.copy(SOURCE_ML, DOSSIER_PUBLIC / "main.multi")
+    shutil.copy(MODULE_WASM_ML, DOSSIER_PUBLIC / "automate_elementaire_wasm.multi")
+    shutil.copy(MODULE_CANONIQUE_ML, DOSSIER_PUBLIC / "automate_elementaire_canonique.multi")
     ecrire_vignettes_galerie()
     ecrire_fragment_galerie()
     afficher(f"WAT ecrit: {SORTIE_WAT.relative_to(RACINE)}")
